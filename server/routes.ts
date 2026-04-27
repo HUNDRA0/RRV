@@ -1,0 +1,431 @@
+// HTTP routes. SQL columns are snake_case; the JSON we return is camelCase
+// (the conversion happens at the boundary so the rest of the API stays clean).
+//
+// Auth model: POST /api/admin/login takes the password, issues an opaque
+// session token (256 bits of randomness) with a 7-day expiry. Mutating
+// endpoints require Authorization: Bearer <token>; reads are anonymous.
+//
+// Photos live in the friend_photos table as BLOBs (one row per photo, ordered
+// by `position`). /photos/:id/:position streams the BLOB. The Friend DTO
+// returns both `photos: [{url, position}]` for the carousel and `photoUrl`
+// (= first photo's URL) as a convenience.
+
+import { randomBytes } from 'node:crypto';
+import { Router, type NextFunction, type Request, type Response } from 'express';
+import { exec, queryAll, queryOne } from './db';
+import { decodeDataUrl } from './lib/photos';
+import { buildMapsUrl, computePairs, type GeoFriend } from './lib/gmap';
+
+// ── DTO conversion ────────────────────────────────────────────────────
+
+interface FriendRow {
+  id: string;
+  name: string;
+  rank: number;
+  tier: 's' | 'a' | 'i';
+  street: string;
+  postcode: string;
+  city: string;
+  note: string;
+  bio: string;
+  current_move: string;
+  lat: number | null;
+  lon: number | null;
+  area: string | null;
+}
+
+interface FriendPhotoMetaRow {
+  friend_id: string;
+  position: number;
+  uploaded_at: string;
+}
+
+interface PredictionRow {
+  id: number;
+  guesser_name: string;
+  friend_id: string;
+  prediction_text: string;
+  marked_correct: 0 | 1;
+  created_at: string;
+}
+
+const SELECT_FRIEND_COLS =
+  `id, name, rank, tier, street, postcode, city, note, bio, current_move, lat, lon, area`;
+const SELECT_PREDICTION_COLS =
+  `id, guesser_name, friend_id, prediction_text, marked_correct, created_at`;
+
+function buildPhotoUrl(friendId: string, position: number, uploadedAt: string): string {
+  return `/photos/${encodeURIComponent(friendId)}/${position}?v=${encodeURIComponent(uploadedAt)}`;
+}
+
+function toFriendDto(row: FriendRow, photos: FriendPhotoMetaRow[]) {
+  const sorted = photos
+    .filter(p => p.friend_id === row.id)
+    .sort((a, b) => a.position - b.position);
+  const photoEntries = sorted.map(p => ({
+    position: p.position,
+    url: buildPhotoUrl(row.id, p.position, p.uploaded_at),
+  }));
+  return {
+    id: row.id,
+    name: row.name,
+    rank: row.rank,
+    tier: row.tier,
+    address: { street: row.street, postcode: row.postcode, city: row.city },
+    note: row.note,
+    bio: row.bio,
+    currentMove: row.current_move,
+    photoUrl: photoEntries[0]?.url ?? null,
+    photos: photoEntries,
+    lat: row.lat,
+    lon: row.lon,
+    area: row.area,
+  };
+}
+
+function toPredictionDto(row: PredictionRow) {
+  return {
+    id: row.id,
+    guesser: row.guesser_name,
+    friendId: row.friend_id,
+    text: row.prediction_text,
+    correct: row.marked_correct === 1,
+    createdAt: row.created_at,
+  };
+}
+
+async function getFriendDto(id: string) {
+  const row = await queryOne<FriendRow>(
+    `SELECT ${SELECT_FRIEND_COLS} FROM friends WHERE id = ?`,
+    [id],
+  );
+  if (!row) return null;
+  const photos = await queryAll<FriendPhotoMetaRow>(
+    `SELECT friend_id, position, uploaded_at FROM friend_photos WHERE friend_id = ? ORDER BY position`,
+    [id],
+  );
+  return toFriendDto(row, photos);
+}
+
+async function getPredictionDto(id: number) {
+  const row = await queryOne<PredictionRow>(
+    `SELECT ${SELECT_PREDICTION_COLS} FROM predictions WHERE id = ?`,
+    [id],
+  );
+  return row ? toPredictionDto(row) : null;
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────
+
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+async function requireAdmin(req: Request, res: Response, next: NextFunction) {
+  const header = req.header('authorization') ?? '';
+  const match = /^Bearer\s+(.+)$/i.exec(header);
+  if (!match) {
+    res.status(401).json({ error: 'missing bearer token' });
+    return;
+  }
+  const token = match[1].trim();
+  const row = await queryOne<{ expires_at: string }>(
+    `SELECT expires_at FROM admin_sessions WHERE token = ?`,
+    [token],
+  );
+  if (!row) {
+    res.status(401).json({ error: 'invalid token' });
+    return;
+  }
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    await exec('DELETE FROM admin_sessions WHERE token = ?', [token]);
+    res.status(401).json({ error: 'token expired' });
+    return;
+  }
+  next();
+}
+
+// ── Routes ────────────────────────────────────────────────────────────
+
+export const router: Router = Router();
+
+router.post('/admin/login', async (req, res) => {
+  const expected = process.env.ADMIN_PASSWORD;
+  if (!expected) {
+    res.status(503).json({ error: 'admin login is not configured on this server' });
+    return;
+  }
+  const password = typeof req.body?.password === 'string' ? req.body.password : '';
+  if (password !== expected) {
+    res.status(401).json({ error: 'fel lösenord' });
+    return;
+  }
+  const token = randomBytes(32).toString('hex');
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+  await exec(`INSERT INTO admin_sessions (token, expires_at) VALUES (?, ?)`, [token, expiresAt]);
+  res.json({ token, expiresAt });
+});
+
+router.post('/admin/logout', requireAdmin, async (req, res) => {
+  const token = (req.header('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  await exec('DELETE FROM admin_sessions WHERE token = ?', [token]);
+  res.json({ ok: true });
+});
+
+router.get('/admin/check', requireAdmin, (_req, res) => {
+  res.json({ ok: true });
+});
+
+router.get('/friends', async (_req, res) => {
+  const rows = await queryAll<FriendRow>(
+    `SELECT ${SELECT_FRIEND_COLS} FROM friends ORDER BY rank`,
+  );
+  // One pass for all photo metadata so we don't N+1 a query per friend.
+  const photos = await queryAll<FriendPhotoMetaRow>(
+    `SELECT friend_id, position, uploaded_at FROM friend_photos ORDER BY friend_id, position`,
+  );
+  res.json(rows.map(r => toFriendDto(r, photos)));
+});
+
+router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
+  const id = req.params.id;
+  const friend = await getFriendDto(id);
+  if (!friend) {
+    res.status(404).json({ error: 'friend not found' });
+    return;
+  }
+  const body = req.body as { name?: unknown; note?: unknown; bio?: unknown; currentMove?: unknown };
+  const updates: string[] = [];
+  const args: (string | number)[] = [];
+
+  if (body.name !== undefined) {
+    if (typeof body.name !== 'string') {
+      res.status(400).json({ error: 'name must be a string' });
+      return;
+    }
+    const trimmed = body.name.trim();
+    if (!trimmed) {
+      res.status(400).json({ error: 'name cannot be empty' });
+      return;
+    }
+    updates.push('name = ?');
+    args.push(trimmed);
+  }
+  if (body.note !== undefined) {
+    if (typeof body.note !== 'string') {
+      res.status(400).json({ error: 'note must be a string' });
+      return;
+    }
+    updates.push('note = ?');
+    args.push(body.note);
+  }
+  if (body.bio !== undefined) {
+    if (typeof body.bio !== 'string') {
+      res.status(400).json({ error: 'bio must be a string' });
+      return;
+    }
+    updates.push('bio = ?');
+    args.push(body.bio);
+  }
+  if (body.currentMove !== undefined) {
+    if (typeof body.currentMove !== 'string') {
+      res.status(400).json({ error: 'currentMove must be a string' });
+      return;
+    }
+    updates.push('current_move = ?');
+    args.push(body.currentMove);
+  }
+  if (updates.length === 0) {
+    res.json(friend);
+    return;
+  }
+  updates.push(`updated_at = datetime('now')`);
+  args.push(id);
+  await exec(`UPDATE friends SET ${updates.join(', ')} WHERE id = ?`, args);
+  res.json(await getFriendDto(id));
+});
+
+// Append a new photo to the friend's carousel. Returns the updated friend DTO.
+router.post<{ id: string }>('/friends/:id/photo', requireAdmin, async (req, res) => {
+  const id = req.params.id;
+  const friend = await queryOne<{ id: string }>('SELECT id FROM friends WHERE id = ?', [id]);
+  if (!friend) {
+    res.status(404).json({ error: 'friend not found' });
+    return;
+  }
+  const dataUrl = typeof req.body?.dataUrl === 'string' ? req.body.dataUrl : '';
+  const decoded = decodeDataUrl(dataUrl);
+  if (!decoded) {
+    res.status(400).json({ error: 'invalid or unsupported image data URL' });
+    return;
+  }
+  const mime = `image/${decoded.ext === 'jpg' ? 'jpeg' : decoded.ext}`;
+  const next = await queryOne<{ next: number }>(
+    `SELECT COALESCE(MAX(position), 0) + 1 AS next FROM friend_photos WHERE friend_id = ?`,
+    [id],
+  );
+  const position = next?.next ?? 1;
+  await exec(
+    `INSERT INTO friend_photos (friend_id, position, photo_data, photo_mime)
+     VALUES (?, ?, ?, ?)`,
+    [id, position, new Uint8Array(decoded.bytes), mime],
+  );
+  res.json(await getFriendDto(id));
+});
+
+// Delete one photo and re-pack remaining positions so they stay 1..N.
+router.delete<{ id: string; position: string }>(
+  '/friends/:id/photos/:position',
+  requireAdmin,
+  async (req, res) => {
+    const id = req.params.id;
+    const position = Number(req.params.position);
+    if (!Number.isFinite(position) || position < 1) {
+      res.status(400).json({ error: 'invalid position' });
+      return;
+    }
+    const result = await exec(
+      `DELETE FROM friend_photos WHERE friend_id = ? AND position = ?`,
+      [id, position],
+    );
+    if (result.changes === 0) {
+      res.status(404).json({ error: 'photo not found' });
+      return;
+    }
+    // Re-pack: shift positions > deleted down by one so the carousel stays 1..N.
+    await exec(
+      `UPDATE friend_photos SET position = position - 1
+       WHERE friend_id = ? AND position > ?`,
+      [id, position],
+    );
+    res.json(await getFriendDto(id));
+  },
+);
+
+// Photo BLOB stream — mounted under photosRouter at root, not /api.
+export const photosRouter: Router = Router();
+
+async function streamPhoto(
+  friendId: string,
+  position: number,
+  res: Response,
+): Promise<void> {
+  const row = await queryOne<{
+    photo_data: ArrayBuffer | Uint8Array | null;
+    photo_mime: string | null;
+    uploaded_at: string | null;
+  }>(
+    `SELECT photo_data, photo_mime, uploaded_at
+     FROM friend_photos WHERE friend_id = ? AND position = ?`,
+    [friendId, position],
+  );
+  if (!row || !row.photo_data || !row.photo_mime) {
+    res.status(404).end();
+    return;
+  }
+  const buf = Buffer.isBuffer(row.photo_data)
+    ? row.photo_data
+    : Buffer.from(row.photo_data instanceof ArrayBuffer ? row.photo_data : row.photo_data.buffer);
+  res.setHeader('content-type', row.photo_mime);
+  res.setHeader('content-length', String(buf.length));
+  res.setHeader('cache-control', 'public, max-age=31536000, immutable');
+  if (row.uploaded_at) res.setHeader('last-modified', new Date(row.uploaded_at).toUTCString());
+  res.send(buf);
+}
+
+photosRouter.get<{ id: string; position: string }>(
+  '/photos/:id/:position',
+  async (req, res) => {
+    const position = Number(req.params.position);
+    if (!Number.isFinite(position)) {
+      res.status(400).end();
+      return;
+    }
+    await streamPhoto(req.params.id, position, res);
+  },
+);
+
+// Backward-compat: /photos/<id> (no position) → position 1.
+photosRouter.get<{ id: string }>('/photos/:id', async (req, res) => {
+  await streamPhoto(req.params.id, 1, res);
+});
+
+router.get('/gmap', async (_req, res) => {
+  const rows = await queryAll<FriendRow>(
+    `SELECT ${SELECT_FRIEND_COLS} FROM friends ORDER BY rank`,
+  );
+  const geocoded: GeoFriend[] = [];
+  const ungeocodedIds: string[] = [];
+  const addrById = new Map<string, { street: string; postcode: string; city: string }>();
+  for (const row of rows) {
+    addrById.set(row.id, { street: row.street, postcode: row.postcode, city: row.city });
+    if (row.lat != null && row.lon != null) {
+      geocoded.push({ id: row.id, name: row.name, lat: row.lat, lon: row.lon, area: row.area });
+    } else {
+      ungeocodedIds.push(row.id);
+    }
+  }
+  const { pairs, unpairedIds } = computePairs(geocoded);
+  const gLessIds = [...unpairedIds, ...ungeocodedIds];
+
+  const dtoPairs = pairs.map(p => ({
+    rank: p.rank,
+    proximity: p.proximity,
+    proximityLabel: p.proximityLabel,
+    proximityColor: p.proximityColor,
+    emoji: p.emoji,
+    friends: p.friendIds,
+    distanceMeters: Math.round(p.distanceMeters),
+    distanceLabel: p.distanceLabel,
+    area: p.area,
+    mapsUrl: buildMapsUrl(addrById.get(p.friendIds[0])!, addrById.get(p.friendIds[1])!),
+  }));
+
+  res.json({
+    pairs: dtoPairs,
+    gLessIds,
+    pending: ungeocodedIds.length > 0,
+    geocodedCount: geocoded.length,
+    totalCount: rows.length,
+  });
+});
+
+router.get('/predictions', async (_req, res) => {
+  const rows = await queryAll<PredictionRow>(
+    `SELECT ${SELECT_PREDICTION_COLS} FROM predictions ORDER BY created_at DESC, id DESC`,
+  );
+  res.json(rows.map(toPredictionDto));
+});
+
+router.post('/predictions', async (req, res) => {
+  const body = req.body as { guesser?: unknown; friendId?: unknown; text?: unknown };
+  const guesser = typeof body.guesser === 'string' ? body.guesser.trim() : '';
+  const friendId = typeof body.friendId === 'string' ? body.friendId : '';
+  const text = typeof body.text === 'string' ? body.text.trim() : '';
+
+  if (!guesser) { res.status(400).json({ error: 'skriv ditt namn' }); return; }
+  if (!friendId) { res.status(400).json({ error: 'välj en person' }); return; }
+  if (text.length < 5) { res.status(400).json({ error: 'skriv en riktig gissning!' }); return; }
+
+  const exists = await queryOne<{ one: 1 }>('SELECT 1 AS one FROM friends WHERE id = ?', [friendId]);
+  if (!exists) { res.status(400).json({ error: 'unknown friend' }); return; }
+
+  const result = await exec(
+    `INSERT INTO predictions (guesser_name, friend_id, prediction_text)
+     VALUES (?, ?, ?)`,
+    [guesser, friendId, text],
+  );
+  res.status(201).json(await getPredictionDto(result.lastInsertRowid));
+});
+
+router.patch<{ id: string }>('/predictions/:id', requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: 'invalid id' }); return; }
+  const existing = await getPredictionDto(id);
+  if (!existing) { res.status(404).json({ error: 'prediction not found' }); return; }
+  const body = req.body as { correct?: unknown };
+  if (typeof body.correct !== 'boolean') {
+    res.status(400).json({ error: 'correct must be a boolean' });
+    return;
+  }
+  await exec('UPDATE predictions SET marked_correct = ? WHERE id = ?', [body.correct ? 1 : 0, id]);
+  res.json(await getPredictionDto(id));
+});

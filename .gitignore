@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Env files (NEVER commit!)
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Database files (dev)
+*.sqlite
+*.sqlite3
+*.db
+
+# Local uploads (during dev)
+uploads/
+
+# Testing
+coverage/
+.nyc_output
+
+# Vercel / Netlify
+.vercel
+.netlify
