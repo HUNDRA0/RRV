@@ -37,9 +37,13 @@ interface FriendsListState {
   logout: () => Promise<void>;
 
   // Admin mutations against friends.
-  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string }) => Promise<void>;
+  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number | null; lon?: number | null }) => Promise<void>;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
+
+  // Job leaderboard.
+  jobLeaderboard: string[];  // ordered array of friend ids, position = index+1
+  updateJobLeaderboard: (order: string[]) => Promise<void>;
 }
 
 const Ctx = createContext<FriendsListState | null>(null);
@@ -48,6 +52,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [predictions, setPredictions] = useState<ApiPrediction[]>([]);
   const [gmap, setGmap] = useState<ApiGMap | null>(null);
+  const [jobLeaderboard, setJobLeaderboard] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -62,14 +67,16 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setLoadError(null);
     try {
-      const [f, p, g] = await Promise.all([
+      const [f, p, g, jl] = await Promise.all([
         api.fetchFriends(),
         api.fetchPredictions(),
         api.fetchGMap(),
+        api.fetchJobLeaderboard(),
       ]);
       setFriends(f);
       setPredictions(p);
       setGmap(g);
+      setJobLeaderboard(jl.map(r => r.friendId));
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'failed to load');
     } finally {
@@ -136,12 +143,17 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateFriend = useCallback(
-    async (id: string, patch: { name?: string; note?: string; bio?: string }) => {
+    async (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number | null; lon?: number | null }) => {
       const updated = await api.updateFriend(id, patch);
       setFriends(prev => prev.map(f => (f.id === id ? updated : f)));
     },
     [],
   );
+
+  const updateJobLeaderboard = useCallback(async (order: string[]) => {
+    const rows = await api.updateJobLeaderboard(order);
+    setJobLeaderboard(rows.map(r => r.friendId));
+  }, []);
 
   const uploadPhoto = useCallback(async (id: string, dataUrl: string) => {
     const updated = await api.uploadPhoto(id, dataUrl);
@@ -161,6 +173,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       gmap,
       isAdmin, loginError, tryLogin, logout,
       updateFriend, uploadPhoto, deletePhoto,
+      jobLeaderboard, updateJobLeaderboard,
     }),
     [
       loading, loadError, refresh,
@@ -169,6 +182,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       gmap,
       isAdmin, loginError, tryLogin, logout,
       updateFriend, uploadPhoto, deletePhoto,
+      jobLeaderboard, updateJobLeaderboard,
     ],
   );
 

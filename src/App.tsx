@@ -6,6 +6,7 @@ import { Masthead } from './components/Masthead';
 import { TierSection } from './components/TierSection';
 import { GMapPage } from './components/GMapPage';
 import { MovesPage } from './components/MovesPage';
+import { JobLeaderboardPage } from './components/JobLeaderboardPage';
 import { Marquee } from './components/Marquee';
 import { TIER_ORDER } from './data/friends';
 import { useFriendsList } from './lib/state';
@@ -40,10 +41,19 @@ const TICKER_GMAP = [
   "H'ah · All Rights Reserved",
 ];
 
+const TICKER_JOBLB = [
+  'Job Leaderboard · Official',
+  'Karriär-Ranking · 2026',
+  'Vem har bästa jobbet?',
+  'Officiell arbetsmarknadsrapport',
+  "H'ah · All Rights Reserved",
+];
+
 const PAGE_NUMERAL: Record<PageId, string> = {
   tierlist: 'I',
   moves: 'II',
   gmap: 'III',
+  joblb: 'IV',
 };
 
 export function App() {
@@ -52,11 +62,13 @@ export function App() {
 
   const ticker =
     currentPage === 'moves' ? TICKER_MOVES :
-    currentPage === 'gmap'  ? TICKER_GMAP :
+    currentPage === 'gmap'  ? TICKER_GMAP  :
+    currentPage === 'joblb' ? TICKER_JOBLB :
                               TICKER_GOLD;
   const tone =
     currentPage === 'moves' ? 'moves' :
     currentPage === 'gmap'  ? 'gmap'  :
+    currentPage === 'joblb' ? 'joblb' :
                               'gold';
 
   const ready = !loadError && friends.length > 0;
@@ -102,6 +114,12 @@ export function App() {
         <div className="numeral-wrap">
           <span className="section-numeral" aria-hidden>{PAGE_NUMERAL.gmap}</span>
           <GMapPage />
+        </div>
+      )}
+      {ready && currentPage === 'joblb' && (
+        <div className="numeral-wrap">
+          <span className="section-numeral" aria-hidden>{PAGE_NUMERAL.joblb}</span>
+          <JobLeaderboardPage />
         </div>
       )}
 

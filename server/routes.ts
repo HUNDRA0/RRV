@@ -192,9 +192,9 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
     res.status(404).json({ error: 'friend not found' });
     return;
   }
-  const body = req.body as { name?: unknown; note?: unknown; bio?: unknown; currentMove?: unknown };
+  const body = req.body as { name?: unknown; note?: unknown; bio?: unknown; currentMove?: unknown; lat?: unknown; lon?: unknown };
   const updates: string[] = [];
-  const args: (string | number)[] = [];
+  const args: (string | number | null)[] = [];
 
   if (body.name !== undefined) {
     if (typeof body.name !== 'string') {
@@ -232,6 +232,20 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
     }
     updates.push('current_move = ?');
     args.push(body.currentMove);
+  }
+  if (body.lat !== undefined || body.lon !== undefined) {
+    const lat = body.lat === null ? null : Number(body.lat);
+    const lon = body.lon === null ? null : Number(body.lon);
+    if (body.lat !== null && (typeof body.lat !== 'number' || isNaN(lat!))) {
+      res.status(400).json({ error: 'lat must be a number or null' });
+      return;
+    }
+    if (body.lon !== null && (typeof body.lon !== 'number' || isNaN(lon!))) {
+      res.status(400).json({ error: 'lon must be a number or null' });
+      return;
+    }
+    updates.push('lat = ?', 'lon = ?', `geocoded_at = datetime('now')`);
+    args.push(lat, lon);
   }
   if (updates.length === 0) {
     res.json(friend);
@@ -428,4 +442,41 @@ router.patch<{ id: string }>('/predictions/:id', requireAdmin, async (req, res) 
   }
   await exec('UPDATE predictions SET marked_correct = ? WHERE id = ?', [body.correct ? 1 : 0, id]);
   res.json(await getPredictionDto(id));
+});
+
+// ── Job Leaderboard ────────────────────────────────────────────────────
+
+interface JobLeaderboardRow {
+  position: number;
+  friend_id: string;
+}
+
+router.get('/job-leaderboard', async (_req, res) => {
+  const rows = await queryAll<JobLeaderboardRow>(
+    'SELECT position, friend_id FROM job_leaderboard ORDER BY position',
+  );
+  res.json(rows.map(r => ({ position: r.position, friendId: r.friend_id })));
+});
+
+router.put('/job-leaderboard', requireAdmin, async (req, res) => {
+  const body = req.body as { order?: unknown };
+  if (!Array.isArray(body.order) || body.order.some(x => typeof x !== 'string')) {
+    res.status(400).json({ error: 'order must be an array of friend id strings' });
+    return;
+  }
+  const order = body.order as string[];
+  const friendRows = await queryAll<{ id: string }>('SELECT id FROM friends');
+  const validIds = new Set(friendRows.map(r => r.id));
+  if (order.length !== validIds.size || order.some(id => !validIds.has(id))) {
+    res.status(400).json({ error: 'order must contain every friend id exactly once' });
+    return;
+  }
+  await exec('DELETE FROM job_leaderboard');
+  for (let i = 0; i < order.length; i++) {
+    await exec('INSERT INTO job_leaderboard (position, friend_id) VALUES (?, ?)', [i + 1, order[i]]);
+  }
+  const rows = await queryAll<JobLeaderboardRow>(
+    'SELECT position, friend_id FROM job_leaderboard ORDER BY position',
+  );
+  res.json(rows.map(r => ({ position: r.position, friendId: r.friend_id })));
 });

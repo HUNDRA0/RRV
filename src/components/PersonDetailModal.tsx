@@ -5,7 +5,7 @@
 // Closes on Escape, backdrop click, or the X button.
 // Carousel: programmatic scroll with peek effect, directional slide-in animation.
 
-import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FocusEvent, type KeyboardEvent, type FormEvent } from 'react';
 import { createPortal } from 'react-dom';
 import type { Friend } from '../data/friends';
 import { TIERS } from '../data/friends';
@@ -19,6 +19,9 @@ interface Props {
 export function PersonDetailModal({ friend, onClose }: Props) {
   const { isAdmin, updateFriend, uploadPhoto, deletePhoto } = useFriendsList();
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [coordLat, setCoordLat] = useState(friend.lat?.toString() ?? '');
+  const [coordLon, setCoordLon] = useState(friend.lon?.toString() ?? '');
+  const [coordSaving, setCoordSaving] = useState(false);
   const [open, setOpen] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -137,6 +140,21 @@ export function PersonDetailModal({ friend, onClose }: Props) {
     };
     reader.readAsDataURL(file);
     e.target.value = '';
+  }
+
+  async function onCoordSave(e: FormEvent) {
+    e.preventDefault();
+    const lat = parseFloat(coordLat);
+    const lon = parseFloat(coordLon);
+    if (isNaN(lat) || isNaN(lon)) { alert('Ogiltiga koordinater'); return; }
+    setCoordSaving(true);
+    try {
+      await updateFriend(friend.id, { lat, lon });
+    } catch (err) {
+      alert(`Kunde inte spara: ${String((err as Error).message ?? err)}`);
+    } finally {
+      setCoordSaving(false);
+    }
   }
 
   function onPhotoDelete() {
@@ -271,6 +289,40 @@ export function PersonDetailModal({ friend, onClose }: Props) {
               )}
               <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onPhotoUpload} />
             </div>
+          )}
+
+          {isAdmin && (
+            <form className="pdm-coord-editor" onSubmit={onCoordSave}>
+              <div className="pdm-coord-title">📍 Koordinater (G Map)</div>
+              <div className="pdm-coord-row">
+                <label className="pdm-coord-label">Lat
+                  <input
+                    className="pdm-coord-input"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="59.1951"
+                    value={coordLat}
+                    onChange={e => setCoordLat(e.target.value)}
+                  />
+                </label>
+                <label className="pdm-coord-label">Lon
+                  <input
+                    className="pdm-coord-input"
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="17.6253"
+                    value={coordLon}
+                    onChange={e => setCoordLon(e.target.value)}
+                  />
+                </label>
+                <button type="submit" className="nav-btn primary" disabled={coordSaving}>
+                  {coordSaving ? '…' : 'Spara'}
+                </button>
+              </div>
+              <p className="pdm-coord-hint">
+                Högerklicka på Google Maps → "Vad finns här?" → kopiera lat,lon
+              </p>
+            </form>
           )}
         </div>
       </div>

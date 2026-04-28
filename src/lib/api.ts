@@ -112,7 +112,7 @@ export const api = {
   logout: () => request<{ ok: true }>('/api/admin/logout', { method: 'POST', auth: true }),
   checkSession: () => request<{ ok: true }>('/api/admin/check', { auth: true }),
 
-  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string }) =>
+  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number | null; lon?: number | null }) =>
     request<Friend>(`/api/friends/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: patch,
@@ -139,6 +139,16 @@ export const api = {
     request<ApiPrediction>(`/api/predictions/${id}`, {
       method: 'PATCH',
       body: { correct },
+      auth: true,
+    }),
+
+  fetchJobLeaderboard: () =>
+    request<{ position: number; friendId: string }[]>('/api/job-leaderboard'),
+
+  updateJobLeaderboard: (order: string[]) =>
+    request<{ position: number; friendId: string }[]>('/api/job-leaderboard', {
+      method: 'PUT',
+      body: { order },
       auth: true,
     }),
 };

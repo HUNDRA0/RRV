@@ -1,7 +1,7 @@
 import { useState, type KeyboardEvent } from 'react';
 import { useFriendsList } from '../lib/state';
 
-export type PageId = 'tierlist' | 'moves' | 'gmap';
+export type PageId = 'tierlist' | 'moves' | 'gmap' | 'joblb';
 
 interface Props {
   currentPage: PageId;
@@ -59,6 +59,13 @@ export function TopNav({ currentPage, onNavigate }: Props) {
             onClick={() => onNavigate('gmap')}
           >
             📍 G Map
+          </button>
+          <button
+            type="button"
+            className={`nav-tab joblb-tab${currentPage === 'joblb' ? ' active' : ''}`}
+            onClick={() => onNavigate('joblb')}
+          >
+            💼 Jobs
           </button>
         </div>
         {isAdmin ? (

@@ -6,7 +6,7 @@ interface Props {
   items: string[];
   /** Tone affects the strip's color/weight — gold for editorial header,
    *  teal/gmap-gold for page-specific accent strips. */
-  tone?: 'gold' | 'moves' | 'gmap';
+  tone?: 'gold' | 'moves' | 'gmap' | 'joblb';
 }
 
 export function Marquee({ items, tone = 'gold' }: Props) {
