@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    host: true,
     proxy: {
       // Forward API + photo asset requests to the Express server during dev.
       '/api': 'http://localhost:3001',

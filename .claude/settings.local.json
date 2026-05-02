@@ -41,7 +41,13 @@
       "Bash(gh auth *)",
       "Bash(git commit -m ' *)",
       "Bash(git reset *)",
-      "Bash(git update-ref *)"
+      "Bash(git update-ref *)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(cp '/Users/jacobercan/Downloads/friendslist-project/src/components/viber/*.tsx' /Users/jacobercan/Downloads/friendslist-project/.claude/worktrees/zen-merkle-606623/src/components/viber/)",
+      "Bash(cp '/Users/jacobercan/Downloads/friendslist-project/src/components/viber/*.ts' /Users/jacobercan/Downloads/friendslist-project/.claude/worktrees/zen-merkle-606623/src/components/viber/)",
+      "Bash(rsync -a --delete /Users/jacobercan/Downloads/friendslist-project/src/lib/ /Users/jacobercan/Downloads/friendslist-project/.claude/worktrees/zen-merkle-606623/src/lib/)",
+      "Bash(rsync -a /Users/jacobercan/Downloads/friendslist-project/src/data/ /Users/jacobercan/Downloads/friendslist-project/.claude/worktrees/zen-merkle-606623/src/data/)",
+      "Bash(rsync -a /Users/jacobercan/Downloads/friendslist-project/server/ /Users/jacobercan/Downloads/friendslist-project/.claude/worktrees/zen-merkle-606623/server/)"
     ]
   }
 }

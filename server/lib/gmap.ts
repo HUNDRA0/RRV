@@ -1,8 +1,9 @@
 // Distance computation + greedy pairing for the G Map page.
 //
-// Given a list of friends with lat/lon, we compute every pairwise haversine
-// distance, sort closest-first, and pick pairs greedily — once a friend is
-// taken, they're skipped. With 15 friends (odd) you get 7 pairs + 1 unpaired.
+// Given a list of friends with lat/lon, we compute every pairwise distance
+// (using cached OSRM road distances where available, haversine otherwise),
+// sort closest-first, and pick pairs greedily. Pairs farther than
+// MAX_PAIR_METERS are treated as G-less (no meaningful proximity).
 
 export interface GeoFriend {
   id: string;
@@ -67,7 +68,18 @@ function composeArea(a: GeoFriend, b: GeoFriend): string {
   return a.area ?? b.area ?? '';
 }
 
-export function computePairs(friends: GeoFriend[]): {
+// Pairs farther than this are considered G-less (no meaningful proximity).
+const MAX_PAIR_METERS = 25_000;
+
+// cacheKey returns a consistent lookup key regardless of argument order.
+export function cacheKey(idA: string, idB: string): string {
+  return idA < idB ? `${idA}|${idB}` : `${idB}|${idA}`;
+}
+
+export function computePairs(
+  friends: GeoFriend[],
+  routeCache: Map<string, number> = new Map(),
+): {
   pairs: ComputedPair[];
   unpairedIds: string[];
 } {
@@ -75,20 +87,32 @@ export function computePairs(friends: GeoFriend[]): {
     return { pairs: [], unpairedIds: friends.map(f => f.id) };
   }
 
-  // Build all pairwise distances.
+  // Build all pairwise distances, preferring cached OSRM over haversine.
   type Entry = { a: GeoFriend; b: GeoFriend; m: number };
   const all: Entry[] = [];
   for (let i = 0; i < friends.length; i++) {
     for (let j = i + 1; j < friends.length; j++) {
-      all.push({ a: friends[i], b: friends[j], m: distanceMeters(friends[i], friends[j]) });
+      const key = cacheKey(friends[i].id, friends[j].id);
+      const m = routeCache.get(key) ?? distanceMeters(friends[i], friends[j]);
+      all.push({ a: friends[i], b: friends[j], m });
     }
   }
   all.sort((x, y) => x.m - y.m);
 
   const taken = new Set<string>();
   const pairs: ComputedPair[] = [];
+  const gLessFromDistance: string[] = [];
+
   for (const { a, b, m } of all) {
     if (taken.has(a.id) || taken.has(b.id)) continue;
+    // If they're farther than the cutoff, both become G-less; stop pairing them.
+    if (m > MAX_PAIR_METERS) {
+      if (!taken.has(a.id)) gLessFromDistance.push(a.id);
+      if (!taken.has(b.id)) gLessFromDistance.push(b.id);
+      taken.add(a.id);
+      taken.add(b.id);
+      continue;
+    }
     taken.add(a.id);
     taken.add(b.id);
     const buck = bucket(m);
@@ -104,7 +128,10 @@ export function computePairs(friends: GeoFriend[]): {
       area: composeArea(a, b),
     });
   }
-  const unpairedIds = friends.filter(f => !taken.has(f.id)).map(f => f.id);
+  const unpairedIds = [
+    ...friends.filter(f => !taken.has(f.id)).map(f => f.id),
+    ...gLessFromDistance,
+  ];
   return { pairs, unpairedIds };
 }
 

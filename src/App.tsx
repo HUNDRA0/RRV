@@ -1,134 +1,157 @@
-import { useState } from 'react';
-import { BgDecoration } from './components/BgDecoration';
-import { TopNav } from './components/TopNav';
-import type { PageId } from './components/TopNav';
-import { Masthead } from './components/Masthead';
-import { TierSection } from './components/TierSection';
-import { GMapPage } from './components/GMapPage';
-import { MovesPage } from './components/MovesPage';
-import { JobLeaderboardPage } from './components/JobLeaderboardPage';
-import { Marquee } from './components/Marquee';
-import { TIER_ORDER } from './data/friends';
+import { useEffect, useMemo, useState } from 'react';
+import { AuroraBg } from './components/viber/AuroraBg';
+import { StickyNav } from './components/viber/StickyNav';
+import { Hero } from './components/viber/Hero';
+import { QuoteTicker, QUOTES_SEED } from './components/viber/QuoteTicker';
+import { RankingsSection } from './components/viber/RankingsSection';
+import { LeaderboardSection } from './components/viber/LeaderboardSection';
+import { GMapSection } from './components/viber/GMapSection';
+import { MovesSection } from './components/viber/MovesSection';
+import { PersonModal } from './components/viber/PersonModal';
+import { EditBanner } from './components/viber/EditBanner';
+import { AdminLoginModal } from './components/viber/AdminLoginModal';
+import {
+  useActiveSection,
+  useGlobalReveal,
+  useLocalState,
+  dayOfYear,
+} from './hooks/useViberHooks';
 import { useFriendsList } from './lib/state';
 
-const TICKER_GOLD = [
-  'Real Rankings Viber',
-  '2026 · Currently 2027 Inc!',
-  "H'ah",
-  'All Rights Reserved',
-  'Official Edition',
-  'Stockholm · Topp 16',
-  'Officiell Ranking · Established 2025',
-  'The Committee Has Spoken',
-  'Inga Refunder · Inga Undantag',
-  'Tier-List Certified',
-];
-const TICKER_MOVES = [
-  'Making Moves 2027',
-  '2026 · Currently 2027 Inc!',
-  'The Prediction Game · Official',
-  'Champion: TBD · 31 Dec 2027',
-  'Lägg din gissning · All Rights Reserved',
-  'Ingen pardon · Inga refunder',
-  "H'ah",
-];
-const TICKER_GMAP = [
-  'Real Rankings Viber · G Map',
-  'Geografisk Proximity · Official',
-  'G-Mapped · 2026',
-  '16 är hem · Alla har en G',
-  'Distanser ljuger aldrig',
-  "H'ah · All Rights Reserved",
-];
-
-const TICKER_JOBLB = [
-  'Job Leaderboard · Official',
-  'Karriär-Ranking · 2026',
-  'Vem har bästa jobbet?',
-  'Officiell arbetsmarknadsrapport',
-  "H'ah · All Rights Reserved",
-];
-
-const PAGE_NUMERAL: Record<PageId, string> = {
-  tierlist: 'I',
-  moves: 'II',
-  gmap: 'III',
-  joblb: 'IV',
-};
+const SECTION_IDS = ['rankings', 'leaderboard', 'gmap', 'moves'];
 
 export function App() {
-  const [currentPage, setCurrentPage] = useState<PageId>('tierlist');
-  const { loading, loadError, friends, refresh } = useFriendsList();
+  const {
+    loading, loadError, refresh,
+    friends, findFriend,
+    isAdmin, isEditing, toggleEditMode,
+    tryLogin, logout, loginError,
+    siteContent,
+    updateFriend, uploadPhoto, deletePhoto,
+  } = useFriendsList();
 
-  const ticker =
-    currentPage === 'moves' ? TICKER_MOVES :
-    currentPage === 'gmap'  ? TICKER_GMAP  :
-    currentPage === 'joblb' ? TICKER_JOBLB :
-                              TICKER_GOLD;
-  const tone =
-    currentPage === 'moves' ? 'moves' :
-    currentPage === 'gmap'  ? 'gmap'  :
-    currentPage === 'joblb' ? 'joblb' :
-                              'gold';
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const [bannerOpen, setBannerOpen] = useLocalState('vr.banner', true);
+
+  const active = useActiveSection(SECTION_IDS);
+  useGlobalReveal([friends.length, active]);
+
+  // Re-show the edit banner whenever editing turns back on.
+  useEffect(() => { if (isEditing) setBannerOpen(true); }, [isEditing, setBannerOpen]);
+
+  const quotes = useMemo(() => {
+    const raw = siteContent['viber_quotes'];
+    if (raw) {
+      const lines = raw.split('\n').map((s) => s.trim()).filter(Boolean);
+      if (lines.length) return lines;
+    }
+    return QUOTES_SEED;
+  }, [siteContent]);
+
+  const todaysQuote = quotes[dayOfYear() % Math.max(1, quotes.length)] || 'Vibe responsibly.';
+  const openFriend = openId ? findFriend(openId) : null;
+
+  const onToggleEdit = () => {
+    if (!isAdmin) { setAdminLoginOpen(true); return; }
+    toggleEditMode();
+  };
+  const onAdminClick = () => {
+    if (isAdmin) { logout(); return; }
+    setAdminLoginOpen(true);
+  };
+
+  const onSetMove = async (id: string, value: string) => {
+    if (!isAdmin) return;
+    try { await updateFriend(id, { currentMove: value }); }
+    catch { /* surface later */ }
+  };
+  const onBioChange = async (id: string, bio: string) => {
+    if (!isAdmin) return;
+    try { await updateFriend(id, { bio }); }
+    catch { /* surface later */ }
+  };
+  const onAddPhoto = async (id: string, dataUrl: string) => {
+    if (!isAdmin) return;
+    try { await uploadPhoto(id, dataUrl); }
+    catch { /* surface later */ }
+  };
+  const onRemovePhoto = async (id: string, position: number) => {
+    if (!isAdmin) return;
+    try { await deletePhoto(id, position); }
+    catch { /* surface later */ }
+  };
 
   const ready = !loadError && friends.length > 0;
 
   return (
-    <>
-      <BgDecoration />
-      <TopNav currentPage={currentPage} onNavigate={setCurrentPage} />
-      <Marquee items={ticker} tone={tone} />
+    <div className="app" data-edit={isEditing}>
+      <AuroraBg />
+      <StickyNav
+        active={active}
+        edit={isEditing}
+        isAdmin={isAdmin}
+        onToggleEdit={onToggleEdit}
+        onAdminClick={onAdminClick}
+      />
+
+      <QuoteTicker quote={todaysQuote} />
+      <Hero />
 
       {loadError && (
-        <div className="load-error">
-          <p>⚠️ Kunde inte ladda data från servern.</p>
-          <p className="load-error-detail">{loadError}</p>
-          <button type="button" className="nav-btn" onClick={() => { refresh(); }}>
+        <div className="container" style={{ padding: '40px 32px', textAlign: 'center' }}>
+          <p style={{ fontFamily: 'var(--font-display)', fontSize: 22 }}>
+            ⚠️ Kunde inte ladda data från servern.
+          </p>
+          <p className="card-meta">{loadError}</p>
+          <button className="btn btn-purple" onClick={() => { refresh(); }}>
             Försök igen
           </button>
         </div>
       )}
 
       {loading && friends.length === 0 && !loadError && (
-        <div className="page-loading">Laddar…</div>
-      )}
-
-      {ready && currentPage === 'tierlist' && (
-        <div id="page-tierlist" className="page active">
-          <span className="section-numeral" aria-hidden>{PAGE_NUMERAL.tierlist}</span>
-          <Masthead />
-          <div className="tier-page-wrap">
-            {TIER_ORDER.map(tierId => (
-              <TierSection key={tierId} tierId={tierId} />
-            ))}
-          </div>
-        </div>
-      )}
-      {ready && currentPage === 'moves' && (
-        <div className="numeral-wrap">
-          <span className="section-numeral" aria-hidden>{PAGE_NUMERAL.moves}</span>
-          <MovesPage />
-        </div>
-      )}
-      {ready && currentPage === 'gmap' && (
-        <div className="numeral-wrap">
-          <span className="section-numeral" aria-hidden>{PAGE_NUMERAL.gmap}</span>
-          <GMapPage />
-        </div>
-      )}
-      {ready && currentPage === 'joblb' && (
-        <div className="numeral-wrap">
-          <span className="section-numeral" aria-hidden>{PAGE_NUMERAL.joblb}</span>
-          <JobLeaderboardPage />
+        <div className="container" style={{ padding: '40px 32px', textAlign: 'center', color: 'var(--mute)' }}>
+          Laddar…
         </div>
       )}
 
-      <div className="page-footer">
-        <div className="footer-logo">
-          The Real<span>Rankings</span>
-        </div>
-        <span className="footer-note">© {new Date().getFullYear()} · Alla rankingar är slutgiltiga · Vol. I</span>
-      </div>
-    </>
+      {ready && (
+        <>
+          <RankingsSection friends={friends} edit={isEditing} onOpen={setOpenId} />
+          <LeaderboardSection friends={friends} />
+          <GMapSection friends={friends} />
+          <MovesSection friends={friends} edit={isEditing} onSetMove={onSetMove} />
+        </>
+      )}
+
+      <footer className="foot container">
+        <div>VR · Viber Rankings · {new Date().getFullYear()}</div>
+        <div>Södertälje · 16 G's</div>
+      </footer>
+
+      {openFriend && (
+        <PersonModal
+          friend={openFriend}
+          edit={isEditing}
+          onClose={() => setOpenId(null)}
+          onBioChange={onBioChange}
+          onAddPhoto={onAddPhoto}
+          onRemovePhoto={onRemovePhoto}
+        />
+      )}
+
+      {adminLoginOpen && (
+        <AdminLoginModal
+          onClose={() => setAdminLoginOpen(false)}
+          onLogin={tryLogin}
+          loginError={loginError}
+        />
+      )}
+
+      {isEditing && bannerOpen && (
+        <EditBanner onClose={() => setBannerOpen(false)} />
+      )}
+    </div>
   );
 }

@@ -97,12 +97,17 @@ export interface ApiGMap {
   totalCount: number;
 }
 
+// ── Site content ─────────────────────────────────────────────────────
+
+export type SiteContent = Record<string, string>;
+
 // ── Endpoint wrappers ────────────────────────────────────────────────
 
 export const api = {
   fetchFriends: () => request<Friend[]>('/api/friends'),
   fetchPredictions: () => request<ApiPrediction[]>('/api/predictions'),
   fetchGMap: () => request<ApiGMap>('/api/gmap'),
+  fetchContent: () => request<SiteContent>('/api/content'),
 
   login: (password: string) =>
     request<{ token: string; expiresAt: string }>('/api/admin/login', {
@@ -112,7 +117,14 @@ export const api = {
   logout: () => request<{ ok: true }>('/api/admin/logout', { method: 'POST', auth: true }),
   checkSession: () => request<{ ok: true }>('/api/admin/check', { auth: true }),
 
-  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number | null; lon?: number | null }) =>
+  updateContent: (key: string, value: string) =>
+    request<{ key: string; value: string }>(`/api/content/${encodeURIComponent(key)}`, {
+      method: 'PATCH',
+      body: { value },
+      auth: true,
+    }),
+
+  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number }) =>
     request<Friend>(`/api/friends/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: patch,
@@ -142,13 +154,6 @@ export const api = {
       auth: true,
     }),
 
-  fetchJobLeaderboard: () =>
-    request<{ position: number; friendId: string }[]>('/api/job-leaderboard'),
-
-  updateJobLeaderboard: (order: string[]) =>
-    request<{ position: number; friendId: string }[]>('/api/job-leaderboard', {
-      method: 'PUT',
-      body: { order },
-      auth: true,
-    }),
+  deletePrediction: (id: number) =>
+    request<{ ok: true }>(`/api/predictions/${id}`, { method: 'DELETE', auth: true }),
 };

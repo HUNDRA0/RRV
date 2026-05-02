@@ -14,7 +14,7 @@ import { randomBytes } from 'node:crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { exec, queryAll, queryOne } from './db';
 import { decodeDataUrl } from './lib/photos';
-import { buildMapsUrl, computePairs, type GeoFriend } from './lib/gmap';
+import { buildMapsUrl, cacheKey, computePairs, type GeoFriend } from './lib/gmap';
 
 // ── DTO conversion ────────────────────────────────────────────────────
 
@@ -194,66 +194,70 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
   }
   const body = req.body as { name?: unknown; note?: unknown; bio?: unknown; currentMove?: unknown; lat?: unknown; lon?: unknown };
   const updates: string[] = [];
-  const args: (string | number | null)[] = [];
+  const args: (string | number)[] = [];
+  let coordsChanged = false;
+  let newLat: number | null = null;
+  let newLon: number | null = null;
 
   if (body.name !== undefined) {
-    if (typeof body.name !== 'string') {
-      res.status(400).json({ error: 'name must be a string' });
-      return;
-    }
+    if (typeof body.name !== 'string') { res.status(400).json({ error: 'name must be a string' }); return; }
     const trimmed = body.name.trim();
-    if (!trimmed) {
-      res.status(400).json({ error: 'name cannot be empty' });
-      return;
-    }
-    updates.push('name = ?');
-    args.push(trimmed);
+    if (!trimmed) { res.status(400).json({ error: 'name cannot be empty' }); return; }
+    updates.push('name = ?'); args.push(trimmed);
   }
   if (body.note !== undefined) {
-    if (typeof body.note !== 'string') {
-      res.status(400).json({ error: 'note must be a string' });
-      return;
-    }
-    updates.push('note = ?');
-    args.push(body.note);
+    if (typeof body.note !== 'string') { res.status(400).json({ error: 'note must be a string' }); return; }
+    updates.push('note = ?'); args.push(body.note);
   }
   if (body.bio !== undefined) {
-    if (typeof body.bio !== 'string') {
-      res.status(400).json({ error: 'bio must be a string' });
-      return;
-    }
-    updates.push('bio = ?');
-    args.push(body.bio);
+    if (typeof body.bio !== 'string') { res.status(400).json({ error: 'bio must be a string' }); return; }
+    updates.push('bio = ?'); args.push(body.bio);
   }
   if (body.currentMove !== undefined) {
-    if (typeof body.currentMove !== 'string') {
-      res.status(400).json({ error: 'currentMove must be a string' });
-      return;
-    }
-    updates.push('current_move = ?');
-    args.push(body.currentMove);
+    if (typeof body.currentMove !== 'string') { res.status(400).json({ error: 'currentMove must be a string' }); return; }
+    updates.push('current_move = ?'); args.push(body.currentMove);
   }
-  if (body.lat !== undefined || body.lon !== undefined) {
-    const lat = body.lat === null ? null : Number(body.lat);
-    const lon = body.lon === null ? null : Number(body.lon);
-    if (body.lat !== null && (typeof body.lat !== 'number' || isNaN(lat!))) {
-      res.status(400).json({ error: 'lat must be a number or null' });
-      return;
-    }
-    if (body.lon !== null && (typeof body.lon !== 'number' || isNaN(lon!))) {
-      res.status(400).json({ error: 'lon must be a number or null' });
-      return;
-    }
-    updates.push('lat = ?', 'lon = ?', `geocoded_at = datetime('now')`);
-    args.push(lat, lon);
+  if (body.lat !== undefined) {
+    const v = typeof body.lat === 'string' ? parseFloat(body.lat) : body.lat;
+    if (typeof v !== 'number' || !isFinite(v)) { res.status(400).json({ error: 'lat must be a finite number' }); return; }
+    updates.push('lat = ?'); args.push(v); coordsChanged = true; newLat = v;
   }
-  if (updates.length === 0) {
-    res.json(friend);
-    return;
+  if (body.lon !== undefined) {
+    const v = typeof body.lon === 'string' ? parseFloat(body.lon) : body.lon;
+    if (typeof v !== 'number' || !isFinite(v)) { res.status(400).json({ error: 'lon must be a finite number' }); return; }
+    updates.push('lon = ?'); args.push(v); coordsChanged = true; newLon = v;
   }
+  if (updates.length === 0) { res.json(friend); return; }
   updates.push(`updated_at = datetime('now')`);
   args.push(id);
   await exec(`UPDATE friends SET ${updates.join(', ')} WHERE id = ?`, args);
+
+  if (coordsChanged && newLat != null && newLon != null) {
+    // Invalidate cached routes and re-fetch from OSRM in background.
+    await exec('DELETE FROM gmap_route_cache WHERE id_a = ? OR id_b = ?', [id, id]);
+    const lat = newLat, lon = newLon, fid = id;
+    (async () => {
+      const others = await queryAll<{ id: string; lat: number; lon: number }>(
+        'SELECT id, lat, lon FROM friends WHERE id != ? AND lat IS NOT NULL AND lon IS NOT NULL',
+        [fid],
+      );
+      for (const other of others) {
+        try {
+          const url = `https://router.project-osrm.org/route/v1/driving/${lon},${lat};${other.lon},${other.lat}?overview=false`;
+          const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
+          if (!r.ok) continue;
+          const json = await r.json() as { code: string; routes?: { distance: number }[] };
+          if (json.code !== 'Ok' || !json.routes?.length) continue;
+          const m = json.routes[0].distance;
+          const key = fid < other.id ? `${fid}|${other.id}` : `${other.id}|${fid}`;
+          const [ka, kb] = key.split('|');
+          await exec('INSERT OR REPLACE INTO gmap_route_cache (id_a, id_b, distance_meters) VALUES (?,?,?)', [ka, kb, m]);
+          await new Promise(r2 => setTimeout(r2, 300));
+        } catch { /* ignore individual failures */ }
+      }
+    })().catch(() => {});
+  }
+
   res.json(await getFriendDto(id));
 });
 
@@ -377,7 +381,16 @@ router.get('/gmap', async (_req, res) => {
       ungeocodedIds.push(row.id);
     }
   }
-  const { pairs, unpairedIds } = computePairs(geocoded);
+  // Load cached OSRM road distances.
+  const cacheRows = await queryAll<{ id_a: string; id_b: string; distance_meters: number }>(
+    `SELECT id_a, id_b, distance_meters FROM gmap_route_cache`,
+  );
+  const routeCache = new Map<string, number>();
+  for (const row of cacheRows) {
+    routeCache.set(cacheKey(row.id_a, row.id_b), row.distance_meters);
+  }
+
+  const { pairs, unpairedIds } = computePairs(geocoded, routeCache);
   const gLessIds = [...unpairedIds, ...ungeocodedIds];
 
   const dtoPairs = pairs.map(p => ({
@@ -422,12 +435,30 @@ router.post('/predictions', async (req, res) => {
   const exists = await queryOne<{ one: 1 }>('SELECT 1 AS one FROM friends WHERE id = ?', [friendId]);
   if (!exists) { res.status(400).json({ error: 'unknown friend' }); return; }
 
+  const guessCount = await queryOne<{ n: number }>(
+    `SELECT COUNT(*) AS n FROM predictions WHERE LOWER(guesser_name) = LOWER(?)`,
+    [guesser],
+  );
+  if ((guessCount?.n ?? 0) >= 3) {
+    res.status(400).json({ error: 'max 3 gissningar per person' });
+    return;
+  }
+
   const result = await exec(
     `INSERT INTO predictions (guesser_name, friend_id, prediction_text)
      VALUES (?, ?, ?)`,
     [guesser, friendId, text],
   );
   res.status(201).json(await getPredictionDto(result.lastInsertRowid));
+});
+
+router.delete<{ id: string }>('/predictions/:id', requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isFinite(id)) { res.status(400).json({ error: 'invalid id' }); return; }
+  const existing = await getPredictionDto(id);
+  if (!existing) { res.status(404).json({ error: 'prediction not found' }); return; }
+  await exec('DELETE FROM predictions WHERE id = ?', [id]);
+  res.json({ ok: true });
 });
 
 router.patch<{ id: string }>('/predictions/:id', requireAdmin, async (req, res) => {
@@ -444,39 +475,23 @@ router.patch<{ id: string }>('/predictions/:id', requireAdmin, async (req, res) 
   res.json(await getPredictionDto(id));
 });
 
-// ── Job Leaderboard ────────────────────────────────────────────────────
+// ── Site content (CMS key-value store) ───────────────────────────────
 
-interface JobLeaderboardRow {
-  position: number;
-  friend_id: string;
-}
-
-router.get('/job-leaderboard', async (_req, res) => {
-  const rows = await queryAll<JobLeaderboardRow>(
-    'SELECT position, friend_id FROM job_leaderboard ORDER BY position',
-  );
-  res.json(rows.map(r => ({ position: r.position, friendId: r.friend_id })));
+router.get('/content', async (_req, res) => {
+  const rows = await queryAll<{ key: string; value: string }>('SELECT key, value FROM site_content');
+  const obj: Record<string, string> = {};
+  for (const r of rows) obj[r.key] = r.value;
+  res.json(obj);
 });
 
-router.put('/job-leaderboard', requireAdmin, async (req, res) => {
-  const body = req.body as { order?: unknown };
-  if (!Array.isArray(body.order) || body.order.some(x => typeof x !== 'string')) {
-    res.status(400).json({ error: 'order must be an array of friend id strings' });
-    return;
-  }
-  const order = body.order as string[];
-  const friendRows = await queryAll<{ id: string }>('SELECT id FROM friends');
-  const validIds = new Set(friendRows.map(r => r.id));
-  if (order.length !== validIds.size || order.some(id => !validIds.has(id))) {
-    res.status(400).json({ error: 'order must contain every friend id exactly once' });
-    return;
-  }
-  await exec('DELETE FROM job_leaderboard');
-  for (let i = 0; i < order.length; i++) {
-    await exec('INSERT INTO job_leaderboard (position, friend_id) VALUES (?, ?)', [i + 1, order[i]]);
-  }
-  const rows = await queryAll<JobLeaderboardRow>(
-    'SELECT position, friend_id FROM job_leaderboard ORDER BY position',
+router.patch<{ key: string }>('/content/:key', requireAdmin, async (req, res) => {
+  const key = req.params.key;
+  const body = req.body as { value?: unknown };
+  if (typeof body.value !== 'string') { res.status(400).json({ error: 'value must be a string' }); return; }
+  await exec(
+    `INSERT INTO site_content (key, value) VALUES (?, ?)
+     ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')`,
+    [key, body.value.trim()],
   );
-  res.json(rows.map(r => ({ position: r.position, friendId: r.friend_id })));
+  res.json({ key, value: body.value.trim() });
 });

@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { Friend, TierId } from '../data/friends';
-import { ApiError, api, tokenStore, type ApiGMap, type ApiPrediction } from './api';
+import { ApiError, api, tokenStore, type ApiGMap, type ApiPrediction, type SiteContent } from './api';
 
 interface FriendsListState {
   // Loading + error surface for the initial fetch.
@@ -26,6 +26,7 @@ interface FriendsListState {
   predictions: ApiPrediction[];
   submitPrediction: (input: { guesser: string; friendId: string; text: string }) => Promise<void>;
   toggleCorrect: (id: number, current: boolean) => Promise<void>;
+  deletePrediction: (id: number) => Promise<void>;
 
   // G Map (computed server-side from geocoded addresses).
   gmap: ApiGMap | null;
@@ -36,14 +37,19 @@ interface FriendsListState {
   tryLogin: (password: string) => Promise<boolean>;
   logout: () => Promise<void>;
 
+  // Site content (CMS).
+  siteContent: SiteContent;
+  updateContent: (key: string, value: string) => Promise<void>;
+
+  // Edit mode — separate from isAdmin so admin can browse without affordances.
+  isEditMode: boolean;
+  isEditing: boolean;  // convenience: isAdmin && isEditMode
+  toggleEditMode: () => void;
+
   // Admin mutations against friends.
-  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number | null; lon?: number | null }) => Promise<void>;
+  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number }) => Promise<void>;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
-
-  // Job leaderboard.
-  jobLeaderboard: string[];  // ordered array of friend ids, position = index+1
-  updateJobLeaderboard: (order: string[]) => Promise<void>;
 }
 
 const Ctx = createContext<FriendsListState | null>(null);
@@ -52,11 +58,12 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [predictions, setPredictions] = useState<ApiPrediction[]>([]);
   const [gmap, setGmap] = useState<ApiGMap | null>(null);
-  const [jobLeaderboard, setJobLeaderboard] = useState<string[]>([]);
+  const [siteContent, setSiteContent] = useState<SiteContent>({});
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
   // Used so we can disambiguate between "haven't checked yet" and "actively
@@ -67,16 +74,16 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setLoadError(null);
     try {
-      const [f, p, g, jl] = await Promise.all([
+      const [f, p, g, c] = await Promise.all([
         api.fetchFriends(),
         api.fetchPredictions(),
         api.fetchGMap(),
-        api.fetchJobLeaderboard(),
+        api.fetchContent(),
       ]);
       setFriends(f);
       setPredictions(p);
       setGmap(g);
-      setJobLeaderboard(jl.map(r => r.friendId));
+      setSiteContent(c);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'failed to load');
     } finally {
@@ -97,11 +104,13 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     }
   }, [refresh]);
 
-  // Body class drives admin-mode CSS on cards (contenteditable hover, etc.).
+  // admin-mode body class drives all edit affordances — only active when
+  // logged in AND the edit mode toggle is on.
+  const isEditing = isAdmin && isEditMode;
   useEffect(() => {
-    document.body.classList.toggle('admin-mode', isAdmin);
+    document.body.classList.toggle('admin-mode', isEditing);
     return () => document.body.classList.remove('admin-mode');
-  }, [isAdmin]);
+  }, [isEditing]);
 
   const findFriend = useCallback((id: string) => friends.find(f => f.id === id), [friends]);
   const friendsByTier = useCallback(
@@ -126,7 +135,15 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     try { await api.logout(); } catch { /* token already invalid is fine */ }
     tokenStore.clear();
     setIsAdmin(false);
+    setIsEditMode(false);
     setLoginError(null);
+  }, []);
+
+  const toggleEditMode = useCallback(() => setIsEditMode(v => !v), []);
+
+  const updateContent = useCallback(async (key: string, value: string) => {
+    const updated = await api.updateContent(key, value);
+    setSiteContent(prev => ({ ...prev, [updated.key]: updated.value }));
   }, []);
 
   const submitPrediction = useCallback(
@@ -142,18 +159,18 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     setPredictions(prev => prev.map(p => (p.id === id ? updated : p)));
   }, []);
 
+  const deletePrediction = useCallback(async (id: number) => {
+    await api.deletePrediction(id);
+    setPredictions(prev => prev.filter(p => p.id !== id));
+  }, []);
+
   const updateFriend = useCallback(
-    async (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number | null; lon?: number | null }) => {
+    async (id: string, patch: { name?: string; note?: string; bio?: string }) => {
       const updated = await api.updateFriend(id, patch);
       setFriends(prev => prev.map(f => (f.id === id ? updated : f)));
     },
     [],
   );
-
-  const updateJobLeaderboard = useCallback(async (order: string[]) => {
-    const rows = await api.updateJobLeaderboard(order);
-    setJobLeaderboard(rows.map(r => r.friendId));
-  }, []);
 
   const uploadPhoto = useCallback(async (id: string, dataUrl: string) => {
     const updated = await api.uploadPhoto(id, dataUrl);
@@ -169,20 +186,20 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     () => ({
       loading, loadError, refresh,
       friends, findFriend, friendsByTier,
-      predictions, submitPrediction, toggleCorrect,
+      predictions, submitPrediction, toggleCorrect, deletePrediction,
       gmap,
-      isAdmin, loginError, tryLogin, logout,
+      siteContent, updateContent,
+      isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
       updateFriend, uploadPhoto, deletePhoto,
-      jobLeaderboard, updateJobLeaderboard,
     }),
     [
       loading, loadError, refresh,
       friends, findFriend, friendsByTier,
-      predictions, submitPrediction, toggleCorrect,
+      predictions, submitPrediction, toggleCorrect, deletePrediction,
       gmap,
-      isAdmin, loginError, tryLogin, logout,
+      siteContent, updateContent,
+      isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
       updateFriend, uploadPhoto, deletePhoto,
-      jobLeaderboard, updateJobLeaderboard,
     ],
   );
 
