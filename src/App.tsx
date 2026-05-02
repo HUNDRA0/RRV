@@ -10,6 +10,7 @@ import { MovesSection } from './components/viber/MovesSection';
 import { PersonModal } from './components/viber/PersonModal';
 import { EditBanner } from './components/viber/EditBanner';
 import { AdminLoginModal } from './components/viber/AdminLoginModal';
+import { AdminConsole } from './components/viber/AdminConsole';
 import {
   useActiveSection,
   useGlobalReveal,
@@ -25,13 +26,14 @@ export function App() {
     loading, loadError, refresh,
     friends, findFriend,
     isAdmin, isEditing, toggleEditMode,
-    tryLogin, logout, loginError,
+    tryLogin, loginError,
     siteContent,
     updateFriend, uploadPhoto, deletePhoto,
   } = useFriendsList();
 
   const [openId, setOpenId] = useState<string | null>(null);
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const [adminConsoleOpen, setAdminConsoleOpen] = useState(false);
   const [bannerOpen, setBannerOpen] = useLocalState('vr.banner', true);
 
   const active = useActiveSection(SECTION_IDS);
@@ -57,7 +59,7 @@ export function App() {
     toggleEditMode();
   };
   const onAdminClick = () => {
-    if (isAdmin) { logout(); return; }
+    if (isAdmin) { setAdminConsoleOpen(true); return; }
     setAdminLoginOpen(true);
   };
 
@@ -119,7 +121,7 @@ export function App() {
       {ready && (
         <>
           <RankingsSection friends={friends} edit={isEditing} onOpen={setOpenId} />
-          <LeaderboardSection friends={friends} />
+          <LeaderboardSection friends={friends} edit={isEditing} />
           <GMapSection friends={friends} />
           <MovesSection friends={friends} edit={isEditing} onSetMove={onSetMove} />
         </>
@@ -147,6 +149,10 @@ export function App() {
           onLogin={tryLogin}
           loginError={loginError}
         />
+      )}
+
+      {adminConsoleOpen && isAdmin && (
+        <AdminConsole onClose={() => setAdminConsoleOpen(false)} />
       )}
 
       {isEditing && bannerOpen && (

@@ -5,9 +5,10 @@ import { useLocalState } from '../../hooks/useViberHooks';
 
 interface LeaderboardSectionProps {
   friends: Friend[];
+  edit: boolean;
 }
 
-export function LeaderboardSection({ friends }: LeaderboardSectionProps) {
+export function LeaderboardSection({ friends, edit }: LeaderboardSectionProps) {
   const seedOrder = useMemo(
     () => [...friends].sort((a, b) => a.rank - b.rank).map((f) => f.id),
     [friends],
@@ -31,6 +32,7 @@ export function LeaderboardSection({ friends }: LeaderboardSectionProps) {
   const [overId, setOverId] = useState<string | null>(null);
 
   function move(id: string, delta: number) {
+    if (!edit) return;
     const idx = order.indexOf(id);
     const next = idx + delta;
     if (next < 0 || next >= order.length) return;
@@ -40,6 +42,7 @@ export function LeaderboardSection({ friends }: LeaderboardSectionProps) {
   }
   function onDrop(e: React.DragEvent, id: string) {
     e.preventDefault();
+    if (!edit) return;
     if (!dragId || dragId === id) { setDragId(null); return; }
     const from = order.indexOf(dragId);
     const to = order.indexOf(id);
@@ -51,6 +54,7 @@ export function LeaderboardSection({ friends }: LeaderboardSectionProps) {
     setOverId(null);
   }
   function setNote(id: string, v: string) {
+    if (!edit) return;
     setNotes({ ...notes, [id]: v });
   }
 
@@ -61,12 +65,14 @@ export function LeaderboardSection({ friends }: LeaderboardSectionProps) {
           <div className="section-eyebrow reveal">Section II · Personlig topplista</div>
           <h2 className="reveal" data-d="1"><em>Leaderboard</em></h2>
           <p className="reveal" data-d="2">
-            Dra raderna eller använd pilarna för att ranka 1 till 16. Klicka på texten för att skriva varför.
+            {edit
+              ? 'Dra raderna eller använd pilarna för att ranka 1 till 16. Klicka på texten för att skriva varför.'
+              : 'Den officiella ranken — slå på Edit för att flytta rader (admin krävs).'}
           </p>
         </div>
         <div className="section-num reveal" data-d="3">II</div>
       </header>
-      <div className="leaderboard">
+      <div className="leaderboard" data-edit={edit}>
         {order.map((id, idx) => {
           const f = byId[id];
           if (!f) return null;
@@ -78,9 +84,9 @@ export function LeaderboardSection({ friends }: LeaderboardSectionProps) {
               className={`lb-row reveal ${dragId === id ? 'dragging' : ''} ${overId === id && dragId && dragId !== id ? 'drop-target' : ''}`}
               data-d={Math.min(idx, 8)}
               data-rank={rank}
-              draggable
-              onDragStart={(e) => { setDragId(id); e.dataTransfer.effectAllowed = 'move'; }}
-              onDragOver={(e) => { e.preventDefault(); if (id !== overId) setOverId(id); }}
+              draggable={edit}
+              onDragStart={(e) => { if (!edit) return; setDragId(id); e.dataTransfer.effectAllowed = 'move'; }}
+              onDragOver={(e) => { if (!edit) return; e.preventDefault(); if (id !== overId) setOverId(id); }}
               onDragLeave={() => setOverId(null)}
               onDrop={(e) => onDrop(e, id)}
               onDragEnd={() => { setDragId(null); setOverId(null); }}
@@ -95,13 +101,15 @@ export function LeaderboardSection({ friends }: LeaderboardSectionProps) {
                   className="lb-note"
                   value={notes[id] || ''}
                   onChange={(v) => setNote(id, v)}
-                  edit
+                  edit={edit}
                 />
               </div>
-              <div className="lb-controls">
-                <button className="lb-arrow" onClick={() => move(id, -1)} disabled={idx === 0}>▲</button>
-                <button className="lb-arrow" onClick={() => move(id, +1)} disabled={idx === order.length - 1}>▼</button>
-              </div>
+              {edit && (
+                <div className="lb-controls">
+                  <button className="lb-arrow" onClick={() => move(id, -1)} disabled={idx === 0}>▲</button>
+                  <button className="lb-arrow" onClick={() => move(id, +1)} disabled={idx === order.length - 1}>▼</button>
+                </div>
+              )}
             </div>
           );
         })}
