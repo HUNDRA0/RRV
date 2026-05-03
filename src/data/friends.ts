@@ -69,7 +69,7 @@ export const FRIENDS: FriendSeed[] = [
   { id: 'gab',       name: 'Gab',       rank: 5,  tier: 's', address: { street: 'Handbollsvägen 5',   postcode: '15159', city: 'Södertälje' }, note: '' },
   // A tier — Normal People
   { id: 'john',      name: 'John',      rank: 6,  tier: 'a', address: { street: 'Drejarvägen 24',     postcode: '15162', city: 'Södertälje' }, note: '' },
-  { id: 'jacob',     name: 'Jacob',     rank: 7,  tier: 'a', address: { street: 'Hyvelgränd 1',       postcode: '15255', city: 'Södertälje' }, note: '' },
+  { id: 'jacob',     name: 'Jacob',     rank: 7,  tier: 'a', address: { street: 'Hyvelgränd 1',       postcode: '15257', city: 'Södertälje' }, note: '' },
   { id: 'robin',     name: 'Robin',     rank: 8,  tier: 'a', address: { street: 'Åsbovägen 99',       postcode: '15252', city: 'Södertälje' }, note: '' },
   { id: 'ninos',     name: 'Ninos',     rank: 9,  tier: 'a', address: { street: 'Bollvägen 67',       postcode: '15159', city: 'Södertälje' }, note: '' },
   // I tier — I Dunno

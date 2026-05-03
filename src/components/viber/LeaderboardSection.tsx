@@ -67,7 +67,7 @@ export function LeaderboardSection({ friends, edit }: LeaderboardSectionProps) {
           <p className="reveal" data-d="2">
             {edit
               ? 'Dra raderna eller använd pilarna för att ranka 1 till 16. Klicka på texten för att skriva varför.'
-              : 'Den officiella ranken — slå på Edit för att flytta rader (admin krävs).'}
+              : 'Den officiella ranken.'}
           </p>
         </div>
         <div className="section-num reveal" data-d="3">II</div>

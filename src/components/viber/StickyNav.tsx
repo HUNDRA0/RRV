@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useScrolled } from '../../hooks/useViberHooks';
 
 const TABS: [string, string][] = [
@@ -6,6 +6,7 @@ const TABS: [string, string][] = [
   ['leaderboard', 'Leaderboard'],
   ['gmap', "G's"],
   ['moves', 'Making Moves'],
+  ['events', 'Events'],
 ];
 
 interface NavTabsProps {
@@ -16,29 +17,62 @@ interface NavTabsProps {
 function NavTabs({ active, onJump }: NavTabsProps) {
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
   const wrapRef = useRef<HTMLDivElement | null>(null);
-  const [hoverId, setHoverId] = useState<string | null>(null);
-  const [ind, setInd] = useState({ left: 0, width: 0 });
+  const indRef = useRef<HTMLDivElement | null>(null);
+  const hoverIdRef = useRef<string | null>(null);
+  const settledRef = useRef(false);
 
-  useLayoutEffect(() => {
-    const targetId = hoverId || active;
+  // Imperative measure — bypass React state so we don't fight CSS transitions.
+  // First paint may have width 0 until fonts load; we re-measure aggressively
+  // until we get a stable non-zero width, then keep observing.
+  const measure = () => {
+    const targetId = hoverIdRef.current || active;
     const el = refs.current[targetId];
+    const ind = indRef.current;
     const wrap = wrapRef.current;
-    if (!el || !wrap) return;
+    if (!el || !ind || !wrap) return;
     const eR = el.getBoundingClientRect();
     const wR = wrap.getBoundingClientRect();
-    setInd({ left: eR.left - wR.left, width: eR.width });
-  }, [active, hoverId]);
+    if (eR.width === 0) return;
+    const left = eR.left - wR.left;
+    if (!settledRef.current) {
+      // Skip the slide-in animation on the very first paint so the pill just
+      // appears under the active tab instead of zooming from x=0.
+      ind.style.transition = 'none';
+      ind.style.width = `${eR.width}px`;
+      ind.style.transform = `translateX(${left}px)`;
+      // force reflow then re-enable
+      ind.offsetHeight;
+      ind.style.transition = '';
+      settledRef.current = true;
+    } else {
+      ind.style.width = `${eR.width}px`;
+      ind.style.transform = `translateX(${left}px)`;
+    }
+  };
+
+  useLayoutEffect(measure, [active]);
+
+  useEffect(() => {
+    const timers = [50, 150, 400, 1000, 2000].map((ms) => setTimeout(measure, ms));
+    const ro = new ResizeObserver(measure);
+    Object.values(refs.current).forEach((el) => { if (el) ro.observe(el); });
+    if (wrapRef.current) ro.observe(wrapRef.current);
+    document.fonts?.ready.then(measure).catch(() => { /* unsupported */ });
+    window.addEventListener('resize', measure);
+    return () => { ro.disconnect(); timers.forEach(clearTimeout); window.removeEventListener('resize', measure); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <div className="nav-tabs" ref={wrapRef} onMouseLeave={() => setHoverId(null)}>
-      <div className="indicator" style={{ transform: `translateX(${ind.left}px)`, width: ind.width }} />
+    <div className="nav-tabs" ref={wrapRef} onMouseLeave={() => { hoverIdRef.current = null; measure(); }}>
+      <div className="indicator" ref={indRef} />
       {TABS.map(([id, label]) => (
         <button
           key={id}
           ref={(r) => { refs.current[id] = r; }}
           className="nav-tab"
           aria-selected={active === id}
-          onMouseEnter={() => setHoverId(id)}
+          onMouseEnter={() => { hoverIdRef.current = id; measure(); }}
           onClick={() => onJump(id)}
         >
           {label}
@@ -70,7 +104,7 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick }:
           role="button"
           tabIndex={0}
         >
-          VR
+          <span className="nav-brand-v">V</span><span className="nav-brand-r">R</span>
         </div>
         <NavTabs active={active} onJump={jump} />
         <div className="nav-actions">

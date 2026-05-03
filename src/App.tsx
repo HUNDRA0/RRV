@@ -7,6 +7,7 @@ import { RankingsSection } from './components/viber/RankingsSection';
 import { LeaderboardSection } from './components/viber/LeaderboardSection';
 import { GMapSection } from './components/viber/GMapSection';
 import { MovesSection } from './components/viber/MovesSection';
+import { EventsSection } from './components/viber/EventsSection';
 import { PersonModal } from './components/viber/PersonModal';
 import { EditBanner } from './components/viber/EditBanner';
 import { AdminLoginModal } from './components/viber/AdminLoginModal';
@@ -19,7 +20,7 @@ import {
 } from './hooks/useViberHooks';
 import { useFriendsList } from './lib/state';
 
-const SECTION_IDS = ['rankings', 'leaderboard', 'gmap', 'moves'];
+const SECTION_IDS = ['rankings', 'leaderboard', 'gmap', 'moves', 'events'];
 
 export function App() {
   const {
@@ -124,6 +125,7 @@ export function App() {
           <LeaderboardSection friends={friends} edit={isEditing} />
           <GMapSection friends={friends} />
           <MovesSection friends={friends} edit={isEditing} onSetMove={onSetMove} />
+          <EventsSection />
         </>
       )}
 

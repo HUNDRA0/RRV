@@ -22,8 +22,12 @@ export function MovesSection({ friends, edit, onSetMove }: MovesSectionProps) {
       </header>
       <div className="moves-grid">
         {friends.map((f, i) => {
-          const text = f.currentMove || 'To be continued';
-          const isActive = !!text && text !== 'To be continued';
+          const raw = (f.currentMove || '').trim();
+          // Treat empty + the literal placeholder + any "Klicka…"-style stub
+          // as idle so accidental focus-blur doesn't mark someone active.
+          const isIdle = !raw || raw === 'To be continued' || /^klicka/i.test(raw);
+          const text = isIdle ? 'To be continued' : raw;
+          const isActive = !isIdle;
           return (
             <div
               className="move reveal zoom"
