@@ -789,7 +789,6 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .lb-info { display: grid; gap: 4px; min-width: 0; }
 .lb-name { font-family: var(--font-display); font-size: 20px; line-height: 1; }
 .lb-note { font-size: 13px; color: var(--ink-soft); outline: none; border-radius: 6px; padding: 3px 5px; margin-left: -5px; text-wrap: pretty; cursor: text; }
-.lb-note:empty::before { content: "Varför här? (klicka för att skriva)"; color: var(--mute); font-style: italic; }
 .lb-note:hover { background: var(--purple-soft); }
 .lb-note:focus { background: rgba(139, 92, 246, 0.22); box-shadow: 0 0 0 2px var(--purple); }
 .lb-controls { display: flex; flex-direction: column; gap: 4px; }

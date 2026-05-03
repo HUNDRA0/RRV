@@ -26,7 +26,7 @@ export function PersonCard({ friend, edit, onOpen, rankWithinTier }: PersonCardP
           {friend.address.street} · {friend.address.postcode} {friend.address.city}
         </div>
         <div className="card-bio" data-empty={!bio || undefined}>
-          {bio || 'Klicka för att läsa & redigera bio…'}
+          {bio}
         </div>
       </div>
     </div>

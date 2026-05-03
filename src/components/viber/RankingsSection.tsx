@@ -16,7 +16,7 @@ export function RankingsSection({ friends, edit, onOpen }: RankingsSectionProps)
           <div className="section-eyebrow reveal">Section I · Den officiella tier-listan</div>
           <h2 className="reveal" data-d="1"><em>Rankings</em></h2>
           <p className="reveal" data-d="2">
-            16 namn. Tre tiers. Klicka på ett kort för att öppna profilen — bilder, bio, allt.
+            16 namn. Tre tiers. Öppna ett kort för att se profilen — bilder, bio, allt.
           </p>
         </div>
         <div className="section-num reveal" data-d="3">I</div>

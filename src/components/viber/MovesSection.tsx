@@ -15,7 +15,7 @@ export function MovesSection({ friends, edit, onSetMove }: MovesSectionProps) {
           <div className="section-eyebrow reveal">Section IV · Vad händer just nu</div>
           <h2 className="reveal" data-d="1">Making <em>Moves</em></h2>
           <p className="reveal" data-d="2">
-            Vem gör vad? Klicka på texten för att redigera. "To be continued" tills någon faktiskt gör nåt.
+            Vem gör vad just nu? "To be continued" tills någon faktiskt gör nåt.
           </p>
         </div>
         <div className="section-num reveal" data-d="3">IV</div>

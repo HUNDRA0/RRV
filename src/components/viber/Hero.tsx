@@ -10,8 +10,7 @@ export function Hero() {
           <span className="viber">Viber</span> Rankings
         </h1>
         <p className="hero-lede reveal" data-d="2">
-          En levande topplista. Tre tiers. En karta. En lista över vem som faktiskt gör nåt.
-          Klicka, dra, byt bilder, skriv — allt sparas direkt.
+          Eliten och resten, jobblistan och G by Girans official site
         </p>
         <div className="hero-meta reveal" data-d="3">
           <span><b>16</b> namn</span>
