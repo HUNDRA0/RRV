@@ -50,7 +50,14 @@ function NavTabs({ active, onJump }: NavTabsProps) {
     }
   };
 
-  useLayoutEffect(measure, [active]);
+  // When the active section changes (scroll-driven), drop the sticky hover so
+  // the indicator follows the page instead of staying parked on whatever tab
+  // the cursor happened to be over last.
+  useLayoutEffect(() => {
+    hoverIdRef.current = null;
+    measure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
 
   useEffect(() => {
     const timers = [50, 150, 400, 1000, 2000].map((ms) => setTimeout(measure, ms));

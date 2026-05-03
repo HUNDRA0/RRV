@@ -73,7 +73,8 @@
       "Bash(sips -g pixelHeight -g pixelWidth /tmp/mario_now.jpg)",
       "Bash(xxd)",
       "Bash(curl -s \"http://localhost:3001/photos/mario/1\")",
-      "Bash(python3 -c 'import json,sys *)"
+      "Bash(python3 -c 'import json,sys *)",
+      "Bash(git -c user.email=claude@anthropic.com -c user.name=Claude commit -m 'Clear sticky hover when active tab changes *)"
     ]
   }
 }
