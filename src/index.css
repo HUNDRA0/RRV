@@ -161,7 +161,29 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
   box-shadow: 0 6px 18px -4px rgba(139, 92, 246, 0.55);
   transition: transform 420ms var(--ease-spring), opacity 200ms var(--ease-out);
 }
-@media (max-width: 700px) { .nav-tab { padding: 9px 12px; font-size: 12px; } .nav-brand { font-size: 20px; } }
+@media (max-width: 700px) { .nav-tab { padding: 8px 12px; font-size: 12px; } .nav-brand { font-size: 20px; } }
+@media (max-width: 700px) {
+  .nav-wrap { padding: 0 12px; }
+  .nav {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "brand actions actions" "tabs tabs tabs";
+    gap: 8px 10px; padding: 8px 10px;
+    width: 100%;
+  }
+  .nav-brand { grid-area: brand; }
+  .nav-actions { grid-area: actions; justify-self: end; }
+  .nav-tabs {
+    grid-area: tabs;
+    overflow-x: auto; overflow-y: hidden;
+    scrollbar-width: none; -ms-overflow-style: none;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .nav-tab { scroll-snap-align: center; flex-shrink: 0; }
+  .nav-wrap[data-scrolled="true"] .nav { padding: 6px 8px; transform: scale(0.98); width: 100%; }
+}
 
 .nav-edit {
   justify-self: end;
@@ -762,9 +784,19 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .admin-stats { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-family: var(--font-mono); font-size: 13px; color: var(--ink-soft); }
 .admin-stats b { color: var(--purple-2); font-weight: 700; }
 
-@media (max-width: 540px) {
-  .card { grid-template-columns: 1fr; }
-  .card-photo { width: 100%; height: auto; aspect-ratio: 1 / 1; }
+@media (max-width: 720px) {
+  .card { grid-template-columns: 116px 1fr; gap: 14px; padding: 14px; }
+  .card-photo { width: 116px; height: 116px; }
+  .card-name { font-size: 22px; }
+  .card-bio { font-size: 13px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .card-meta { font-size: 11px; }
+  .card-photo-remove { width: 24px; height: 24px; font-size: 12px; top: 6px; right: 6px; }
+}
+@media (max-width: 380px) {
+  .card { grid-template-columns: 96px 1fr; gap: 12px; padding: 12px; }
+  .card-photo { width: 96px; height: 96px; }
+  .card-name { font-size: 20px; }
+  .card-bio { -webkit-line-clamp: 2; }
 }
 
 /* ---------- LEADERBOARD ---------- */
