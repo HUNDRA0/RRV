@@ -379,6 +379,20 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 }
 .card[data-edit="true"] .card-photo:hover .upload-hint { opacity: 1; }
 .card-photo input[type="file"] { display: none; }
+.card-photo-remove {
+  position: absolute; top: 8px; right: 8px; z-index: 3;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: rgba(0,0,0,0.62); color: #fff;
+  border: 1px solid rgba(255,255,255,0.18);
+  font-size: 14px; font-weight: 600; line-height: 1;
+  cursor: pointer; backdrop-filter: blur(6px);
+  opacity: 0; transform: scale(0.9);
+  transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out), background 180ms var(--ease-out);
+}
+.card[data-edit="true"] .card-photo-remove { opacity: 1; transform: scale(1); }
+.card-photo-remove:hover { background: var(--rose, #c8344c); }
+.card-photo-remove:focus-visible { outline: 2px solid var(--purple); outline-offset: 2px; }
 
 .card-body { display: grid; gap: 6px; align-content: start; min-width: 0; }
 .card-rank { font: 500 11px/1 var(--font-mono); letter-spacing: 0.22em; text-transform: uppercase; color: var(--purple-2); }

@@ -7,9 +7,10 @@ interface TierSectionProps {
   friends: Friend[];
   edit: boolean;
   onOpen: (id: string) => void;
+  onRemovePhoto: (id: string, position: number) => void;
 }
 
-export function TierSection({ tierId, friends, edit, onOpen }: TierSectionProps) {
+export function TierSection({ tierId, friends, edit, onOpen, onRemovePhoto }: TierSectionProps) {
   const t = TIER_DISPLAY[tierId];
   const items = friends.filter((f) => f.tier === tierId);
   return (
@@ -30,6 +31,7 @@ export function TierSection({ tierId, friends, edit, onOpen }: TierSectionProps)
             edit={edit}
             rankWithinTier={i + 1}
             onOpen={() => onOpen(f.id)}
+            onRemovePhoto={onRemovePhoto}
           />
         ))}
       </div>

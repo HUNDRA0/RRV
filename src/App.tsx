@@ -121,7 +121,7 @@ export function App() {
 
       {ready && (
         <>
-          <RankingsSection friends={friends} edit={isEditing} onOpen={setOpenId} />
+          <RankingsSection friends={friends} edit={isEditing} onOpen={setOpenId} onRemovePhoto={onRemovePhoto} />
           <LeaderboardSection friends={friends} edit={isEditing} />
           <GMapSection friends={friends} />
           <MovesSection friends={friends} edit={isEditing} onSetMove={onSetMove} />

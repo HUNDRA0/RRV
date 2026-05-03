@@ -6,9 +6,10 @@ interface RankingsSectionProps {
   friends: Friend[];
   edit: boolean;
   onOpen: (id: string) => void;
+  onRemovePhoto: (id: string, position: number) => void;
 }
 
-export function RankingsSection({ friends, edit, onOpen }: RankingsSectionProps) {
+export function RankingsSection({ friends, edit, onOpen, onRemovePhoto }: RankingsSectionProps) {
   return (
     <section className="section container" id="rankings" data-screen-label="01 Rankings">
       <header className="section-header">
@@ -22,7 +23,7 @@ export function RankingsSection({ friends, edit, onOpen }: RankingsSectionProps)
         <div className="section-num reveal" data-d="3">I</div>
       </header>
       {TIER_ORDER_VIBER.map((t) => (
-        <TierSection key={t} tierId={t} friends={friends} edit={edit} onOpen={onOpen} />
+        <TierSection key={t} tierId={t} friends={friends} edit={edit} onOpen={onOpen} onRemovePhoto={onRemovePhoto} />
       ))}
     </section>
   );

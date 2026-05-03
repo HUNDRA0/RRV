@@ -7,9 +7,10 @@ interface PersonCardProps {
   edit: boolean;
   onOpen: () => void;
   rankWithinTier: number;
+  onRemovePhoto: (id: string, position: number) => void;
 }
 
-export function PersonCard({ friend, edit, onOpen, rankWithinTier }: PersonCardProps) {
+export function PersonCard({ friend, edit, onOpen, rankWithinTier, onRemovePhoto }: PersonCardProps) {
   const bio = friend.bio || '';
   return (
     <div
@@ -18,7 +19,12 @@ export function PersonCard({ friend, edit, onOpen, rankWithinTier }: PersonCardP
       data-edit={edit}
       onClick={onOpen}
     >
-      <PhotoCell friend={friend} onClick={(e) => { e.stopPropagation(); onOpen(); }} />
+      <PhotoCell
+        friend={friend}
+        edit={edit}
+        onClick={(e) => { e.stopPropagation(); onOpen(); }}
+        onRemovePhoto={onRemovePhoto}
+      />
       <div className="card-body">
         <div className="card-rank">#{rankWithinTier} · {TIER_DISPLAY[friend.tier].label}</div>
         <div className="card-name">{friend.name}</div>
