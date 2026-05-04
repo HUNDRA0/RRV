@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
-import type { Friend } from '../../data/friends';
-import { TIER_CSS, TIER_DISPLAY } from './tier-map';
+import type { Friend, TierId } from '../../data/friends';
+import { TIER_CSS } from './tier-map';
+
+const TIER_SHORT: Record<TierId, string> = { s: 'Eliten', a: 'NPT', i: 'IDT' };
 
 interface GMapSectionProps {
   friends: Friend[];
@@ -143,7 +145,7 @@ export function GMapSection({ friends }: GMapSectionProps) {
           return (
             <div className="pair reveal" data-d={Math.min(i, 8)} key={i}>
               <div className="pair-side">
-                <div className="pair-tier">{TIER_DISPLAY[a.tier].label}</div>
+                <div className="pair-tier">{TIER_SHORT[a.tier]}</div>
                 <div className="pair-name">{a.name}</div>
               </div>
               <div className="pair-link">
@@ -152,7 +154,7 @@ export function GMapSection({ friends }: GMapSectionProps) {
                 <div className="line" />
               </div>
               <div className="pair-side" data-align="right">
-                <div className="pair-tier">{TIER_DISPLAY[b.tier].label}</div>
+                <div className="pair-tier">{TIER_SHORT[b.tier]}</div>
                 <div className="pair-name">{b.name}</div>
               </div>
             </div>
