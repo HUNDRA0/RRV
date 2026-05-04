@@ -142,75 +142,72 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, t
               {edit ? '● Edit' : '○ Edit'}
             </button>
           )}
-          <button
-            className="nav-edit nav-admin"
-            onClick={() => setSettingsOpen((v) => !v)}
-            title="Inställningar"
-            aria-expanded={settingsOpen}
-          >
-            ⚙
-          </button>
-          <button
-            className="nav-burger"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label={menuOpen ? 'Stäng meny' : 'Öppna meny'}
-            aria-expanded={menuOpen}
-          >
-            <span /><span /><span />
-          </button>
+          <div className="nav-anchor">
+            <button
+              className="nav-edit nav-admin"
+              onClick={() => { setSettingsOpen((v) => !v); setMenuOpen(false); }}
+              title="Inställningar"
+              aria-expanded={settingsOpen}
+            >
+              ⚙
+            </button>
+            {settingsOpen && (
+              <div className="nav-settings" role="menu">
+                <button
+                  className="nav-settings-row"
+                  onClick={onToggleTheme}
+                  role="menuitemcheckbox"
+                  aria-checked={theme === 'dark'}
+                >
+                  <span className="nav-settings-icon">{theme === 'dark' ? '🌙' : '☀︎'}</span>
+                  <span className="nav-settings-label">Dark mode</span>
+                  <span className="nav-toggle" data-on={theme === 'dark'}>
+                    <span className="nav-toggle-knob" />
+                  </span>
+                </button>
+                <button
+                  className="nav-settings-row"
+                  onClick={() => { setSettingsOpen(false); onAdminClick(); }}
+                >
+                  <span className="nav-settings-icon">{isAdmin ? '🔓' : '🔒'}</span>
+                  <span className="nav-settings-label">{isAdmin ? 'Admin console' : 'Admin-login'}</span>
+                  <span className="nav-settings-chev">›</span>
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="nav-anchor">
+            <button
+              className="nav-burger"
+              onClick={() => { setMenuOpen((v) => !v); setSettingsOpen(false); }}
+              aria-label={menuOpen ? 'Stäng meny' : 'Öppna meny'}
+              aria-expanded={menuOpen}
+            >
+              <span /><span /><span />
+            </button>
+            {menuOpen && (
+              <div className="nav-menu" role="menu">
+                {TABS.map(([id, label]) => (
+                  <button
+                    key={id}
+                    className="nav-menu-item"
+                    aria-current={active === id}
+                    onClick={() => jump(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-      {menuOpen && (
-        <>
-          <button
-            className="nav-menu-backdrop"
-            aria-label="Stäng meny"
-            onClick={() => setMenuOpen(false)}
-          />
-          <div className="nav-menu" role="menu">
-            {TABS.map(([id, label]) => (
-              <button
-                key={id}
-                className="nav-menu-item"
-                aria-current={active === id}
-                onClick={() => jump(id)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-      {settingsOpen && (
-        <>
-          <button
-            className="nav-menu-backdrop"
-            aria-label="Stäng inställningar"
-            onClick={() => setSettingsOpen(false)}
-          />
-          <div className="nav-settings" role="menu">
-            <button
-              className="nav-settings-row"
-              onClick={onToggleTheme}
-              role="menuitemcheckbox"
-              aria-checked={theme === 'dark'}
-            >
-              <span className="nav-settings-icon">{theme === 'dark' ? '🌙' : '☀︎'}</span>
-              <span className="nav-settings-label">Dark mode</span>
-              <span className="nav-toggle" data-on={theme === 'dark'}>
-                <span className="nav-toggle-knob" />
-              </span>
-            </button>
-            <button
-              className="nav-settings-row"
-              onClick={() => { setSettingsOpen(false); onAdminClick(); }}
-            >
-              <span className="nav-settings-icon">{isAdmin ? '🔓' : '🔒'}</span>
-              <span className="nav-settings-label">{isAdmin ? 'Admin console' : 'Admin-login'}</span>
-              <span className="nav-settings-chev">›</span>
-            </button>
-          </div>
-        </>
+      {(menuOpen || settingsOpen) && (
+        <button
+          className="nav-menu-backdrop"
+          aria-label="Stäng"
+          onClick={() => { setMenuOpen(false); setSettingsOpen(false); }}
+        />
       )}
     </div>
   );

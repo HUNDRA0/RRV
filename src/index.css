@@ -210,18 +210,24 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .nav-wrap[data-menu-open="true"] .nav-burger span:nth-child(2) { opacity: 0; transform: scaleX(0); }
 .nav-wrap[data-menu-open="true"] .nav-burger span:nth-child(3) { transform: translateY(-5.6px) rotate(-45deg); }
 
-/* Slide-down menu sheet (mobile only) */
+/* Anchor wrapper for popover triggers (⚙ and hamburger). */
+.nav-anchor { position: relative; display: inline-flex; pointer-events: auto; }
+
+/* Backdrop sits at the document level; needs explicit pointer-events
+   because its parent .nav-wrap has pointer-events:none. */
 .nav-menu-backdrop {
   position: fixed; inset: 0; z-index: 49;
   background: rgba(28, 22, 18, 0.18);
   border: 0; padding: 0; cursor: pointer;
   backdrop-filter: blur(2px);
   animation: navMenuFade 200ms var(--ease-out);
+  pointer-events: auto;
 }
 .nav-menu {
-  position: absolute; top: calc(100% + 8px); right: 12px;
+  position: absolute; top: calc(100% + 10px); right: 0;
   z-index: 51;
   width: min(260px, calc(100vw - 24px));
+  pointer-events: auto;
   display: grid; gap: 4px;
   padding: 10px;
   background: rgba(var(--paper-rgb), 0.96);
@@ -251,9 +257,10 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .nav-menu-item:active { transform: scale(0.97); }
 
 .nav-settings {
-  position: absolute; top: calc(100% + 8px); right: 12px;
+  position: absolute; top: calc(100% + 10px); right: 0;
   z-index: 51;
-  width: min(260px, calc(100vw - 24px));
+  width: min(240px, calc(100vw - 24px));
+  pointer-events: auto;
   display: grid; gap: 4px;
   padding: 8px;
   background: rgba(var(--paper-rgb), 0.96);
@@ -307,10 +314,13 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 
 @media (max-width: 700px) {
   .nav-wrap { padding: 0 12px; }
-  .nav { padding: 8px 10px 8px 16px; gap: 8px; width: 100%; }
+  .nav {
+    grid-template-columns: 1fr auto;
+    padding: 8px 10px 8px 16px; gap: 8px; width: 100%;
+  }
   .nav-tabs { display: none; }
   .nav-burger { display: inline-flex; }
-  .nav-actions { gap: 6px; }
+  .nav-actions { gap: 6px; justify-self: end; }
   .nav-edit { padding: 7px 11px; font-size: 11px; }
   .nav-admin { padding: 7px 10px !important; }
   .nav-wrap[data-scrolled="true"] .nav { padding: 6px 8px 6px 14px; transform: scale(0.98); width: 100%; }
