@@ -9,7 +9,11 @@
 //
 // When TURSO_AUTH_TOKEN is set it's passed through (required for libsql:// URLs).
 
-import { createClient, type Client, type InValue } from '@libsql/client';
+// @libsql/client/web uses HTTP/WebSocket only — no native SQLite bindings.
+// This makes it safe for serverless environments (Vercel, Edge) where native
+// .node modules can't load. The /web variant requires a remote libsql:// or
+// https:// URL; local file: fallback only works in plain Node.js dev.
+import { createClient, type Client, type InValue } from '@libsql/client/web';
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

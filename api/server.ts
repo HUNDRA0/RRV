@@ -1,11 +1,10 @@
-// Vercel serverless entry-point.
-//
-// All server/* modules (which pull in @libsql/client with native bindings)
-// are loaded via dynamic import so the Lambda can boot and answer /api/health
-// regardless of whether the DB modules load successfully.
+// Vercel serverless entry-point. Static imports are used so esbuild bundles
+// everything. @libsql/client/web (no native bindings) is what makes this safe.
 
 import express from 'express';
-import type { Router } from 'express';
+import { runMigrations } from '../server/db';
+import { seedIfEmpty } from '../server/seed';
+import { router, photosRouter } from '../server/routes';
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -17,48 +16,22 @@ app.use((_req, res, next) => {
   next();
 });
 
-// Health check — zero DB imports, always boots even without env vars.
+// Health check — always responds.
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: !!process.env.TURSO_DATABASE_URL && !!process.env.TURSO_AUTH_TOKEN,
     ts: new Date().toISOString(),
-    tursoUrl: process.env.TURSO_DATABASE_URL ? 'set' : 'MISSING — add TURSO_DATABASE_URL in Vercel env vars',
-    tursoToken: process.env.TURSO_AUTH_TOKEN ? 'set' : 'MISSING — add TURSO_AUTH_TOKEN in Vercel env vars',
+    tursoUrl: process.env.TURSO_DATABASE_URL ? 'set' : 'MISSING',
+    tursoToken: process.env.TURSO_AUTH_TOKEN ? 'set' : 'MISSING',
   });
 });
 
-// Lazily mount the API + photos routers. The promise is created once and
-// shared, so concurrent cold-start requests all await the same load.
-// Once mounted, Express picks them up when this middleware calls next().
-let mountError: string | null = null;
-let mounted = false;
+// Fire-and-forget: migrations are idempotent, seed runs once.
+runMigrations()
+  .then(() => seedIfEmpty())
+  .catch((err) => console.error('[api] startup error:', err));
 
-const mountOnce = (async () => {
-  try {
-    const routes = await import('../server/routes');
-    app.use('/api', routes.router as Router);
-    app.use(routes.photosRouter as Router);
-    mounted = true;
-    // Fire-and-forget DB init (migrations are idempotent, seed runs once).
-    import('../server/db')
-      .then(({ runMigrations }) => runMigrations())
-      .then(() => import('../server/seed'))
-      .then(({ seedIfEmpty }) => seedIfEmpty())
-      .catch((err) => console.error('[api] DB init error:', err));
-  } catch (err) {
-    mountError = err instanceof Error ? err.message : String(err);
-    console.error('[api] routes failed to mount:', mountError);
-  }
-})();
-
-// Block non-health requests until routes are mounted (or failed).
-app.use(async (_req, res, next) => {
-  if (!mounted && !mountError) await mountOnce;
-  if (mountError) {
-    res.status(503).json({ error: 'Server startup failed', detail: mountError });
-    return;
-  }
-  next();
-});
+app.use('/api', router);
+app.use(photosRouter);
 
 export default app;
