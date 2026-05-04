@@ -95,11 +95,14 @@ interface StickyNavProps {
   isAdmin: boolean;
   onToggleEdit: () => void;
   onAdminClick: () => void;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
 }
 
-export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick }: StickyNavProps) {
+export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, theme, onToggleTheme }: StickyNavProps) {
   const scrolled = useScrolled(20);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const jump = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -107,11 +110,14 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick }:
   };
 
   useEffect(() => {
-    if (!menuOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [menuOpen]);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setMenuOpen(false); setSettingsOpen(false); }
+    };
+    if (menuOpen || settingsOpen) {
+      window.addEventListener('keydown', onKey);
+      return () => window.removeEventListener('keydown', onKey);
+    }
+  }, [menuOpen, settingsOpen]);
 
   return (
     <div className="nav-wrap" data-scrolled={scrolled} data-menu-open={menuOpen}>
@@ -126,18 +132,21 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick }:
         </div>
         <NavTabs active={active} onJump={jump} />
         <div className="nav-actions">
-          <button
-            className="nav-edit"
-            data-on={edit}
-            onClick={onToggleEdit}
-            title={isAdmin ? 'Edit mode' : 'Logga in som admin'}
-          >
-            {edit ? '● Edit' : '○ Edit'}
-          </button>
+          {isAdmin && (
+            <button
+              className="nav-edit"
+              data-on={edit}
+              onClick={onToggleEdit}
+              title="Edit mode"
+            >
+              {edit ? '● Edit' : '○ Edit'}
+            </button>
+          )}
           <button
             className="nav-edit nav-admin"
-            onClick={onAdminClick}
-            title={isAdmin ? 'Logga ut' : 'Admin-login'}
+            onClick={() => setSettingsOpen((v) => !v)}
+            title="Inställningar"
+            aria-expanded={settingsOpen}
           >
             ⚙
           </button>
@@ -169,6 +178,37 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick }:
                 {label}
               </button>
             ))}
+          </div>
+        </>
+      )}
+      {settingsOpen && (
+        <>
+          <button
+            className="nav-menu-backdrop"
+            aria-label="Stäng inställningar"
+            onClick={() => setSettingsOpen(false)}
+          />
+          <div className="nav-settings" role="menu">
+            <button
+              className="nav-settings-row"
+              onClick={onToggleTheme}
+              role="menuitemcheckbox"
+              aria-checked={theme === 'dark'}
+            >
+              <span className="nav-settings-icon">{theme === 'dark' ? '🌙' : '☀︎'}</span>
+              <span className="nav-settings-label">Dark mode</span>
+              <span className="nav-toggle" data-on={theme === 'dark'}>
+                <span className="nav-toggle-knob" />
+              </span>
+            </button>
+            <button
+              className="nav-settings-row"
+              onClick={() => { setSettingsOpen(false); onAdminClick(); }}
+            >
+              <span className="nav-settings-icon">{isAdmin ? '🔓' : '🔒'}</span>
+              <span className="nav-settings-label">{isAdmin ? 'Admin console' : 'Admin-login'}</span>
+              <span className="nav-settings-chev">›</span>
+            </button>
           </div>
         </>
       )}

@@ -36,9 +36,15 @@ export function App() {
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminConsoleOpen, setAdminConsoleOpen] = useState(false);
   const [bannerOpen, setBannerOpen] = useLocalState('vr.banner', true);
+  const [theme, setTheme] = useLocalState<'light' | 'dark'>('vr.theme', 'light');
 
   const active = useActiveSection(SECTION_IDS);
   useGlobalReveal([friends.length, active]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    return () => { delete document.documentElement.dataset.theme; };
+  }, [theme]);
 
   // Re-show the edit banner whenever editing turns back on.
   useEffect(() => { if (isEditing) setBannerOpen(true); }, [isEditing, setBannerOpen]);
@@ -96,6 +102,8 @@ export function App() {
         isAdmin={isAdmin}
         onToggleEdit={onToggleEdit}
         onAdminClick={onAdminClick}
+        theme={theme}
+        onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
       />
 
       <QuoteTicker quote={todaysQuote} />
