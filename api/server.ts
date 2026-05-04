@@ -1,15 +1,11 @@
-// Vercel serverless entry-point. Wraps the Express routes from server/ so
-// they run as a single Lambda function. Vercel handles the Node.js adapter;
-// we just export the Express app.
+// Vercel serverless entry-point.
 //
-// runMigrations() is idempotent — it no-ops if all migrations are applied,
-// so it's safe to call on every cold start. seedIfEmpty() only runs once
-// (when friends count is 0). Both are awaited before the app is exported.
+// All server/* modules (which pull in @libsql/client with native bindings)
+// are loaded via dynamic import so the Lambda can boot and answer /api/health
+// regardless of whether the DB modules load successfully.
 
 import express from 'express';
-import { runMigrations } from '../server/db';
-import { seedIfEmpty } from '../server/seed';
-import { router, photosRouter } from '../server/routes';
+import type { Router } from 'express';
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -21,25 +17,48 @@ app.use((_req, res, next) => {
   next();
 });
 
-// Health check — always responds, never needs a DB connection.
+// Health check — zero DB imports, always boots even without env vars.
 app.get('/api/health', (_req, res) => {
-  const hasUrl = !!process.env.TURSO_DATABASE_URL;
-  const hasToken = !!process.env.TURSO_AUTH_TOKEN;
-  res.status(hasUrl && hasToken ? 200 : 503).json({
-    ok: hasUrl && hasToken,
+  res.json({
+    ok: !!process.env.TURSO_DATABASE_URL && !!process.env.TURSO_AUTH_TOKEN,
     ts: new Date().toISOString(),
-    tursoUrl: hasUrl ? 'set' : 'MISSING — add TURSO_DATABASE_URL in Vercel Environment Variables',
-    tursoToken: hasToken ? 'set' : 'MISSING — add TURSO_AUTH_TOKEN in Vercel Environment Variables',
+    tursoUrl: process.env.TURSO_DATABASE_URL ? 'set' : 'MISSING — add TURSO_DATABASE_URL in Vercel env vars',
+    tursoToken: process.env.TURSO_AUTH_TOKEN ? 'set' : 'MISSING — add TURSO_AUTH_TOKEN in Vercel env vars',
   });
 });
 
-// Kick off migrations + seed as a fire-and-forget promise so there is no
-// top-level await that could crash the Lambda before it exports the app.
-runMigrations()
-  .then(() => seedIfEmpty())
-  .catch((err) => console.error('[api/server] startup error:', err));
+// Lazily mount the API + photos routers. The promise is created once and
+// shared, so concurrent cold-start requests all await the same load.
+// Once mounted, Express picks them up when this middleware calls next().
+let mountError: string | null = null;
+let mounted = false;
 
-app.use('/api', router);
-app.use(photosRouter);
+const mountOnce = (async () => {
+  try {
+    const routes = await import('../server/routes');
+    app.use('/api', routes.router as Router);
+    app.use(routes.photosRouter as Router);
+    mounted = true;
+    // Fire-and-forget DB init (migrations are idempotent, seed runs once).
+    import('../server/db')
+      .then(({ runMigrations }) => runMigrations())
+      .then(() => import('../server/seed'))
+      .then(({ seedIfEmpty }) => seedIfEmpty())
+      .catch((err) => console.error('[api] DB init error:', err));
+  } catch (err) {
+    mountError = err instanceof Error ? err.message : String(err);
+    console.error('[api] routes failed to mount:', mountError);
+  }
+})();
+
+// Block non-health requests until routes are mounted (or failed).
+app.use(async (_req, res, next) => {
+  if (!mounted && !mountError) await mountOnce;
+  if (mountError) {
+    res.status(503).json({ error: 'Server startup failed', detail: mountError });
+    return;
+  }
+  next();
+});
 
 export default app;
