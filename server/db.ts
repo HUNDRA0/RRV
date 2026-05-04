@@ -21,7 +21,9 @@ function buildClient(): Client {
   const url = process.env.TURSO_DATABASE_URL ?? `file:${resolve(HERE, 'data', 'local.db')}`;
   if (url.startsWith('file:')) {
     // Make sure the parent directory exists for the local fallback.
-    mkdirSync(resolve(HERE, 'data'), { recursive: true });
+    // Wrapped in try-catch because serverless filesystems (e.g. Vercel) are
+    // read-only outside /tmp, and the directory may already exist in dev.
+    try { mkdirSync(resolve(HERE, 'data'), { recursive: true }); } catch { /* ignore */ }
   }
   const authToken = process.env.TURSO_AUTH_TOKEN;
   return createClient({ url, ...(authToken ? { authToken } : {}) });

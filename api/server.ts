@@ -11,8 +11,14 @@ import { runMigrations } from '../server/db';
 import { seedIfEmpty } from '../server/seed';
 import { router, photosRouter } from '../server/routes';
 
-await runMigrations();
-await seedIfEmpty();
+let startupError: string | null = null;
+try {
+  await runMigrations();
+  await seedIfEmpty();
+} catch (err) {
+  startupError = err instanceof Error ? err.message : String(err);
+  console.error('[api/server] startup error:', startupError);
+}
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
@@ -25,7 +31,15 @@ app.use((_req, res, next) => {
 });
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, ts: new Date().toISOString() });
+  const hasUrl = !!process.env.TURSO_DATABASE_URL;
+  const hasToken = !!process.env.TURSO_AUTH_TOKEN;
+  res.status(startupError || !hasUrl ? 503 : 200).json({
+    ok: !startupError && hasUrl,
+    ts: new Date().toISOString(),
+    tursoUrl: hasUrl ? 'set' : 'MISSING',
+    tursoToken: hasToken ? 'set' : 'MISSING',
+    startupError: startupError ?? undefined,
+  });
 });
 
 app.use('/api', router);
