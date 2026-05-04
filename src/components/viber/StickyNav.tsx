@@ -103,6 +103,8 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, t
   const scrolled = useScrolled(20);
   const [menuOpen, setMenuOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const settingsAnchorRef = useRef<HTMLDivElement | null>(null);
+  const menuAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const jump = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -110,13 +112,25 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, t
   };
 
   useEffect(() => {
+    if (!menuOpen && !settingsOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { setMenuOpen(false); setSettingsOpen(false); }
     };
-    if (menuOpen || settingsOpen) {
-      window.addEventListener('keydown', onKey);
-      return () => window.removeEventListener('keydown', onKey);
-    }
+    const onPointer = (e: PointerEvent) => {
+      const target = e.target as Node | null;
+      if (settingsOpen && settingsAnchorRef.current && !settingsAnchorRef.current.contains(target)) {
+        setSettingsOpen(false);
+      }
+      if (menuOpen && menuAnchorRef.current && !menuAnchorRef.current.contains(target)) {
+        setMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('pointerdown', onPointer);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('pointerdown', onPointer);
+    };
   }, [menuOpen, settingsOpen]);
 
   return (
@@ -142,7 +156,7 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, t
               {edit ? '● Edit' : '○ Edit'}
             </button>
           )}
-          <div className="nav-anchor">
+          <div className="nav-anchor" ref={settingsAnchorRef}>
             <button
               className="nav-edit nav-admin"
               onClick={() => { setSettingsOpen((v) => !v); setMenuOpen(false); }}
@@ -176,7 +190,7 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, t
               </div>
             )}
           </div>
-          <div className="nav-anchor">
+          <div className="nav-anchor" ref={menuAnchorRef}>
             <button
               className="nav-burger"
               onClick={() => { setMenuOpen((v) => !v); setSettingsOpen(false); }}
@@ -202,13 +216,6 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, t
           </div>
         </div>
       </div>
-      {(menuOpen || settingsOpen) && (
-        <button
-          className="nav-menu-backdrop"
-          aria-label="Stäng"
-          onClick={() => { setMenuOpen(false); setSettingsOpen(false); }}
-        />
-      )}
     </div>
   );
 }
