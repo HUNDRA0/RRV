@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useScrolled } from '../../hooks/useViberHooks';
 
 const TABS: [string, string][] = [
@@ -99,11 +99,22 @@ interface StickyNavProps {
 
 export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick }: StickyNavProps) {
   const scrolled = useScrolled(20);
-  const jump = (id: string) =>
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const jump = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setMenuOpen(false);
+  };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
 
   return (
-    <div className="nav-wrap" data-scrolled={scrolled}>
+    <div className="nav-wrap" data-scrolled={scrolled} data-menu-open={menuOpen}>
       <div className="nav">
         <div
           className="nav-brand"
@@ -130,8 +141,37 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick }:
           >
             ⚙
           </button>
+          <button
+            className="nav-burger"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label={menuOpen ? 'Stäng meny' : 'Öppna meny'}
+            aria-expanded={menuOpen}
+          >
+            <span /><span /><span />
+          </button>
         </div>
       </div>
+      {menuOpen && (
+        <>
+          <button
+            className="nav-menu-backdrop"
+            aria-label="Stäng meny"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div className="nav-menu" role="menu">
+            {TABS.map(([id, label]) => (
+              <button
+                key={id}
+                className="nav-menu-item"
+                aria-current={active === id}
+                onClick={() => jump(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
