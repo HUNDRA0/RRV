@@ -16,5 +16,5 @@
     "noUncheckedSideEffectImports": true,
     "types": ["node"]
   },
-  "include": ["server"]
+  "include": ["server", "api"]
 }
