@@ -2,11 +2,17 @@
 // they run as a single Lambda function. Vercel handles the Node.js adapter;
 // we just export the Express app.
 //
-// The migrations are already applied in Turso — we skip runMigrations() here.
-// No seedIfEmpty() either — production data lives in the remote DB.
+// runMigrations() is idempotent — it no-ops if all migrations are applied,
+// so it's safe to call on every cold start. seedIfEmpty() only runs once
+// (when friends count is 0). Both are awaited before the app is exported.
 
 import express from 'express';
+import { runMigrations } from '../server/db';
+import { seedIfEmpty } from '../server/seed';
 import { router, photosRouter } from '../server/routes';
+
+await runMigrations();
+await seedIfEmpty();
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));

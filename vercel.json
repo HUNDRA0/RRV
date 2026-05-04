@@ -1,6 +1,11 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "functions": {
+    "api/server.ts": {
+      "includeFiles": "server/migrations/**"
+    }
+  },
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/server" },
     { "source": "/photos/:path*", "destination": "/api/server" },
