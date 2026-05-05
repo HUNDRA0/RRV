@@ -3,7 +3,7 @@ import { useScrolled } from '../../hooks/useViberHooks';
 
 const TABS: [string, string][] = [
   ['rankings', 'Rankings'],
-  ['leaderboard', 'Leaderboard'],
+  ['leaderboard', 'Jobblistan'],
   ['gmap', "G's"],
   ['moves', 'Making Moves'],
   ['events', 'Events'],

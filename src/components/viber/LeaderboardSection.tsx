@@ -59,11 +59,11 @@ export function LeaderboardSection({ friends, edit }: LeaderboardSectionProps) {
   }
 
   return (
-    <section className="section container" id="leaderboard" data-screen-label="02 Leaderboard">
+    <section className="section container" id="leaderboard" data-screen-label="02 Jobblistan">
       <header className="section-header">
         <div>
-          <div className="section-eyebrow reveal">Section II · Personlig topplista</div>
-          <h2 className="reveal" data-d="1"><em>Leaderboard</em></h2>
+          <div className="section-eyebrow reveal">Section II · Jobblistan updated 2026</div>
+          <h2 className="reveal" data-d="1"><em>Jobblistan</em></h2>
           <p className="reveal" data-d="2">
             {edit
               ? 'Dra raderna eller använd pilarna för att ranka 1 till 16. Klicka på texten för att skriva varför.'

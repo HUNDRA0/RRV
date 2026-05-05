@@ -9,7 +9,7 @@ type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'data';
 
 const TABS: [Tab, string][] = [
   ['people',      'Personer'],
-  ['leaderboard', 'Leaderboard'],
+  ['leaderboard', 'Jobblistan'],
   ['moves',       'Moves'],
   ['quotes',      'Citat'],
   ['gmap',        'G Map'],
@@ -309,7 +309,7 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
       </label>
 
       <label className="admin-field">
-        <span>Leaderboard-anteckning</span>
+        <span>Jobblistan-anteckning</span>
         <input
           type="text"
           value={note}
