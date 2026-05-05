@@ -1449,6 +1449,49 @@ footer.foot {
 .lunch-debt-owed    { color: var(--mute); font-size: 13px; }
 .lunch-debt-note    { color: var(--mute); font-size: 13px; }
 
+/* Arrow-style debt rows */
+.lunch-arrows { display: grid; gap: 20px; }
+.lunch-arrow-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: var(--card-bg);
+  border-radius: var(--card-r);
+  box-shadow: var(--shadow-card);
+}
+.lunch-arrow-person {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.lunch-arrow-name {
+  font-family: var(--font-display); font-size: 14px; font-weight: 600;
+  text-align: center;
+}
+.lunch-arrow-debtor .lunch-avatar  { outline: 2px solid #c93232; outline-offset: 2px; }
+.lunch-arrow-creditor .lunch-avatar { outline: 2px solid var(--purple-2); outline-offset: 2px; }
+.lunch-arrow-mid {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.lunch-arrow-amount {
+  font-size: 15px; font-weight: 700; white-space: nowrap;
+}
+.lunch-arrow-line {
+  display: flex; align-items: center; gap: 0; width: 100%; min-width: 60px;
+}
+.lunch-arrow-track {
+  flex: 1; height: 2px;
+  background: linear-gradient(90deg, #c93232, var(--purple-2));
+  border-radius: 2px;
+}
+.lunch-arrow-head {
+  font-size: 22px; line-height: 1; color: var(--purple-2);
+  margin-left: -4px;
+}
+.lunch-arrow-note {
+  font-size: 11px; color: var(--mute); text-align: center; margin-top: 2px;
+}
+
 /* Admin lunch number input */
 .lunch-admin-balance {
   width: 70px; text-align: center;

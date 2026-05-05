@@ -25,6 +25,15 @@ export function parseLunchData(raw: string | undefined): LunchData {
   return LUNCH_EMPTY;
 }
 
+function Avatar({ friend }: { friend: Friend }) {
+  const photo = (friend.photos || [])[0]?.url;
+  return (
+    <div className="lunch-avatar">
+      {photo ? <img src={photo} alt={friend.name} /> : <span>{friend.name[0]}</span>}
+    </div>
+  );
+}
+
 interface LunchSectionProps {
   friends: Friend[];
   data: LunchData;
@@ -33,7 +42,7 @@ interface LunchSectionProps {
 export function LunchSection({ friends, data }: LunchSectionProps) {
   const byId = Object.fromEntries(friends.map((f) => [f.id, f]));
 
-  // Net per person: physical tickets + what others owe you - what you owe others
+  // Net per person: physical tickets + credits - debts
   const net: Record<string, number> = {};
   for (const f of friends) net[f.id] = data.balances[f.id] ?? 0;
   for (const d of data.debts) {
@@ -44,7 +53,6 @@ export function LunchSection({ friends, data }: LunchSectionProps) {
   const hasAnyData =
     Object.values(data.balances).some((v) => v !== 0) || data.debts.length > 0;
 
-  // Only show people who have something going on, but show all if admin added balances
   const relevantFriends = friends.filter(
     (f) => (data.balances[f.id] ?? 0) !== 0 || net[f.id] !== 0,
   );
@@ -69,53 +77,62 @@ export function LunchSection({ friends, data }: LunchSectionProps) {
 
       {hasAnyData && (
         <>
+          {/* Per-person ticket count cards */}
           <div className="lunch-grid">
             {displayFriends.map((f, i) => {
               const held = data.balances[f.id] ?? 0;
               const netVal = net[f.id] ?? 0;
-              const photo = (f.photos || [])[0]?.url;
               return (
                 <div key={f.id} className="lunch-card reveal" data-d={Math.min(i, 7)}>
-                  <div className="lunch-avatar">
-                    {photo
-                      ? <img src={photo} alt={f.name} />
-                      : <span>{f.name[0]}</span>}
-                  </div>
+                  <Avatar friend={f} />
                   <div className="lunch-name">{f.name.split(' ')[0]}</div>
-                  <div
-                    className="lunch-held"
-                    title={`${held} ticket${held !== 1 ? 's' : ''} i plånboken`}
-                  >
+                  <div className="lunch-held">
                     {held > 0 ? `🎟 ×${held}` : '—'}
                   </div>
                   {netVal > 0 && (
-                    <div className="lunch-net" data-pos={true}>
-                      +{netVal} luncher
-                    </div>
+                    <div className="lunch-net" data-pos="true">+{netVal} luncher</div>
                   )}
                 </div>
               );
             })}
           </div>
 
+          {/* Arrow-style debt rows */}
           {data.debts.length > 0 && (
             <div className="lunch-debts">
-              <div className="section-eyebrow" style={{ marginBottom: 16 }}>Aktiva skulder</div>
-              {data.debts.map((d) => {
-                const debtor   = byId[d.debtor];
-                const creditor = byId[d.creditor];
-                if (!debtor || !creditor) return null;
-                return (
-                  <div key={d.id} className="lunch-debt-row">
-                    <span className="lunch-debt-debtor">{debtor.name.split(' ')[0]}</span>
-                    <span className="lunch-debt-owed">är skyldig</span>
-                    <span className="lunch-debt-amount">🎟 ×{d.amount}</span>
-                    <span className="lunch-debt-owed">till</span>
-                    <span className="lunch-debt-creditor">{creditor.name.split(' ')[0]}</span>
-                    {d.note && <span className="lunch-debt-note">· {d.note}</span>}
-                  </div>
-                );
-              })}
+              <div className="section-eyebrow" style={{ marginBottom: 20 }}>Aktiva skulder</div>
+              <div className="lunch-arrows">
+                {data.debts.map((d, i) => {
+                  const debtor   = byId[d.debtor];
+                  const creditor = byId[d.creditor];
+                  if (!debtor || !creditor) return null;
+                  return (
+                    <div key={d.id} className="lunch-arrow-row reveal" data-d={Math.min(i, 5)}>
+                      {/* Who owes */}
+                      <div className="lunch-arrow-person lunch-arrow-debtor">
+                        <Avatar friend={debtor} />
+                        <span className="lunch-arrow-name">{debtor.name.split(' ')[0]}</span>
+                      </div>
+
+                      {/* Arrow + amount */}
+                      <div className="lunch-arrow-mid">
+                        <div className="lunch-arrow-amount">🎟 ×{d.amount}</div>
+                        <div className="lunch-arrow-line">
+                          <div className="lunch-arrow-track" />
+                          <div className="lunch-arrow-head">›</div>
+                        </div>
+                        {d.note && <div className="lunch-arrow-note">{d.note}</div>}
+                      </div>
+
+                      {/* Who receives */}
+                      <div className="lunch-arrow-person lunch-arrow-creditor">
+                        <Avatar friend={creditor} />
+                        <span className="lunch-arrow-name">{creditor.name.split(' ')[0]}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </>
