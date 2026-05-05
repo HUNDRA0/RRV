@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useScrolled } from '../../hooks/useViberHooks';
 
 const TABS: [string, string][] = [
-  ['rankings', 'Rankings'],
+  ['rankings', 'Tier'],
   ['leaderboard', 'Jobblistan'],
   ['gmap', "G's"],
   ['moves', 'Making Moves'],

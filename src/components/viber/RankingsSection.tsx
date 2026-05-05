@@ -11,11 +11,11 @@ interface RankingsSectionProps {
 
 export function RankingsSection({ friends, edit, onOpen, onRemovePhoto }: RankingsSectionProps) {
   return (
-    <section className="section container" id="rankings" data-screen-label="01 Rankings">
+    <section className="section container" id="rankings" data-screen-label="01 Tier">
       <header className="section-header">
         <div>
           <div className="section-eyebrow reveal">Section I · Den officiella tier-listan</div>
-          <h2 className="reveal" data-d="1"><em>Rankings</em></h2>
+          <h2 className="reveal" data-d="1"><em>Tier</em></h2>
           <p className="reveal" data-d="2">
             16 namn. Tre tiers. Öppna ett kort för att se profilen — bilder, bio, allt.
           </p>
