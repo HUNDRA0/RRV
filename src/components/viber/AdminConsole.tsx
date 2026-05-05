@@ -5,13 +5,14 @@ import { useFriendsList } from '../../lib/state';
 import { TIER_CSS, TIER_DISPLAY } from './tier-map';
 import { QUOTES_SEED } from './QuoteTicker';
 
-type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'data';
+type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'data';
 
 const TABS: [Tab, string][] = [
   ['people',      'Personer'],
   ['leaderboard', 'Leaderboard'],
   ['moves',       'Moves'],
   ['quotes',      'Citat'],
+  ['gmap',        'G Map'],
   ['data',        'Data'],
 ];
 
@@ -164,6 +165,17 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
               <div className="card-meta">
                 Idag: <b>"{(quotesDraft.split('\n').filter(Boolean)[dayOfYear() % Math.max(1, quotesDraft.split('\n').filter(Boolean).length)]) || ''}"</b>
               </div>
+            </div>
+          )}
+
+          {tab === 'gmap' && (
+            <div className="admin-list">
+              <p className="card-meta" style={{ marginBottom: 16 }}>
+                Redigera koordinater manuellt. Sparas direkt i databasen och syns på G Map-sidan.
+              </p>
+              {friends.map((f) => (
+                <GMapRow key={f.id} friend={f} updateFriend={updateFriend} />
+              ))}
             </div>
           )}
 
@@ -334,6 +346,66 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
 // ─────────────────────────────────────────────────────────────────────
 // Move row in the Moves tab — local input, push on blur.
 // ─────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────
+// G Map row — manual lat/lon editor, saves on blur.
+// ─────────────────────────────────────────────────────────────────────
+
+interface GMapRowProps {
+  friend: Friend;
+  updateFriend: (id: string, patch: { lat?: number; lon?: number }) => Promise<void>;
+}
+
+function GMapRow({ friend, updateFriend }: GMapRowProps) {
+  const [lat, setLat] = useState(friend.lat != null ? String(friend.lat) : '');
+  const [lon, setLon] = useState(friend.lon != null ? String(friend.lon) : '');
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setLat(friend.lat != null ? String(friend.lat) : '');
+    setLon(friend.lon != null ? String(friend.lon) : '');
+  }, [friend.lat, friend.lon]);
+
+  function save() {
+    const latN = parseFloat(lat);
+    const lonN = parseFloat(lon);
+    if (!isFinite(latN) || !isFinite(lonN)) return;
+    if (latN === friend.lat && lonN === friend.lon) return;
+    updateFriend(friend.id, { lat: latN, lon: lonN })
+      .then(() => { setSaved(true); setTimeout(() => setSaved(false), 2000); })
+      .catch(() => {});
+  }
+
+  const hasCoords = friend.lat != null && friend.lon != null;
+
+  return (
+    <div className="admin-row" style={{ gridTemplateColumns: '130px 1fr 1fr auto', gap: 8, alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 10, width: 8, height: 8, borderRadius: '50%', background: hasCoords ? 'var(--purple-2)' : '#ccc', display: 'inline-block', flexShrink: 0 }} />
+        <span className="lb-name" style={{ fontSize: 14 }}>{friend.name}</span>
+      </div>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={lat}
+        onChange={(e) => setLat(e.target.value)}
+        onBlur={save}
+        placeholder="Lat (t.ex. 59.194)"
+      />
+      <input
+        type="text"
+        inputMode="decimal"
+        value={lon}
+        onChange={(e) => setLon(e.target.value)}
+        onBlur={save}
+        placeholder="Lon (t.ex. 17.624)"
+      />
+      <span style={{ fontSize: 11, color: 'var(--purple-2)', minWidth: 24 }}>
+        {saved ? '✓' : ''}
+      </span>
+    </div>
+  );
+}
 
 interface MoveRowProps {
   friend: Friend;
