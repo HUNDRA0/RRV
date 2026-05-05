@@ -88,13 +88,9 @@ export function LunchSection({ friends, data }: LunchSectionProps) {
                   >
                     {held > 0 ? `🎟 ×${held}` : '—'}
                   </div>
-                  {netVal !== 0 && (
-                    <div
-                      className="lunch-net"
-                      data-pos={netVal > 0}
-                      title={netVal > 0 ? 'Skyldig att få' : 'Skyldig att betala'}
-                    >
-                      {netVal > 0 ? `+${netVal} netto` : `${netVal} netto`}
+                  {netVal > 0 && (
+                    <div className="lunch-net" data-pos={true}>
+                      +{netVal} luncher
                     </div>
                   )}
                 </div>
