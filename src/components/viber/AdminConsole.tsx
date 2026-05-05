@@ -38,17 +38,36 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
   const [quotesDraft, setQuotesDraft] = useState(initialQuotesRaw);
   const [quotesSavedAt, setQuotesSavedAt] = useState<number | null>(null);
 
-  // Leaderboard order + notes still localStorage-only — admin can edit them
-  // here too so behavior is consistent across both surfaces.
-  const seedOrder = useMemo(
-    () => [...friends].sort((a, b) => a.rank - b.rank).map((f) => f.id),
-    [friends],
-  );
-  const [order, setOrder] = useLocalState<string[]>('vr.lbOrder', seedOrder);
   const [notes, setNotes] = useLocalState<Record<string, string>>('vr.lbNotes', {});
 
+  // Leaderboard order — read from DB (same source as the main page).
+  const seedOrder = useMemo(
+    () => [...friends].sort((a, b) => a.rank - b.rank).map((f) => f.id),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [friends.length],
+  );
+  const dbOrder = useMemo<string[] | null>(() => {
+    const raw = siteContent['lb_order'];
+    if (!raw) return null;
+    try { const p = JSON.parse(raw) as string[]; if (Array.isArray(p) && p.length) return p; }
+    catch { /* fall through */ }
+    return null;
+  }, [siteContent]);
+
+  const [lbOrder, setLbOrder] = useState<string[]>(() => dbOrder ?? seedOrder);
+  const [lbSavedAt, setLbSavedAt] = useState<number | null>(null);
+
+  useEffect(() => { if (dbOrder) setLbOrder(dbOrder); }, [dbOrder]);
+
+  async function saveLbOrder(newOrder: string[]) {
+    setLbOrder(newOrder);
+    await updateContent('lb_order', JSON.stringify(newOrder));
+    setLbSavedAt(Date.now());
+    setTimeout(() => setLbSavedAt(null), 2500);
+  }
+
   const byId = useMemo(() => Object.fromEntries(friends.map((f) => [f.id, f])), [friends]);
-  const orderedFriends = order.map((id) => byId[id]).filter(Boolean);
+  const orderedFriends = lbOrder.map((id) => byId[id]).filter(Boolean) as Friend[];
 
   async function saveQuotes() {
     const trimmed = quotesDraft.split('\n').map((s) => s.trimEnd()).join('\n');
@@ -100,7 +119,7 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
           {tab === 'leaderboard' && (
             <div className="admin-list">
               <p className="card-meta" style={{ marginBottom: 16 }}>
-                Använd pilarna här eller dra på huvudsidan. Sparas lokalt i din webbläsare.
+                Flytta med pilarna, tryck sedan Spara. Syns direkt på Jobblistan.
               </p>
               {orderedFriends.map((f, idx) => (
                 <div className="admin-row" key={f.id}>
@@ -117,23 +136,27 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
                       className="lb-arrow"
                       disabled={idx === 0}
                       onClick={() => {
-                        const a = [...order];
+                        const a = [...lbOrder];
                         [a[idx - 1], a[idx]] = [a[idx], a[idx - 1]];
-                        setOrder(a);
+                        setLbOrder(a);
                       }}
                     >▲</button>
                     <button
                       className="lb-arrow"
-                      disabled={idx === order.length - 1}
+                      disabled={idx === lbOrder.length - 1}
                       onClick={() => {
-                        const a = [...order];
+                        const a = [...lbOrder];
                         [a[idx + 1], a[idx]] = [a[idx], a[idx + 1]];
-                        setOrder(a);
+                        setLbOrder(a);
                       }}
                     >▼</button>
                   </div>
                 </div>
               ))}
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 16 }}>
+                <button className="btn btn-purple" onClick={() => saveLbOrder(lbOrder)}>Spara ordning</button>
+                {lbSavedAt && <span className="card-meta" style={{ color: 'var(--purple-2)' }}>✓ Sparat</span>}
+              </div>
             </div>
           )}
 
@@ -258,20 +281,24 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
   const [bio, setBio] = useState(friend.bio || '');
   const [move, setMove] = useState(friend.currentMove || '');
   const [tier, setTier] = useState<'s' | 'a' | 'i'>(friend.tier);
+  const [saving, setSaving] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Save bio + move to backend on blur (cheap, no debounce needed).
-  function saveBio() {
-    if (bio !== (friend.bio || '')) {
-      updateFriend(friend.id, { bio }).catch(() => { /* surface later */ });
+  async function save() {
+    setSaving(true);
+    const patch: { bio?: string; currentMove?: string } = {};
+    if (bio !== (friend.bio || '')) patch.bio = bio;
+    const trimmedMove = move.trim() || 'To be continued';
+    if (trimmedMove !== (friend.currentMove || '')) patch.currentMove = trimmedMove;
+    if (Object.keys(patch).length > 0) {
+      await updateFriend(friend.id, patch).catch(() => {});
     }
+    setSaving(false);
+    setSavedAt(Date.now());
+    setTimeout(() => setSavedAt(null), 2500);
   }
-  function saveMove() {
-    const v = move.trim() || 'To be continued';
-    if (v !== (friend.currentMove || '')) {
-      updateFriend(friend.id, { currentMove: v }).catch(() => { /* surface later */ });
-    }
-  }
+
   function saveTier(v: 's' | 'a' | 'i') {
     setTier(v);
     updateFriend(friend.id, { tier: v }).catch(() => { /* surface later */ });
@@ -317,7 +344,6 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
         <textarea
           value={bio}
           onChange={(e) => setBio(e.target.value)}
-          onBlur={saveBio}
           placeholder="Skriv en bio…"
           rows={3}
         />
@@ -329,7 +355,6 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
           type="text"
           value={move}
           onChange={(e) => setMove(e.target.value)}
-          onBlur={saveMove}
           placeholder="To be continued"
         />
       </label>
@@ -343,6 +368,13 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
           placeholder="Varför här?"
         />
       </label>
+
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+        <button className="btn btn-purple" onClick={save} disabled={saving} style={{ fontSize: 13, padding: '6px 16px' }}>
+          {saving ? 'Sparar…' : 'Spara'}
+        </button>
+        {savedAt && <span style={{ fontSize: 12, color: 'var(--purple-2)' }}>✓ Sparat</span>}
+      </div>
 
       <div className="admin-photos">
         <span>Bilder ({arr.length})</span>
@@ -634,27 +666,29 @@ interface MoveRowProps {
 
 function MoveRow({ friend, updateFriend }: MoveRowProps) {
   const [v, setV] = useState(friend.currentMove || '');
+  const [saved, setSaved] = useState(false);
 
-  // Sync local state when backend value changes (e.g. via People tab).
   useEffect(() => { setV(friend.currentMove || ''); }, [friend.currentMove]);
 
   function save() {
     const next = v.trim() || 'To be continued';
-    if (next !== (friend.currentMove || '')) {
-      updateFriend(friend.id, { currentMove: next }).catch(() => { /* surface later */ });
-    }
+    updateFriend(friend.id, { currentMove: next })
+      .then(() => { setSaved(true); setTimeout(() => setSaved(false), 2000); })
+      .catch(() => {});
   }
 
   return (
-    <div className="admin-row" style={{ gridTemplateColumns: '160px 1fr' }}>
+    <div className="admin-row" style={{ gridTemplateColumns: '160px 1fr auto auto', gap: 8, alignItems: 'center' }}>
       <div className="lb-name">{friend.name}</div>
       <input
         type="text"
         value={v}
         onChange={(e) => setV(e.target.value)}
-        onBlur={save}
+        onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
         placeholder="To be continued"
       />
+      <button className="btn btn-purple" onClick={save} style={{ fontSize: 13, padding: '4px 12px', whiteSpace: 'nowrap' }}>Spara</button>
+      <span style={{ fontSize: 12, color: 'var(--purple-2)', minWidth: 16 }}>{saved ? '✓' : ''}</span>
     </div>
   );
 }
