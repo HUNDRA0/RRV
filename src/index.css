@@ -1393,6 +1393,70 @@ footer.foot {
   .admin-body { padding: 16px 14px; }
 }
 
+/* ── Lunch Tickets ────────────────────────────────────────────────────── */
+.lunch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 14px;
+  margin: 32px 0;
+}
+.lunch-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 12px 16px;
+  background: var(--card-bg);
+  border-radius: var(--card-r);
+  box-shadow: var(--shadow-card);
+  text-align: center;
+}
+.lunch-avatar {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--purple);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700; color: #fff;
+  flex-shrink: 0;
+}
+.lunch-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.lunch-name { font-family: var(--font-display); font-size: 13px; font-weight: 600; }
+.lunch-held { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.lunch-net {
+  font-size: 11px; font-weight: 600; padding: 2px 8px;
+  border-radius: 20px; background: rgba(232, 64, 64, 0.12); color: #c93232;
+}
+.lunch-net[data-pos="true"] { background: rgba(109, 63, 224, 0.1); color: var(--purple-2); }
+
+.lunch-debts {
+  margin-top: 40px;
+  padding-top: 28px;
+  border-top: 1px solid rgba(var(--paper-rgb), 0);
+  border-top-color: rgba(0,0,0,0.08);
+}
+[data-theme="dark"] .lunch-debts { border-top-color: rgba(255,255,255,0.08); }
+.lunch-debt-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  font-size: 15px;
+}
+[data-theme="dark"] .lunch-debt-row { border-bottom-color: rgba(255,255,255,0.05); }
+.lunch-debt-debtor  { font-weight: 700; color: #c93232; }
+.lunch-debt-creditor { font-weight: 700; color: var(--purple-2); }
+.lunch-debt-amount  { font-weight: 600; }
+.lunch-debt-owed    { color: var(--mute); font-size: 13px; }
+.lunch-debt-note    { color: var(--mute); font-size: 13px; }
+
+/* Admin lunch number input */
+.lunch-admin-balance {
+  width: 70px; text-align: center;
+  font-size: 14px; padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--paper); color: var(--ink);
+}
+
 /* iPad-ish — keep hero narrow nav full and section grid 1col */
 @media (min-width: 701px) and (max-width: 980px) {
   .container { padding: 0 24px; }

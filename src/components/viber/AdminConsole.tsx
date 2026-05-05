@@ -5,8 +5,9 @@ import { useFriendsList } from '../../lib/state';
 import { TIER_CSS, TIER_DISPLAY } from './tier-map';
 import { QUOTES_SEED } from './QuoteTicker';
 import { EVENTS_SEED, type EventItem } from './EventsSection';
+import { parseLunchData, LUNCH_EMPTY, type LunchData, type LunchDebt } from './LunchSection';
 
-type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'events' | 'data';
+type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'events' | 'lunch' | 'data';
 
 const TABS: [Tab, string][] = [
   ['people',      'Personer'],
@@ -15,6 +16,7 @@ const TABS: [Tab, string][] = [
   ['quotes',      'Citat'],
   ['gmap',        'G Map'],
   ['events',      'Events'],
+  ['lunch',       'Lunch 🎟'],
   ['data',        'Data'],
 ];
 
@@ -212,6 +214,10 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
 
           {tab === 'events' && (
             <EventsTab siteContent={siteContent} updateContent={updateContent} />
+          )}
+
+          {tab === 'lunch' && (
+            <LunchTab friends={friends} siteContent={siteContent} updateContent={updateContent} />
           )}
 
           {tab === 'data' && (
@@ -689,6 +695,129 @@ function MoveRow({ friend, updateFriend }: MoveRowProps) {
       />
       <button className="btn btn-purple" onClick={save} style={{ fontSize: 13, padding: '4px 12px', whiteSpace: 'nowrap' }}>Spara</button>
       <span style={{ fontSize: 12, color: 'var(--purple-2)', minWidth: 16 }}>{saved ? '✓' : ''}</span>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Lunch Tickets tab
+// ─────────────────────────────────────────────────────────────────────
+
+interface LunchTabProps {
+  friends: Friend[];
+  siteContent: Record<string, string>;
+  updateContent: (key: string, value: string) => Promise<void>;
+}
+
+function LunchTab({ friends, siteContent, updateContent }: LunchTabProps) {
+  const initial = useMemo<LunchData>(
+    () => parseLunchData(siteContent['lunch_tickets']),
+    [siteContent],
+  );
+
+  const [balances, setBalances] = useState<Record<string, number>>(initial.balances);
+  const [debts, setDebts] = useState<LunchDebt[]>(initial.debts);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  async function save(newBalances = balances, newDebts = debts) {
+    setSaving(true);
+    const data: LunchData = { balances: newBalances, debts: newDebts };
+    await updateContent('lunch_tickets', JSON.stringify(data));
+    setSaving(false);
+    setSavedAt(Date.now());
+    setTimeout(() => setSavedAt(null), 2500);
+  }
+
+  function setBalance(id: string, val: number) {
+    setBalances((prev) => ({ ...prev, [id]: Math.max(0, val) }));
+  }
+
+  function addDebt() {
+    const id = `d-${Date.now()}`;
+    const a = friends[0]?.id ?? '';
+    const b = friends[1]?.id ?? '';
+    setDebts((prev) => [...prev, { id, debtor: a, creditor: b, amount: 1, note: '' }]);
+  }
+
+  function removeDebt(id: string) {
+    setDebts((prev) => prev.filter((d) => d.id !== id));
+  }
+
+  function updateDebt(id: string, patch: Partial<LunchDebt>) {
+    setDebts((prev) => prev.map((d) => (d.id === id ? { ...d, ...patch } : d)));
+  }
+
+  return (
+    <div className="admin-list">
+      <p className="card-meta" style={{ marginBottom: 16 }}>
+        Sätt antal tickets varje person håller fysiskt, och lägg till skulder mellan folk.
+      </p>
+
+      <div className="section-eyebrow" style={{ marginBottom: 10 }}>Tickets i plånboken</div>
+      {friends.map((f) => (
+        <div className="admin-row" key={f.id} style={{ gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+          <div className="lb-name">{f.name}</div>
+          <input
+            className="lunch-admin-balance"
+            type="number"
+            min={0}
+            value={balances[f.id] ?? 0}
+            onChange={(e) => setBalance(f.id, parseInt(e.target.value) || 0)}
+          />
+        </div>
+      ))}
+
+      <div className="section-eyebrow" style={{ margin: '28px 0 12px' }}>Skulder</div>
+      {debts.length === 0 && (
+        <p className="card-meta">Inga skulder inlagda.</p>
+      )}
+      {debts.map((d) => (
+        <div key={d.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
+          <select
+            value={d.debtor}
+            onChange={(e) => updateDebt(d.id, { debtor: e.target.value })}
+            style={{ flex: 1, minWidth: 90, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }}
+          >
+            {friends.map((f) => <option key={f.id} value={f.id}>{f.name.split(' ')[0]}</option>)}
+          </select>
+          <span style={{ color: 'var(--mute)', fontSize: 12, flexShrink: 0 }}>är skyldig 🎟</span>
+          <input
+            type="number"
+            min={1}
+            value={d.amount}
+            onChange={(e) => updateDebt(d.id, { amount: Math.max(1, parseInt(e.target.value) || 1) })}
+            style={{ width: 56, textAlign: 'center', padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }}
+          />
+          <span style={{ color: 'var(--mute)', fontSize: 12, flexShrink: 0 }}>till</span>
+          <select
+            value={d.creditor}
+            onChange={(e) => updateDebt(d.id, { creditor: e.target.value })}
+            style={{ flex: 1, minWidth: 90, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }}
+          >
+            {friends.map((f) => <option key={f.id} value={f.id}>{f.name.split(' ')[0]}</option>)}
+          </select>
+          <input
+            type="text"
+            value={d.note}
+            onChange={(e) => updateDebt(d.id, { note: e.target.value })}
+            placeholder="Anmärkning (valfri)"
+            style={{ flex: 2, minWidth: 100, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }}
+          />
+          <button
+            onClick={() => removeDebt(d.id)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mute)', fontSize: 18, padding: '0 4px', flexShrink: 0 }}
+          >✕</button>
+        </div>
+      ))}
+
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 20 }}>
+        <button className="btn btn-ghost" onClick={addDebt}>+ Ny skuld</button>
+        <button className="btn btn-purple" onClick={() => save()} disabled={saving}>
+          {saving ? 'Sparar…' : 'Spara'}
+        </button>
+        {savedAt && <span className="card-meta" style={{ color: 'var(--purple-2)' }}>✓ Sparat</span>}
+      </div>
     </div>
   );
 }

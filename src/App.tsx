@@ -8,6 +8,7 @@ import { LeaderboardSection } from './components/viber/LeaderboardSection';
 import { GMapSection } from './components/viber/GMapSection';
 import { MovesSection } from './components/viber/MovesSection';
 import { EventsSection, EVENTS_SEED, type EventItem } from './components/viber/EventsSection';
+import { LunchSection, parseLunchData } from './components/viber/LunchSection';
 import { PersonModal } from './components/viber/PersonModal';
 import { EditBanner } from './components/viber/EditBanner';
 import { AdminLoginModal } from './components/viber/AdminLoginModal';
@@ -20,7 +21,7 @@ import {
 } from './hooks/useViberHooks';
 import { useFriendsList } from './lib/state';
 
-const SECTION_IDS = ['rankings', 'leaderboard', 'gmap', 'moves', 'events'];
+const SECTION_IDS = ['rankings', 'leaderboard', 'gmap', 'moves', 'events', 'lunch'];
 
 export function App() {
   const {
@@ -68,6 +69,8 @@ export function App() {
     }
     return EVENTS_SEED;
   }, [siteContent]);
+
+  const lunchData = useMemo(() => parseLunchData(siteContent['lunch_tickets']), [siteContent]);
 
   const manualGmapPairs = useMemo<Array<{a: string; b: string}> | null>(() => {
     const raw = siteContent['gmap_pairs'];
@@ -152,6 +155,7 @@ export function App() {
           <GMapSection friends={friends} manualPairs={manualGmapPairs} />
           <MovesSection friends={friends} edit={isEditing} onSetMove={onSetMove} />
           <EventsSection events={events} />
+          <LunchSection friends={friends} data={lunchData} />
         </>
       )}
 

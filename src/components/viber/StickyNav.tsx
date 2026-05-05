@@ -7,6 +7,7 @@ const TABS: [string, string][] = [
   ['gmap', "G's"],
   ['moves', 'Making Moves'],
   ['events', 'Events'],
+  ['lunch', 'Lunch 🎟'],
 ];
 
 interface NavTabsProps {
