@@ -15,7 +15,7 @@ interface FriendsListState {
   // Loading + error surface for the initial fetch.
   loading: boolean;
   loadError: string | null;
-  refresh: () => Promise<void>;
+  refresh: (force?: boolean) => Promise<void>;
 
   // Friend records and helpers (formerly imported from data/friends.ts).
   friends: Friend[];
@@ -54,6 +54,10 @@ interface FriendsListState {
 
 const Ctx = createContext<FriendsListState | null>(null);
 
+// Module-level timestamp — survives re-renders but resets on hard page refresh.
+let lastFetch = 0;
+const FETCH_TTL = 60_000;
+
 export function FriendsListProvider({ children }: { children: ReactNode }) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [predictions, setPredictions] = useState<ApiPrediction[]>([]);
@@ -70,7 +74,8 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
   // an admin" when restoring a token from localStorage on first load.
   const sessionChecked = useRef(false);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (force = false) => {
+    if (!force && Date.now() - lastFetch < FETCH_TTL) return;
     setLoading(true);
     setLoadError(null);
     try {
@@ -84,6 +89,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       setPredictions(p);
       setGmap(g);
       setSiteContent(c);
+      lastFetch = Date.now();
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'failed to load');
     } finally {

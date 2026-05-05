@@ -182,6 +182,7 @@ router.get('/friends', async (_req, res) => {
   const photos = await queryAll<FriendPhotoMetaRow>(
     `SELECT friend_id, position, uploaded_at FROM friend_photos ORDER BY friend_id, position`,
   );
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   res.json(rows.map(r => toFriendDto(r, photos)));
 });
 
@@ -406,6 +407,7 @@ router.get('/gmap', async (_req, res) => {
     mapsUrl: buildMapsUrl(addrById.get(p.friendIds[0])!, addrById.get(p.friendIds[1])!),
   }));
 
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   res.json({
     pairs: dtoPairs,
     gLessIds,
@@ -419,6 +421,7 @@ router.get('/predictions', async (_req, res) => {
   const rows = await queryAll<PredictionRow>(
     `SELECT ${SELECT_PREDICTION_COLS} FROM predictions ORDER BY created_at DESC, id DESC`,
   );
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   res.json(rows.map(toPredictionDto));
 });
 
@@ -481,6 +484,7 @@ router.get('/content', async (_req, res) => {
   const rows = await queryAll<{ key: string; value: string }>('SELECT key, value FROM site_content');
   const obj: Record<string, string> = {};
   for (const r of rows) obj[r.key] = r.value;
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   res.json(obj);
 });
 

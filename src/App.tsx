@@ -133,7 +133,7 @@ export function App() {
             ⚠️ Kunde inte ladda data från servern.
           </p>
           <p className="card-meta">{loadError}</p>
-          <button className="btn btn-purple" onClick={() => { refresh(); }}>
+          <button className="btn btn-purple" onClick={() => { refresh(true); }}>
             Försök igen
           </button>
         </div>
