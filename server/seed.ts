@@ -3,10 +3,10 @@
 // position-1 photo in friend_photos. Subsequent boots skip if friends has
 // rows. Photo data goes to friend_photos (post-Phase-4 schema).
 
-import { FRIENDS } from '../src/data/friends';
-import { INITIAL_PHOTOS } from '../src/data/initialPhotos';
-import { db, queryOne } from './db';
-import { decodeDataUrl } from './lib/photos';
+import { FRIENDS } from '../src/data/friends.js';
+import { INITIAL_PHOTOS } from '../src/data/initialPhotos.js';
+import { db, queryOne } from './db.js';
+import { decodeDataUrl } from './lib/photos.js';
 
 export async function seedIfEmpty(): Promise<void> {
   const row = await queryOne<{ n: number }>('SELECT COUNT(*) AS n FROM friends');

@@ -12,9 +12,9 @@
 
 import { randomBytes } from 'node:crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { exec, queryAll, queryOne } from './db';
-import { decodeDataUrl } from './lib/photos';
-import { buildMapsUrl, cacheKey, computePairs, type GeoFriend } from './lib/gmap';
+import { exec, queryAll, queryOne } from './db.js';
+import { decodeDataUrl } from './lib/photos.js';
+import { buildMapsUrl, cacheKey, computePairs, type GeoFriend } from './lib/gmap.js';
 
 // ── DTO conversion ────────────────────────────────────────────────────
 

@@ -2,9 +2,9 @@
 // everything. @libsql/client/web (no native bindings) is what makes this safe.
 
 import express from 'express';
-import { runMigrations } from '../server/db';
-import { seedIfEmpty } from '../server/seed';
-import { router, photosRouter } from '../server/routes';
+import { runMigrations } from '../server/db.js';
+import { seedIfEmpty } from '../server/seed.js';
+import { router, photosRouter } from '../server/routes.js';
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));
