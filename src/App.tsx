@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { AuroraBg } from './components/viber/AuroraBg';
 import { StickyNav } from './components/viber/StickyNav';
 import { Hero } from './components/viber/Hero';
@@ -116,6 +117,7 @@ export function App() {
 
   return (
     <div className="app" data-edit={isEditing}>
+      <Analytics />
       <AuroraBg />
       <StickyNav
         active={active}
