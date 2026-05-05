@@ -6,6 +6,7 @@ const TIER_SHORT: Record<TierId, string> = { s: 'Eliten', a: 'NPT', i: 'IDT' };
 
 interface GMapSectionProps {
   friends: Friend[];
+  manualPairs?: Array<{ a: string; b: string }> | null;
 }
 
 function haversine(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
@@ -50,12 +51,27 @@ function pairFriends(friends: Array<Friend & { lat: number; lon: number }>) {
   return { pairs, lonely: friends.filter((f) => !used.has(f.id)).map((f) => f.id) };
 }
 
-export function GMapSection({ friends }: GMapSectionProps) {
+export function GMapSection({ friends, manualPairs }: GMapSectionProps) {
   const geo = friends.filter(
     (f): f is Friend & { lat: number; lon: number } => f.lat != null && f.lon != null,
   );
 
-  const result = useMemo(() => pairFriends(geo), [geo]);
+  const autoResult = useMemo(() => pairFriends(geo), [geo]);
+
+  const result = useMemo(() => {
+    if (!manualPairs || manualPairs.length === 0) return autoResult;
+    const pairs: PairInfo[] = manualPairs
+      .map((p) => {
+        const a = geo.find((f) => f.id === p.a);
+        const b = geo.find((f) => f.id === p.b);
+        if (!a || !b) return null;
+        return { a: p.a, b: p.b, km: haversine(a, b) };
+      })
+      .filter((p): p is PairInfo => p !== null);
+    const used = new Set(pairs.flatMap((p) => [p.a, p.b]));
+    const lonely = geo.filter((f) => !used.has(f.id)).map((f) => f.id);
+    return { pairs, lonely };
+  }, [manualPairs, geo, autoResult]);
   const byId = useMemo(() => Object.fromEntries(geo.map((f) => [f.id, f])), [geo]);
 
   const bounds = useMemo(() => {

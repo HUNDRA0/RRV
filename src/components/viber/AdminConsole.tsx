@@ -4,8 +4,9 @@ import { useEsc, useLockBody, useLocalState, dayOfYear } from '../../hooks/useVi
 import { useFriendsList } from '../../lib/state';
 import { TIER_CSS, TIER_DISPLAY } from './tier-map';
 import { QUOTES_SEED } from './QuoteTicker';
+import { EVENTS_SEED, type EventItem } from './EventsSection';
 
-type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'data';
+type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'events' | 'data';
 
 const TABS: [Tab, string][] = [
   ['people',      'Personer'],
@@ -13,6 +14,7 @@ const TABS: [Tab, string][] = [
   ['moves',       'Moves'],
   ['quotes',      'Citat'],
   ['gmap',        'G Map'],
+  ['events',      'Events'],
   ['data',        'Data'],
 ];
 
@@ -24,7 +26,7 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
   const {
     friends, siteContent, updateContent,
     updateFriend, uploadPhoto, deletePhoto,
-    logout,
+    logout, gmap,
   } = useFriendsList();
   const [tab, setTab] = useState<Tab>('people');
 
@@ -176,7 +178,17 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
               {friends.map((f) => (
                 <GMapRow key={f.id} friend={f} updateFriend={updateFriend} />
               ))}
+              <GMapPairsEditor
+                friends={friends}
+                siteContent={siteContent}
+                updateContent={updateContent}
+                autoPairs={gmap?.pairs.map(p => ({ a: p.friends[0], b: p.friends[1] })) ?? null}
+              />
             </div>
+          )}
+
+          {tab === 'events' && (
+            <EventsTab siteContent={siteContent} updateContent={updateContent} />
           )}
 
           {tab === 'data' && (
@@ -338,6 +350,200 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
             />
           </label>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// G Map pairs editor — manual override of auto-computed pairs.
+// ─────────────────────────────────────────────────────────────────────
+
+interface GMapPair { a: string; b: string }
+
+interface GMapPairsEditorProps {
+  friends: Friend[];
+  siteContent: Record<string, string>;
+  updateContent: (key: string, value: string) => Promise<void>;
+  autoPairs: GMapPair[] | null;
+}
+
+function GMapPairsEditor({ friends, siteContent, updateContent, autoPairs }: GMapPairsEditorProps) {
+  const geo = friends.filter((f) => f.lat != null && f.lon != null);
+
+  const initialPairs = useMemo<GMapPair[]>(() => {
+    const raw = siteContent['gmap_pairs'];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as GMapPair[];
+        if (Array.isArray(parsed) && parsed.length) return parsed;
+      } catch { /* fall through */ }
+    }
+    return autoPairs ?? [];
+  }, [siteContent, autoPairs]);
+
+  const [pairs, setPairs] = useState<GMapPair[]>(initialPairs);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+  const isManual = !!siteContent['gmap_pairs'];
+
+  async function save() {
+    await updateContent('gmap_pairs', JSON.stringify(pairs));
+    setSavedAt(Date.now());
+  }
+
+  async function resetAuto() {
+    await updateContent('gmap_pairs', '');
+    setPairs(autoPairs ?? []);
+    setSavedAt(Date.now());
+  }
+
+  function addPair() {
+    const used = new Set(pairs.flatMap((p) => [p.a, p.b]));
+    const free = geo.filter((f) => !used.has(f.id));
+    const a = free[0]?.id ?? geo[0]?.id ?? '';
+    const b = free[1]?.id ?? geo[1]?.id ?? '';
+    if (a && b) setPairs((prev) => [...prev, { a, b }]);
+  }
+
+  function removePair(idx: number) {
+    setPairs((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function updatePair(idx: number, side: 'a' | 'b', val: string) {
+    setPairs((prev) => prev.map((p, i) => i === idx ? { ...p, [side]: val } : p));
+  }
+
+  if (geo.length < 2) return null;
+
+  return (
+    <div style={{ marginTop: 32, borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+        <span className="section-eyebrow" style={{ fontSize: 10 }}>
+          Par-konfiguration {isManual ? '· manuell' : '· auto'}
+        </span>
+        <button className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={resetAuto}>
+          Återställ auto
+        </button>
+      </div>
+      {pairs.map((p, idx) => (
+        <div key={idx} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 8 }}>
+          <select
+            value={p.a}
+            onChange={(e) => updatePair(idx, 'a', e.target.value)}
+            style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.12)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }}
+          >
+            {geo.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+          <span style={{ color: 'var(--purple-2)', fontWeight: 700, fontSize: 14 }}>↔</span>
+          <select
+            value={p.b}
+            onChange={(e) => updatePair(idx, 'b', e.target.value)}
+            style={{ flex: 1, padding: '6px 8px', borderRadius: 8, border: '1px solid rgba(0,0,0,0.12)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }}
+          >
+            {geo.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+          <button onClick={() => removePair(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mute)', fontSize: 16, padding: '0 4px' }}>✕</button>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
+        <button className="btn btn-ghost" onClick={addPair}>+ Lägg till par</button>
+        <button className="btn btn-purple" onClick={save}>Spara par</button>
+        {savedAt && <span className="card-meta" style={{ color: 'var(--purple-2)' }}>✓</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Events tab — add, edit and delete events stored in site_content.
+// ─────────────────────────────────────────────────────────────────────
+
+interface EventsTabProps {
+  siteContent: Record<string, string>;
+  updateContent: (key: string, value: string) => Promise<void>;
+}
+
+function EventsTab({ siteContent, updateContent }: EventsTabProps) {
+  const initialEvents = useMemo<EventItem[]>(() => {
+    const raw = siteContent['viber_events'];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as EventItem[];
+        if (Array.isArray(parsed) && parsed.length) return parsed;
+      } catch { /* fall through */ }
+    }
+    return EVENTS_SEED;
+  }, [siteContent]);
+
+  const [events, setEvents] = useState<EventItem[]>(initialEvents);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  async function save() {
+    await updateContent('viber_events', JSON.stringify(events));
+    setSavedAt(Date.now());
+    setTimeout(() => setSavedAt(null), 2500);
+  }
+
+  function addEvent() {
+    const id = `evt-${Date.now()}`;
+    const today = new Date().toISOString().split('T')[0];
+    setEvents((prev) => [...prev, { id, date: today, title: '', host: '', preliminary: false }]);
+  }
+
+  function removeEvent(id: string) {
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+  }
+
+  function update(id: string, patch: Partial<EventItem>) {
+    setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  }
+
+  return (
+    <div className="admin-list">
+      <p className="card-meta" style={{ marginBottom: 16 }}>
+        Lägg till, redigera eller ta bort events. Sorteras automatiskt på datum.
+      </p>
+      {events.map((e) => (
+        <div className="admin-person" key={e.id} style={{ gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="date"
+              value={e.date}
+              onChange={(ev) => update(e.id, { date: ev.target.value })}
+              style={{ flex: 1 }}
+            />
+            <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: 'var(--mute)', flexShrink: 0, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={!!e.preliminary}
+                onChange={(ev) => update(e.id, { preliminary: ev.target.checked })}
+              />
+              Preliminärt
+            </label>
+            <button
+              onClick={() => removeEvent(e.id)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mute)', fontSize: 18, padding: '0 4px', marginLeft: 'auto' }}
+              aria-label="Ta bort event"
+            >✕</button>
+          </div>
+          <input
+            type="text"
+            value={e.title}
+            onChange={(ev) => update(e.id, { title: ev.target.value })}
+            placeholder="Titel (t.ex. Midsommar)"
+          />
+          <input
+            type="text"
+            value={e.host}
+            onChange={(ev) => update(e.id, { host: ev.target.value })}
+            placeholder="Värd / info (t.ex. Hos Mario)"
+          />
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 10, marginTop: 16, alignItems: 'center' }}>
+        <button className="btn btn-ghost" onClick={addEvent}>+ Nytt event</button>
+        <button className="btn btn-purple" onClick={save}>Spara events</button>
+        {savedAt && <span className="card-meta" style={{ color: 'var(--purple-2)' }}>✓ Sparat</span>}
       </div>
     </div>
   );

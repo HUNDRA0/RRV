@@ -7,7 +7,7 @@ import { RankingsSection } from './components/viber/RankingsSection';
 import { LeaderboardSection } from './components/viber/LeaderboardSection';
 import { GMapSection } from './components/viber/GMapSection';
 import { MovesSection } from './components/viber/MovesSection';
-import { EventsSection } from './components/viber/EventsSection';
+import { EventsSection, EVENTS_SEED, type EventItem } from './components/viber/EventsSection';
 import { PersonModal } from './components/viber/PersonModal';
 import { EditBanner } from './components/viber/EditBanner';
 import { AdminLoginModal } from './components/viber/AdminLoginModal';
@@ -56,6 +56,24 @@ export function App() {
       if (lines.length) return lines;
     }
     return QUOTES_SEED;
+  }, [siteContent]);
+
+  const events = useMemo<EventItem[]>(() => {
+    const raw = siteContent['viber_events'];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw) as EventItem[];
+        if (Array.isArray(parsed) && parsed.length) return parsed;
+      } catch { /* fall through */ }
+    }
+    return EVENTS_SEED;
+  }, [siteContent]);
+
+  const manualGmapPairs = useMemo<Array<{a: string; b: string}> | null>(() => {
+    const raw = siteContent['gmap_pairs'];
+    if (!raw) return null;
+    try { return JSON.parse(raw) as Array<{a: string; b: string}>; }
+    catch { return null; }
   }, [siteContent]);
 
   const todaysQuote = quotes[dayOfYear() % Math.max(1, quotes.length)] || 'Vibe responsibly.';
@@ -131,9 +149,9 @@ export function App() {
         <>
           <RankingsSection friends={friends} edit={isEditing} onOpen={setOpenId} onRemovePhoto={onRemovePhoto} />
           <LeaderboardSection friends={friends} edit={isEditing} />
-          <GMapSection friends={friends} />
+          <GMapSection friends={friends} manualPairs={manualGmapPairs} />
           <MovesSection friends={friends} edit={isEditing} onSetMove={onSetMove} />
-          <EventsSection />
+          <EventsSection events={events} />
         </>
       )}
 
