@@ -193,7 +193,7 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
     res.status(404).json({ error: 'friend not found' });
     return;
   }
-  const body = req.body as { name?: unknown; note?: unknown; bio?: unknown; currentMove?: unknown; lat?: unknown; lon?: unknown };
+  const body = req.body as { name?: unknown; note?: unknown; bio?: unknown; currentMove?: unknown; lat?: unknown; lon?: unknown; tier?: unknown };
   const updates: string[] = [];
   const args: (string | number)[] = [];
   let coordsChanged = false;
@@ -227,6 +227,10 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
     const v = typeof body.lon === 'string' ? parseFloat(body.lon) : body.lon;
     if (typeof v !== 'number' || !isFinite(v)) { res.status(400).json({ error: 'lon must be a finite number' }); return; }
     updates.push('lon = ?'); args.push(v); coordsChanged = true; newLon = v;
+  }
+  if (body.tier !== undefined) {
+    if (body.tier !== 's' && body.tier !== 'a' && body.tier !== 'i') { res.status(400).json({ error: "tier must be 's', 'a', or 'i'" }); return; }
+    updates.push('tier = ?'); args.push(body.tier);
   }
   if (updates.length === 0) { res.json(friend); return; }
   updates.push(`updated_at = datetime('now')`);

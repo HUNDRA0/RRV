@@ -222,7 +222,7 @@ interface PeopleTabProps {
   friends: Friend[];
   notes: Record<string, string>;
   setNote: (id: string, v: string) => void;
-  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string }) => Promise<void>;
+  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; tier?: 's' | 'a' | 'i' }) => Promise<void>;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
 }
@@ -249,7 +249,7 @@ interface PersonEditorProps {
   friend: Friend;
   note: string;
   onNoteChange: (v: string) => void;
-  updateFriend: (id: string, patch: { bio?: string; currentMove?: string }) => Promise<void>;
+  updateFriend: (id: string, patch: { bio?: string; currentMove?: string; tier?: 's' | 'a' | 'i' }) => Promise<void>;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
 }
@@ -257,6 +257,7 @@ interface PersonEditorProps {
 function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, deletePhoto }: PersonEditorProps) {
   const [bio, setBio] = useState(friend.bio || '');
   const [move, setMove] = useState(friend.currentMove || '');
+  const [tier, setTier] = useState<'s' | 'a' | 'i'>(friend.tier);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Save bio + move to backend on blur (cheap, no debounce needed).
@@ -270,6 +271,10 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
     if (v !== (friend.currentMove || '')) {
       updateFriend(friend.id, { currentMove: v }).catch(() => { /* surface later */ });
     }
+  }
+  function saveTier(v: 's' | 'a' | 'i') {
+    setTier(v);
+    updateFriend(friend.id, { tier: v }).catch(() => { /* surface later */ });
   }
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -294,9 +299,18 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
         </div>
         <div>
           <div className="lb-name">{friend.name}</div>
-          <div className="card-meta">{TIER_DISPLAY[friend.tier].label}</div>
+          <div className="card-meta">{TIER_DISPLAY[tier].label}</div>
         </div>
       </div>
+
+      <label className="admin-field">
+        <span>Tier</span>
+        <select value={tier} onChange={(e) => saveTier(e.target.value as 's' | 'a' | 'i')}>
+          <option value="s">S — Eliten</option>
+          <option value="a">A — Normal people tier</option>
+          <option value="i">I — I dunno</option>
+        </select>
+      </label>
 
       <label className="admin-field">
         <span>Bio</span>
