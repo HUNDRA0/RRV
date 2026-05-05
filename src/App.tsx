@@ -28,7 +28,7 @@ export function App() {
     friends, findFriend,
     isAdmin, isEditing, toggleEditMode,
     tryLogin, loginError,
-    siteContent,
+    siteContent, updateContent,
     updateFriend, uploadPhoto, deletePhoto,
   } = useFriendsList();
 
@@ -148,7 +148,7 @@ export function App() {
       {ready && (
         <>
           <RankingsSection friends={friends} edit={isEditing} onOpen={setOpenId} onRemovePhoto={onRemovePhoto} />
-          <LeaderboardSection friends={friends} edit={isEditing} />
+          <LeaderboardSection friends={friends} edit={isEditing} siteContent={siteContent} updateContent={updateContent} />
           <GMapSection friends={friends} manualPairs={manualGmapPairs} />
           <MovesSection friends={friends} edit={isEditing} onSetMove={onSetMove} />
           <EventsSection events={events} />

@@ -961,7 +961,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
   transition: all 320ms var(--ease-spring);
   cursor: default;
 }
-.leaderboard[data-edit="true"] .lb-row { cursor: grab; }
+.leaderboard[data-edit="true"] .lb-row { cursor: default; }
 .lb-row:hover {
   background: rgba(var(--paper-rgb), 0.78);
   transform: translateX(4px);
@@ -990,6 +990,31 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .lb-arrow:hover { background: var(--purple); color: white; border-color: var(--purple); transform: scale(1.1); }
 .lb-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
 .lb-arrow:disabled:hover { background: var(--paper); color: var(--ink-soft); border-color: var(--line-strong); transform: none; }
+
+/* Slider control (edit mode) */
+.lb-slider-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 80px; }
+.lb-slider-num { font: 700 13px/1 var(--font-mono); color: var(--purple-2); letter-spacing: 0.05em; }
+.lb-slider {
+  -webkit-appearance: none; appearance: none;
+  width: 80px; height: 4px;
+  border-radius: 999px;
+  background: var(--purple-soft);
+  outline: none; cursor: grab;
+}
+.lb-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--purple); border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(139,92,246,0.4);
+  cursor: grab; transition: transform 120ms;
+}
+.lb-slider:active::-webkit-slider-thumb { cursor: grabbing; transform: scale(1.2); }
+.lb-slider::-moz-range-thumb {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--purple); border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(139,92,246,0.4);
+  cursor: grab;
+}
 
 /* ---------- G MAP ---------- */
 .gmap-canvas {
@@ -1344,6 +1369,8 @@ footer.foot {
   .gmap-pin .label { font-size: 9px; padding: 3px 5px; letter-spacing: 0.04em; }
   .gmap-pin .dot { width: 12px; height: 12px; }
   .lb-row { grid-template-columns: 40px 40px 1fr auto; gap: 10px; padding: 10px 12px; }
+  .lb-slider-wrap { min-width: 64px; }
+  .lb-slider { width: 64px; }
   .lb-rank { font-size: 26px; }
   .lb-avatar { width: 36px; height: 36px; font-size: 16px; }
   .lb-name { font-size: 16px; }

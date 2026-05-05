@@ -1,61 +1,63 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Friend } from '../../data/friends';
-import { Editable } from './Editable';
 import { useLocalState } from '../../hooks/useViberHooks';
 
 interface LeaderboardSectionProps {
   friends: Friend[];
   edit: boolean;
+  siteContent: Record<string, string>;
+  updateContent: (key: string, value: string) => Promise<void>;
 }
 
-export function LeaderboardSection({ friends, edit }: LeaderboardSectionProps) {
+export function LeaderboardSection({ friends, edit, siteContent, updateContent }: LeaderboardSectionProps) {
   const seedOrder = useMemo(
     () => [...friends].sort((a, b) => a.rank - b.rank).map((f) => f.id),
-    [friends],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [friends.length],
   );
-  const [order, setOrder] = useLocalState<string[]>('vr.lbOrder', seedOrder);
-  const [notes, setNotes] = useLocalState<Record<string, string>>('vr.lbNotes', {});
 
-  // Heal: drop unknown ids, append new ones at the bottom.
+  // Canonical order lives in the DB (site_content key 'lb_order').
+  // Fall back to rank-sorted seed on first use.
+  const dbOrder = useMemo<string[] | null>(() => {
+    const raw = siteContent['lb_order'];
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as string[];
+      if (Array.isArray(parsed) && parsed.length) return parsed;
+    } catch { /* fall through */ }
+    return null;
+  }, [siteContent]);
+
+  const [order, setOrder] = useState<string[]>(() => dbOrder ?? seedOrder);
+
+  // Sync when DB value first arrives (or changes from another device).
+  useEffect(() => {
+    if (dbOrder) setOrder(dbOrder);
+  }, [dbOrder]);
+
+  // Heal: keep order in sync with the friends list (add newcomers, drop unknowns).
   useEffect(() => {
     const ids = friends.map((f) => f.id);
-    const missing = ids.filter((id) => !order.includes(id));
-    const extra = order.filter((id) => !ids.includes(id));
-    if (missing.length || extra.length) {
-      setOrder([...order.filter((id) => ids.includes(id)), ...missing]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [friends.length]);
+    setOrder((prev) => {
+      const kept = prev.filter((id) => ids.includes(id));
+      const missing = ids.filter((id) => !kept.includes(id));
+      if (!missing.length && kept.length === prev.length) return prev;
+      return [...kept, ...missing];
+    });
+  }, [friends.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [notes, setNotes] = useLocalState<Record<string, string>>('vr.lbNotes', {});
   const byId = useMemo(() => Object.fromEntries(friends.map((f) => [f.id, f])), [friends]);
-  const [dragId, setDragId] = useState<string | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
 
-  function move(id: string, delta: number) {
-    if (!edit) return;
-    const idx = order.indexOf(id);
-    const next = idx + delta;
-    if (next < 0 || next >= order.length) return;
-    const arr = [...order];
-    [arr[idx], arr[next]] = [arr[next], arr[idx]];
-    setOrder(arr);
-  }
-  function onDrop(e: React.DragEvent, id: string) {
-    e.preventDefault();
-    if (!edit) return;
-    if (!dragId || dragId === id) { setDragId(null); return; }
-    const from = order.indexOf(dragId);
-    const to = order.indexOf(id);
+  async function moveToPosition(id: string, newPos: number) {
+    const from = order.indexOf(id);
+    const to = newPos - 1;
+    if (from === to || to < 0 || to >= order.length) return;
     const arr = [...order];
     arr.splice(from, 1);
-    arr.splice(to, 0, dragId);
+    arr.splice(to, 0, id);
     setOrder(arr);
-    setDragId(null);
-    setOverId(null);
-  }
-  function setNote(id: string, v: string) {
-    if (!edit) return;
-    setNotes({ ...notes, [id]: v });
+    await updateContent('lb_order', JSON.stringify(arr));
   }
 
   return (
@@ -66,7 +68,7 @@ export function LeaderboardSection({ friends, edit }: LeaderboardSectionProps) {
           <h2 className="reveal" data-d="1"><em>Jobblistan</em></h2>
           <p className="reveal" data-d="2">
             {edit
-              ? 'Dra raderna eller använd pilarna för att ranka 1 till 16. Klicka på texten för att skriva varför.'
+              ? 'Dra slidern för att sätta positionen 1–16. Sparas direkt.'
               : 'Den officiella ranken.'}
           </p>
         </div>
@@ -81,15 +83,9 @@ export function LeaderboardSection({ friends, edit }: LeaderboardSectionProps) {
           return (
             <div
               key={id}
-              className={`lb-row reveal ${dragId === id ? 'dragging' : ''} ${overId === id && dragId && dragId !== id ? 'drop-target' : ''}`}
+              className="lb-row reveal"
               data-d={Math.min(idx, 8)}
               data-rank={rank}
-              draggable={edit}
-              onDragStart={(e) => { if (!edit) return; setDragId(id); e.dataTransfer.effectAllowed = 'move'; }}
-              onDragOver={(e) => { if (!edit) return; e.preventDefault(); if (id !== overId) setOverId(id); }}
-              onDragLeave={() => setOverId(null)}
-              onDrop={(e) => onDrop(e, id)}
-              onDragEnd={() => { setDragId(null); setOverId(null); }}
             >
               <div className="lb-rank">{rank}</div>
               <div className="lb-avatar">
@@ -97,23 +93,56 @@ export function LeaderboardSection({ friends, edit }: LeaderboardSectionProps) {
               </div>
               <div className="lb-info">
                 <div className="lb-name">{f.name}</div>
-                <Editable
-                  className="lb-note"
-                  value={notes[id] || ''}
-                  onChange={(v) => setNote(id, v)}
-                  edit={edit}
-                />
+                {edit ? (
+                  <div className="lb-note" style={{ color: 'var(--mute)', fontSize: 12 }}>
+                    {notes[id] || ''}
+                  </div>
+                ) : (
+                  <div className="lb-note">{notes[id] || ''}</div>
+                )}
               </div>
               {edit && (
-                <div className="lb-controls">
-                  <button className="lb-arrow" onClick={() => move(id, -1)} disabled={idx === 0}>▲</button>
-                  <button className="lb-arrow" onClick={() => move(id, +1)} disabled={idx === order.length - 1}>▼</button>
-                </div>
+                <SliderControl
+                  rank={rank}
+                  total={order.length}
+                  onCommit={(pos) => moveToPosition(id, pos)}
+                />
               )}
             </div>
           );
         })}
       </div>
     </section>
+  );
+}
+
+interface SliderControlProps {
+  rank: number;
+  total: number;
+  onCommit: (pos: number) => void;
+}
+
+function SliderControl({ rank, total, onCommit }: SliderControlProps) {
+  const [dragging, setDragging] = useState<number | null>(null);
+  const display = dragging ?? rank;
+
+  return (
+    <div className="lb-slider-wrap">
+      <span className="lb-slider-num">#{display}</span>
+      <input
+        className="lb-slider"
+        type="range"
+        min={1}
+        max={total}
+        value={display}
+        onChange={(e) => setDragging(Number(e.target.value))}
+        onPointerUp={(e) => {
+          const val = Number((e.target as HTMLInputElement).value);
+          setDragging(null);
+          if (val !== rank) onCommit(val);
+        }}
+        onPointerCancel={() => setDragging(null)}
+      />
+    </div>
   );
 }
