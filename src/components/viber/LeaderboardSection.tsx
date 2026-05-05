@@ -46,7 +46,7 @@ export function LeaderboardSection({ friends, edit, siteContent, updateContent }
     });
   }, [friends.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const [notes, setNotes] = useLocalState<Record<string, string>>('vr.lbNotes', {});
+  const [notes] = useLocalState<Record<string, string>>('vr.lbNotes', {});
   const byId = useMemo(() => Object.fromEntries(friends.map((f) => [f.id, f])), [friends]);
 
   async function moveToPosition(id: string, newPos: number) {
