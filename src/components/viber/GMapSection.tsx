@@ -99,7 +99,7 @@ export function GMapSection({ friends, manualPairs }: GMapSectionProps) {
           <div className="section-eyebrow reveal">Section III · Neighbour status</div>
           <h2 className="reveal" data-d="1">G <em>Map</em></h2>
           <p className="reveal" data-d="2">
-            Vem bor närmast vem? Greedy-parade per närmaste granne. Distans i fågelvägen.
+            Vem bor närmast vem? Who's my G.
           </p>
         </div>
         <div className="section-num reveal" data-d="3">III</div>
