@@ -1428,6 +1428,7 @@ footer.foot {
   border-radius: 20px; background: rgba(232, 64, 64, 0.12); color: #c93232;
 }
 .lunch-net[data-pos="true"] { background: rgba(109, 63, 224, 0.1); color: var(--purple-2); }
+.lunch-sad { font-size: 22px; line-height: 1; }
 
 .lunch-debts {
   margin-top: 40px;

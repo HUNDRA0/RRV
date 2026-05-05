@@ -92,6 +92,9 @@ export function LunchSection({ friends, data }: LunchSectionProps) {
                   {netVal > 0 && (
                     <div className="lunch-net" data-pos="true">+{netVal} luncher</div>
                   )}
+                  {netVal < 0 && (
+                    <div className="lunch-sad" title={`Skyldig ${Math.abs(netVal)} lunch${Math.abs(netVal) !== 1 ? 'er' : ''}`}>😔</div>
+                  )}
                 </div>
               );
             })}
