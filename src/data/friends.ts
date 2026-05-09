@@ -3,7 +3,7 @@
 // code reads the live list via useFriendsList() instead. Tier metadata, G Map
 // pairings, and G Less stay local because they're static UI configuration.
 
-export type TierId = 's' | 'a' | 'i';
+export type TierId = string;
 
 export interface Tier {
   id: TierId;

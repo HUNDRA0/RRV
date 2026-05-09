@@ -1,29 +1,24 @@
-import { useMemo } from 'react';
-import type { Friend, TierId } from '../../data/friends';
+import type { Friend } from '../../data/friends';
 import { PersonCard } from './PersonCard';
-import { TIER_CSS, parseTierDisplay } from './tier-map';
-import { useFriendsList } from '../../lib/state';
+import { getTierCss, type TierConfig } from './tier-map';
 
 interface TierSectionProps {
-  tierId: TierId;
+  tier: TierConfig;
   friends: Friend[];
   edit: boolean;
   onOpen: (id: string) => void;
   onRemovePhoto: (id: string, position: number) => void;
 }
 
-export function TierSection({ tierId, friends, edit, onOpen, onRemovePhoto }: TierSectionProps) {
-  const { siteContent } = useFriendsList();
-  const tierDisplay = useMemo(() => parseTierDisplay(siteContent['tier_names']), [siteContent]);
-  const t = tierDisplay[tierId];
-  const items = friends.filter((f) => f.tier === tierId);
+export function TierSection({ tier, friends, edit, onOpen, onRemovePhoto }: TierSectionProps) {
+  const items = friends.filter((f) => f.tier === tier.id);
   return (
-    <section className="tier" data-screen-label={`Tier ${t.label}`}>
+    <section className="tier" data-screen-label={`Tier ${tier.label}`}>
       <header className="tier-header reveal">
-        <div className="tier-letter" data-tier={TIER_CSS[tierId]}>{t.letter}</div>
+        <div className="tier-letter" data-tier={getTierCss(tier.id)}>{tier.letter}</div>
         <div className="tier-title">
-          <small>{t.sublabel}</small>
-          <h3>{t.label}</h3>
+          <small>{tier.sublabel}</small>
+          <h3>{tier.label}</h3>
         </div>
         <div className="tier-count">{items.length} pers.</div>
       </header>

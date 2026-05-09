@@ -22,7 +22,7 @@ interface FriendRow {
   id: string;
   name: string;
   rank: number;
-  tier: 's' | 'a' | 'i';
+  tier: string;
   street: string;
   postcode: string;
   city: string;
@@ -284,8 +284,8 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
     updates.push('lon = ?'); args.push(v); coordsChanged = true; newLon = v;
   }
   if (body.tier !== undefined) {
-    if (body.tier !== 's' && body.tier !== 'a' && body.tier !== 'i') { res.status(400).json({ error: "tier must be 's', 'a', or 'i'" }); return; }
-    updates.push('tier = ?'); args.push(body.tier);
+    if (typeof body.tier !== 'string' || !body.tier.trim()) { res.status(400).json({ error: 'tier must be a non-empty string' }); return; }
+    updates.push('tier = ?'); args.push(body.tier.trim());
   }
   if (updates.length === 0) { res.json(friend); return; }
   updates.push(`updated_at = datetime('now')`);

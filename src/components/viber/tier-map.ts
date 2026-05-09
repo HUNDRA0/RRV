@@ -1,41 +1,46 @@
-import type { TierId } from '../../data/friends';
+export type TierId = string;
 
-// Viber prototype CSS uses `data-tier="eliten|normal|idunno"`. Map our backend
-// tier ids (`s|a|i`) to those keys at the component boundary so the ported
-// stylesheet stays untouched.
-export const TIER_CSS: Record<TierId, 'eliten' | 'normal' | 'idunno'> = {
-  s: 'eliten',
-  a: 'normal',
-  i: 'idunno',
-};
-
-export interface TierDisplay {
+export interface TierConfig {
+  id: string;
   letter: string;
   label: string;
   sublabel: string;
 }
 
-export const TIER_DISPLAY: Record<TierId, TierDisplay> = {
+export const DEFAULT_TIERS: TierConfig[] = [
+  { id: 's', letter: 'S', label: 'Eliten',             sublabel: 'S-tier — toppskiktet' },
+  { id: 'a', letter: 'A', label: 'Normal people tier', sublabel: 'A-tier — solid stock' },
+  { id: 'i', letter: '?', label: 'I dunno',            sublabel: 'Vi får se vart det landar' },
+];
+
+export function parseTierConfig(raw: string | undefined): TierConfig[] {
+  if (!raw) return DEFAULT_TIERS;
+  try {
+    const p = JSON.parse(raw) as TierConfig[];
+    if (Array.isArray(p) && p.length > 0) return p;
+  } catch { /* fall through */ }
+  return DEFAULT_TIERS;
+}
+
+export function getTierCss(id: string): 'eliten' | 'normal' | 'idunno' {
+  if (id === 's') return 'eliten';
+  if (id === 'a') return 'normal';
+  return 'idunno';
+}
+
+export function findTier(config: TierConfig[], id: string): TierConfig {
+  return config.find((t) => t.id === id) ?? { id, letter: id.toUpperCase(), label: id, sublabel: '' };
+}
+
+// Legacy aliases kept to avoid breaking other imports — remove after full migration
+export const TIER_CSS = { s: 'eliten' as const, a: 'normal' as const, i: 'idunno' as const };
+export const TIER_DISPLAY = {
   s: { letter: 'S', label: 'Eliten',             sublabel: 'S-tier — toppskiktet' },
   a: { letter: 'A', label: 'Normal people tier', sublabel: 'A-tier — solid stock' },
   i: { letter: '?', label: 'I dunno',            sublabel: 'Vi får se vart det landar' },
 };
-
-export const TIER_ORDER_VIBER: TierId[] = ['s', 'a', 'i'];
-
-export function buildTierDisplay(
-  custom: Partial<Record<string, Partial<TierDisplay>>>,
-): Record<TierId, TierDisplay> {
-  const result = { ...TIER_DISPLAY };
-  for (const tid of TIER_ORDER_VIBER) {
-    if (custom[tid]) result[tid] = { ...result[tid], ...custom[tid] };
-  }
-  return result;
-}
-
-export function parseTierDisplay(raw: string | undefined): Record<TierId, TierDisplay> {
-  if (!raw) return TIER_DISPLAY;
-  try {
-    return buildTierDisplay(JSON.parse(raw) as Partial<Record<string, Partial<TierDisplay>>>);
-  } catch { return TIER_DISPLAY; }
-}
+export const TIER_ORDER_VIBER: string[] = ['s', 'a', 'i'];
+// Legacy parseTierDisplay kept for any code still importing it
+export function parseTierDisplay(_raw: string | undefined) { return TIER_DISPLAY; }
+export interface TierDisplay { letter: string; label: string; sublabel: string; }
+export function buildTierDisplay(_c: unknown) { return TIER_DISPLAY; }

@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Friend } from '../../data/friends';
 import { useEsc, useLockBody, useLocalState, dayOfYear } from '../../hooks/useViberHooks';
 import { useFriendsList } from '../../lib/state';
-import { TIER_CSS, TIER_DISPLAY, TIER_ORDER_VIBER, parseTierDisplay, type TierDisplay } from './tier-map';
+import { TIER_CSS, TIER_DISPLAY, TIER_ORDER_VIBER, parseTierDisplay, parseTierConfig, getTierCss, type TierDisplay, type TierConfig } from './tier-map';
 import type { TierId } from '../../data/friends';
 import { QUOTES_SEED } from './QuoteTicker';
 import { EVENTS_SEED, type EventItem } from './EventsSection';
 import { parseLunchData, type LunchData, type LunchDebt } from './LunchSection';
 
-type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'events' | 'lunch' | 'data';
+type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'events' | 'lunch' | 'tiers' | 'data';
 
 const TABS: [Tab, string][] = [
   ['people',      'Personer'],
@@ -18,6 +18,7 @@ const TABS: [Tab, string][] = [
   ['gmap',        'G Map'],
   ['events',      'Events'],
   ['lunch',       'Lunch 🎟'],
+  ['tiers',       'Tiers'],
   ['data',        'Data'],
 ];
 
@@ -221,6 +222,10 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
             <LunchTab friends={friends} siteContent={siteContent} updateContent={updateContent} />
           )}
 
+          {tab === 'tiers' && (
+            <TiersTab siteContent={siteContent} updateContent={updateContent} />
+          )}
+
           {tab === 'data' && (
             <div className="admin-data">
               <h3>Stats</h3>
@@ -235,7 +240,6 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
               <p className="card-meta" style={{ marginTop: 16, marginBottom: 28 }}>
                 För G Map-pins: kör <code>npm run geocode</code> i terminalen.
               </p>
-              <TierNamesEditor siteContent={siteContent} updateContent={updateContent} />
             </div>
           )}
         </div>
@@ -253,7 +257,7 @@ interface PeopleTabProps {
   friends: Friend[];
   notes: Record<string, string>;
   setNote: (id: string, v: string) => void;
-  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; tier?: 's' | 'a' | 'i' }) => Promise<void>;
+  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; tier?: string }) => Promise<void>;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
 }
@@ -280,16 +284,18 @@ interface PersonEditorProps {
   friend: Friend;
   note: string;
   onNoteChange: (v: string) => void;
-  updateFriend: (id: string, patch: { name?: string; bio?: string; currentMove?: string; tier?: 's' | 'a' | 'i' }) => Promise<void>;
+  updateFriend: (id: string, patch: { name?: string; bio?: string; currentMove?: string; tier?: string }) => Promise<void>;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
 }
 
 function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, deletePhoto }: PersonEditorProps) {
+  const { siteContent: sc } = useFriendsList();
+  const allTiers = useMemo(() => parseTierConfig(sc['tier_config']), [sc]);
   const [name, setName] = useState(friend.name);
   const [bio, setBio] = useState(friend.bio || '');
   const [move, setMove] = useState(friend.currentMove || '');
-  const [tier, setTier] = useState<'s' | 'a' | 'i'>(friend.tier);
+  const [tier, setTier] = useState<string>(friend.tier);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -310,7 +316,7 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
     setTimeout(() => setSavedAt(null), 2500);
   }
 
-  function saveTier(v: 's' | 'a' | 'i') {
+  function saveTier(v: string) {
     setTier(v);
     updateFriend(friend.id, { tier: v }).catch(() => { /* surface later */ });
   }
@@ -326,7 +332,7 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
     e.target.value = '';
   }
 
-  const tierCss = TIER_CSS[friend.tier];
+  const tierCss = getTierCss(friend.tier);
   const arr = friend.photos || [];
 
   return (
@@ -337,7 +343,7 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
         </div>
         <div>
           <div className="lb-name">{friend.name}</div>
-          <div className="card-meta">{TIER_DISPLAY[tier].label}</div>
+          <div className="card-meta">{allTiers.find((t) => t.id === tier)?.label ?? tier}</div>
         </div>
       </div>
 
@@ -348,10 +354,10 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
 
       <label className="admin-field">
         <span>Tier</span>
-        <select value={tier} onChange={(e) => saveTier(e.target.value as 's' | 'a' | 'i')}>
-          <option value="s">S — Eliten</option>
-          <option value="a">A — Normal people tier</option>
-          <option value="i">I — I dunno</option>
+        <select value={tier} onChange={(e) => saveTier(e.target.value)}>
+          {allTiers.map((t) => (
+            <option key={t.id} value={t.id}>{t.letter} — {t.label}</option>
+          ))}
         </select>
       </label>
 
@@ -833,59 +839,87 @@ function LunchTab({ friends, siteContent, updateContent }: LunchTabProps) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Tier name editor — lives in the Data tab
+// Tiers tab — add/remove/rename/reorder tiers, stored as JSON in site_content
 // ─────────────────────────────────────────────────────────────────────
 
-interface TierNamesEditorProps {
+interface TiersTabProps {
   siteContent: Record<string, string>;
   updateContent: (key: string, value: string) => Promise<void>;
 }
 
-function TierNamesEditor({ siteContent, updateContent }: TierNamesEditorProps) {
-  const initial = useMemo(() => parseTierDisplay(siteContent['tier_names']), [siteContent]);
-  const [names, setNames] = useState<Record<TierId, TierDisplay>>({ ...initial });
+function TiersTab({ siteContent, updateContent }: TiersTabProps) {
+  const [tiers, setTiers] = useState(() => parseTierConfig(siteContent['tier_config']));
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  function update(tid: TierId, field: keyof TierDisplay, val: string) {
-    setNames((prev) => ({ ...prev, [tid]: { ...prev[tid], [field]: val } }));
-  }
-
-  async function save() {
-    const patch: Partial<Record<string, Partial<TierDisplay>>> = {};
-    for (const tid of TIER_ORDER_VIBER) {
-      const d = TIER_DISPLAY[tid];
-      const n = names[tid];
-      const diff: Partial<TierDisplay> = {};
-      if (n.letter !== d.letter) diff.letter = n.letter;
-      if (n.label !== d.label) diff.label = n.label;
-      if (n.sublabel !== d.sublabel) diff.sublabel = n.sublabel;
-      if (Object.keys(diff).length) patch[tid] = diff;
-    }
-    await updateContent('tier_names', Object.keys(patch).length ? JSON.stringify(patch) : '');
+  async function save(newTiers = tiers) {
+    setSaving(true);
+    await updateContent('tier_config', JSON.stringify(newTiers));
+    setSaving(false);
     setSavedAt(Date.now());
     setTimeout(() => setSavedAt(null), 2500);
   }
 
-  const TIER_LABEL: Record<TierId, string> = { s: 'S-tier', a: 'A-tier', i: 'I-tier' };
+  function addTier() {
+    const id = `t${Date.now().toString(36).slice(-4)}`;
+    setTiers((prev) => [...prev, { id, letter: '?', label: 'Ny tier', sublabel: '' }]);
+  }
+
+  function removeTier(id: string) {
+    setTiers((prev) => prev.filter((t) => t.id !== id));
+  }
+
+  function updateTier(id: string, patch: Partial<TierConfig>) {
+    setTiers((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  }
+
+  function moveUp(idx: number) {
+    if (idx === 0) return;
+    setTiers((prev) => { const a = [...prev]; [a[idx - 1], a[idx]] = [a[idx], a[idx - 1]]; return a; });
+  }
+
+  function moveDown(idx: number) {
+    setTiers((prev) => { if (idx >= prev.length - 1) return prev; const a = [...prev]; [a[idx + 1], a[idx]] = [a[idx], a[idx + 1]]; return a; });
+  }
 
   return (
-    <div style={{ borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: 20 }}>
-      <div className="section-eyebrow" style={{ marginBottom: 14 }}>Tiernamn</div>
-      {TIER_ORDER_VIBER.map((tid) => (
-        <div key={tid} style={{ marginBottom: 16 }}>
-          <div className="card-meta" style={{ marginBottom: 6, fontWeight: 600 }}>{TIER_LABEL[tid]}</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 1fr', gap: 8 }}>
-            <input type="text" value={names[tid].letter} onChange={(e) => update(tid, 'letter', e.target.value)} placeholder="S"
-              style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13, textAlign: 'center' }} />
-            <input type="text" value={names[tid].label} onChange={(e) => update(tid, 'label', e.target.value)} placeholder="Namn"
-              style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }} />
-            <input type="text" value={names[tid].sublabel} onChange={(e) => update(tid, 'sublabel', e.target.value)} placeholder="Beskrivning"
-              style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }} />
-          </div>
+    <div className="admin-list">
+      <p className="card-meta" style={{ marginBottom: 16 }}>
+        Ändra namn, bokstav och beskrivning. Lägg till eller ta bort tiers. Flytta folk till rätt tier innan du tar bort en.
+      </p>
+      {tiers.map((t, idx) => (
+        <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '50px 1fr 1fr auto auto auto', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+          <input
+            type="text"
+            value={t.letter}
+            onChange={(e) => updateTier(t.id, { letter: e.target.value })}
+            placeholder="S"
+            style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 14, textAlign: 'center', fontWeight: 700 }}
+          />
+          <input
+            type="text"
+            value={t.label}
+            onChange={(e) => updateTier(t.id, { label: e.target.value })}
+            placeholder="Namn"
+            style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }}
+          />
+          <input
+            type="text"
+            value={t.sublabel}
+            onChange={(e) => updateTier(t.id, { sublabel: e.target.value })}
+            placeholder="Beskrivning"
+            style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }}
+          />
+          <button className="lb-arrow" disabled={idx === 0} onClick={() => moveUp(idx)}>▲</button>
+          <button className="lb-arrow" disabled={idx === tiers.length - 1} onClick={() => moveDown(idx)}>▼</button>
+          <button onClick={() => removeTier(t.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mute)', fontSize: 18, padding: '0 4px' }}>✕</button>
         </div>
       ))}
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 }}>
-        <button className="btn btn-purple" onClick={save}>Spara tiernamn</button>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 16 }}>
+        <button className="btn btn-ghost" onClick={addTier}>+ Ny tier</button>
+        <button className="btn btn-purple" onClick={() => save()} disabled={saving}>
+          {saving ? 'Sparar…' : 'Spara'}
+        </button>
         {savedAt && <span className="card-meta" style={{ color: 'var(--purple-2)' }}>✓ Sparat</span>}
       </div>
     </div>

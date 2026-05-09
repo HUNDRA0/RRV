@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import type { Friend } from '../../data/friends';
 import { TierSection } from './TierSection';
-import { TIER_ORDER_VIBER } from './tier-map';
+import { parseTierConfig } from './tier-map';
+import { useFriendsList } from '../../lib/state';
 
 interface RankingsSectionProps {
   friends: Friend[];
@@ -10,6 +12,9 @@ interface RankingsSectionProps {
 }
 
 export function RankingsSection({ friends, edit, onOpen, onRemovePhoto }: RankingsSectionProps) {
+  const { siteContent } = useFriendsList();
+  const tiers = useMemo(() => parseTierConfig(siteContent['tier_config']), [siteContent]);
+
   return (
     <section className="section container" id="rankings" data-screen-label="01 Tier">
       <header className="section-header">
@@ -22,8 +27,8 @@ export function RankingsSection({ friends, edit, onOpen, onRemovePhoto }: Rankin
         </div>
         <div className="section-num reveal" data-d="3">I</div>
       </header>
-      {TIER_ORDER_VIBER.map((t) => (
-        <TierSection key={t} tierId={t} friends={friends} edit={edit} onOpen={onOpen} onRemovePhoto={onRemovePhoto} />
+      {tiers.map((tier) => (
+        <TierSection key={tier.id} tier={tier} friends={friends} edit={edit} onOpen={onOpen} onRemovePhoto={onRemovePhoto} />
       ))}
     </section>
   );
