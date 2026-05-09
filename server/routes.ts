@@ -181,7 +181,7 @@ router.get('/friends', async (_req, res) => {
   const photos = await queryAll<FriendPhotoMetaRow>(
     `SELECT friend_id, position, uploaded_at FROM friend_photos ORDER BY friend_id, position`,
   );
-  res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   res.json(rows.map(r => toFriendDto(r, photos)));
 });
 
@@ -215,7 +215,7 @@ router.get('/bootstrap', async (_req, res) => {
   const content: Record<string, string> = {};
   for (const r of contentRows) content[r.key] = r.value;
 
-  res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
+  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   res.json({
     friends: friendRows.map(r => toFriendDto(r, photoRows)),
     predictions: predRows.map(toPredictionDto),
