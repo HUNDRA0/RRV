@@ -869,6 +869,11 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 }
 .admin-body { overflow-y: auto; padding: 24px 28px; }
 
+/* Admin responsive helpers */
+.admin-tiers-row { display: grid; grid-template-columns: 50px 1fr 1fr 36px auto auto auto; gap: 8px; align-items: center; margin-bottom: 8px; }
+.admin-move-row { display: grid; grid-template-columns: 160px 1fr auto auto; gap: 8px; align-items: center; }
+.admin-gmap-row { display: grid; grid-template-columns: 130px 1fr 1fr auto; gap: 8px; align-items: center; }
+
 .admin-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 @media (max-width: 800px) { .admin-grid { grid-template-columns: 1fr; } }
 .admin-person {
@@ -1429,13 +1434,18 @@ footer.foot {
   .pair-link .dist { font-size: 13px; }
   .banner-edit { left: 12px; right: 12px; bottom: 12px; padding: 10px 14px; font-size: 11px; justify-content: center; }
   footer.foot { padding: 24px 18px; font-size: 11px; }
-  .admin-overlay { padding: 0; }
-  .admin-shell { max-height: 100vh; border-radius: 0; }
-  .admin-header { padding: 16px 18px; }
-  .admin-header h2 { font-size: 22px; }
-  .admin-tabs { padding: 10px 12px; gap: 4px; }
-  .admin-tab { font-size: 11px; padding: 8px 12px; }
-  .admin-body { padding: 16px 14px; }
+  .admin-overlay { padding: 0; align-items: stretch; }
+  .admin-shell { height: 100dvh; max-height: 100dvh; border-radius: 0; width: 100%; }
+  .admin-header { padding: 10px 14px; }
+  .admin-header h2 { font-size: 18px; }
+  .admin-tabs { padding: 8px 10px; gap: 3px; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+  .admin-tab { font-size: 10px; padding: 6px 10px; }
+  .admin-body { padding: 12px 12px; -webkit-overflow-scrolling: touch; }
+  .admin-tiers-row { grid-template-columns: 44px 1fr 28px auto auto !important; flex-wrap: wrap; }
+  .admin-tiers-row .admin-tiers-sublabel { grid-column: 2 / -3; }
+  .admin-move-row { grid-template-columns: 1fr auto auto !important; }
+  .admin-gmap-row { grid-template-columns: 1fr 1fr auto !important; }
+  .admin-gmap-name { display: none; }
 }
 
 /* ── Lunch Tickets ────────────────────────────────────────────────────── */

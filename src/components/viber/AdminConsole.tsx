@@ -652,10 +652,10 @@ function GMapRow({ friend, updateFriend }: GMapRowProps) {
   const hasCoords = friend.lat != null && friend.lon != null;
 
   return (
-    <div className="admin-row" style={{ gridTemplateColumns: '130px 1fr 1fr auto', gap: 8, alignItems: 'center' }}>
+    <div className="admin-row admin-gmap-row">
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ fontSize: 10, width: 8, height: 8, borderRadius: '50%', background: hasCoords ? 'var(--purple-2)' : '#ccc', display: 'inline-block', flexShrink: 0 }} />
-        <span className="lb-name" style={{ fontSize: 14 }}>{friend.name}</span>
+        <span className="lb-name admin-gmap-name" style={{ fontSize: 14 }}>{friend.name}</span>
       </div>
       <input
         type="text"
@@ -699,7 +699,7 @@ function MoveRow({ friend, updateFriend }: MoveRowProps) {
   }
 
   return (
-    <div className="admin-row" style={{ gridTemplateColumns: '160px 1fr auto auto', gap: 8, alignItems: 'center' }}>
+    <div className="admin-row admin-move-row">
       <div className="lb-name">{friend.name}</div>
       <input
         type="text"
@@ -887,7 +887,7 @@ function TiersTab({ siteContent, updateContent }: TiersTabProps) {
         Ändra namn, bokstav och beskrivning. Lägg till eller ta bort tiers. Flytta folk till rätt tier innan du tar bort en.
       </p>
       {tiers.map((t, idx) => (
-        <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '50px 1fr 1fr 36px auto auto auto', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+        <div key={t.id} className="admin-tiers-row">
           <input
             type="text"
             value={t.letter}
