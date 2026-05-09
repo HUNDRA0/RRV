@@ -41,6 +41,9 @@ interface FriendsListState {
   siteContent: SiteContent;
   updateContent: (key: string, value: string) => Promise<void>;
 
+  // Today's quote — picked server-side so it's stable for the whole UTC day.
+  dailyQuote: string;
+
   // Edit mode — separate from isAdmin so admin can browse without affordances.
   isEditMode: boolean;
   isEditing: boolean;  // convenience: isAdmin && isEditMode
@@ -63,6 +66,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
   const [predictions, setPredictions] = useState<ApiPrediction[]>([]);
   const [gmap, setGmap] = useState<ApiGMap | null>(null);
   const [siteContent, setSiteContent] = useState<SiteContent>({});
+  const [dailyQuote, setDailyQuote] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -79,12 +83,13 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setLoadError(null);
     try {
-      const { friends: f, predictions: p, gmap: g, content: c } =
+      const { friends: f, predictions: p, gmap: g, content: c, dailyQuote: dq } =
         await api.fetchBootstrap() as BootstrapPayload;
       setFriends(f);
       setPredictions(p);
       setGmap(g);
       setSiteContent(c);
+      if (dq) setDailyQuote(dq);
       lastFetch = Date.now();
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'failed to load');
@@ -190,7 +195,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       friends, findFriend, friendsByTier,
       predictions, submitPrediction, toggleCorrect, deletePrediction,
       gmap,
-      siteContent, updateContent,
+      siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
       updateFriend, uploadPhoto, deletePhoto,
     }),
@@ -199,7 +204,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       friends, findFriend, friendsByTier,
       predictions, submitPrediction, toggleCorrect, deletePrediction,
       gmap,
-      siteContent, updateContent,
+      siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
       updateFriend, uploadPhoto, deletePhoto,
     ],

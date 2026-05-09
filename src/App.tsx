@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AuroraBg } from './components/viber/AuroraBg';
 import { StickyNav } from './components/viber/StickyNav';
 import { Hero } from './components/viber/Hero';
-import { QuoteTicker, QUOTES_SEED } from './components/viber/QuoteTicker';
+import { QuoteTicker } from './components/viber/QuoteTicker';
 import { RankingsSection } from './components/viber/RankingsSection';
 import { LeaderboardSection } from './components/viber/LeaderboardSection';
 import { GMapSection } from './components/viber/GMapSection';
@@ -17,7 +17,6 @@ import {
   useActiveSection,
   useGlobalReveal,
   useLocalState,
-  dayOfYear,
 } from './hooks/useViberHooks';
 import { useFriendsList } from './lib/state';
 
@@ -29,7 +28,7 @@ export function App() {
     friends, findFriend,
     isAdmin, isEditing, toggleEditMode,
     tryLogin, loginError,
-    siteContent, updateContent,
+    siteContent, updateContent, dailyQuote,
     updateFriend, uploadPhoto, deletePhoto,
   } = useFriendsList();
 
@@ -50,14 +49,7 @@ export function App() {
   // Re-show the edit banner whenever editing turns back on.
   useEffect(() => { if (isEditing) setBannerOpen(true); }, [isEditing, setBannerOpen]);
 
-  const quotes = useMemo(() => {
-    const raw = siteContent['viber_quotes'];
-    if (raw) {
-      const lines = raw.split('\n').map((s) => s.trim()).filter(Boolean);
-      if (lines.length) return lines;
-    }
-    return QUOTES_SEED;
-  }, [siteContent]);
+  // dailyQuote is picked server-side in /api/bootstrap — stable for the whole UTC day.
 
   const events = useMemo<EventItem[]>(() => {
     const raw = siteContent['viber_events'];
@@ -79,7 +71,7 @@ export function App() {
     catch { return null; }
   }, [siteContent]);
 
-  const todaysQuote = quotes[dayOfYear() % Math.max(1, quotes.length)] || 'Vibe responsibly.';
+  const todaysQuote = dailyQuote || 'Vibe responsibly.';
   const openFriend = openId ? findFriend(openId) : null;
 
   const onToggleEdit = () => {

@@ -108,6 +108,7 @@ export interface BootstrapPayload {
   predictions: ApiPrediction[];
   gmap: ApiGMap;
   content: SiteContent;
+  dailyQuote: string;
 }
 
 export const api = {

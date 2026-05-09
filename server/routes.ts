@@ -215,10 +215,20 @@ router.get('/bootstrap', async (_req, res) => {
   const content: Record<string, string> = {};
   for (const r of contentRows) content[r.key] = r.value;
 
+  // Pick today's quote server-side so it's stable for all clients during the day.
+  // Uses UTC day number so it flips at 00:00 UTC (02:00 Swedish summer time).
+  const utcDay = Math.floor(Date.now() / 86_400_000);
+  const quoteLines = (content['viber_quotes'] ?? '')
+    .split('\n').map((s) => s.trim()).filter(Boolean);
+  const dailyQuote = quoteLines.length > 0
+    ? quoteLines[utcDay % quoteLines.length]
+    : 'Vibe responsibly.';
+
   res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   res.json({
     friends: friendRows.map(r => toFriendDto(r, photoRows)),
     predictions: predRows.map(toPredictionDto),
+    dailyQuote,
     gmap: {
       pairs: pairs.map(p => ({
         rank: p.rank,
