@@ -887,7 +887,7 @@ function TiersTab({ siteContent, updateContent }: TiersTabProps) {
         Ändra namn, bokstav och beskrivning. Lägg till eller ta bort tiers. Flytta folk till rätt tier innan du tar bort en.
       </p>
       {tiers.map((t, idx) => (
-        <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '50px 1fr 1fr auto auto auto', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+        <div key={t.id} style={{ display: 'grid', gridTemplateColumns: '50px 1fr 1fr 36px auto auto auto', gap: 8, alignItems: 'center', marginBottom: 8 }}>
           <input
             type="text"
             value={t.letter}
@@ -908,6 +908,13 @@ function TiersTab({ siteContent, updateContent }: TiersTabProps) {
             onChange={(e) => updateTier(t.id, { sublabel: e.target.value })}
             placeholder="Beskrivning"
             style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }}
+          />
+          <input
+            type="color"
+            title="Tier-färg"
+            value={t.color ?? '#888888'}
+            onChange={(e) => updateTier(t.id, { color: e.target.value })}
+            style={{ width: 36, height: 32, padding: 2, borderRadius: 6, border: '1px solid var(--line)', cursor: 'pointer' }}
           />
           <button className="lb-arrow" disabled={idx === 0} onClick={() => moveUp(idx)}>▲</button>
           <button className="lb-arrow" disabled={idx === tiers.length - 1} onClick={() => moveDown(idx)}>▼</button>

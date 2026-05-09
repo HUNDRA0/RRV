@@ -5,6 +5,7 @@ export interface TierConfig {
   letter: string;
   label: string;
   sublabel: string;
+  color?: string;  // optional custom CSS color for the tier letter
 }
 
 export const DEFAULT_TIERS: TierConfig[] = [

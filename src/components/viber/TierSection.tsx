@@ -15,7 +15,11 @@ export function TierSection({ tier, friends, edit, onOpen, onRemovePhoto }: Tier
   return (
     <section className="tier" data-screen-label={`Tier ${tier.label}`}>
       <header className="tier-header reveal">
-        <div className="tier-letter" data-tier={getTierCss(tier.id)}>{tier.letter}</div>
+        <div
+          className="tier-letter"
+          data-tier={getTierCss(tier.id)}
+          style={tier.color ? { color: tier.color } : undefined}
+        >{tier.letter}</div>
         <div className="tier-title">
           <small>{tier.sublabel}</small>
           <h3>{tier.label}</h3>
