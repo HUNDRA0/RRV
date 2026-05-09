@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /api/
+Disallow: /admin/
+
+# Private site — discourage indexing
+Disallow: /
+
+Sitemap: https://www.viberrankings.se/sitemap.xml
