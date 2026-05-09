@@ -22,3 +22,20 @@ export const TIER_DISPLAY: Record<TierId, TierDisplay> = {
 };
 
 export const TIER_ORDER_VIBER: TierId[] = ['s', 'a', 'i'];
+
+export function buildTierDisplay(
+  custom: Partial<Record<string, Partial<TierDisplay>>>,
+): Record<TierId, TierDisplay> {
+  const result = { ...TIER_DISPLAY };
+  for (const tid of TIER_ORDER_VIBER) {
+    if (custom[tid]) result[tid] = { ...result[tid], ...custom[tid] };
+  }
+  return result;
+}
+
+export function parseTierDisplay(raw: string | undefined): Record<TierId, TierDisplay> {
+  if (!raw) return TIER_DISPLAY;
+  try {
+    return buildTierDisplay(JSON.parse(raw) as Partial<Record<string, Partial<TierDisplay>>>);
+  } catch { return TIER_DISPLAY; }
+}

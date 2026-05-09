@@ -44,6 +44,39 @@ function countdownLabel(iso: string) {
   return `${months} mån`;
 }
 
+function downloadICS(event: EventItem) {
+  const d = new Date(event.date + 'T12:00:00');
+  const next = new Date(d);
+  next.setDate(next.getDate() + 1);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const fmt = (dt: Date) =>
+    `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}`;
+
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//VR//Viber Rankings//EN',
+    'BEGIN:VEVENT',
+    `DTSTART;VALUE=DATE:${fmt(d)}`,
+    `DTEND;VALUE=DATE:${fmt(next)}`,
+    `SUMMARY:${event.title}`,
+    event.host ? `DESCRIPTION:${event.host}` : '',
+    `UID:vr-${event.id}@rrv`,
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].filter(Boolean).join('\r\n');
+
+  const blob = new Blob([lines], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${event.title.replace(/\s+/g, '-')}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 interface EventsSectionProps {
   events: EventItem[];
 }
@@ -87,6 +120,14 @@ export function EventsSection({ events }: EventsSectionProps) {
               <div className="event-countdown-num">{countdownLabel(e.date)}</div>
               <div className="event-countdown-label">till dess</div>
             </div>
+            <button
+              className="event-cal-btn"
+              onClick={(ev) => { ev.stopPropagation(); downloadICS(e); }}
+              title="Lägg till i kalender"
+              aria-label="Lägg till i kalender"
+            >
+              📅
+            </button>
           </article>
         ))}
       </div>

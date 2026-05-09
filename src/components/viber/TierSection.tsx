@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import type { Friend, TierId } from '../../data/friends';
 import { PersonCard } from './PersonCard';
-import { TIER_CSS, TIER_DISPLAY } from './tier-map';
+import { TIER_CSS, parseTierDisplay } from './tier-map';
+import { useFriendsList } from '../../lib/state';
 
 interface TierSectionProps {
   tierId: TierId;
@@ -11,7 +13,9 @@ interface TierSectionProps {
 }
 
 export function TierSection({ tierId, friends, edit, onOpen, onRemovePhoto }: TierSectionProps) {
-  const t = TIER_DISPLAY[tierId];
+  const { siteContent } = useFriendsList();
+  const tierDisplay = useMemo(() => parseTierDisplay(siteContent['tier_names']), [siteContent]);
+  const t = tierDisplay[tierId];
   const items = friends.filter((f) => f.tier === tierId);
   return (
     <section className="tier" data-screen-label={`Tier ${t.label}`}>

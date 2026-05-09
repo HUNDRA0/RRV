@@ -178,12 +178,67 @@ router.get('/friends', async (_req, res) => {
   const rows = await queryAll<FriendRow>(
     `SELECT ${SELECT_FRIEND_COLS} FROM friends ORDER BY rank`,
   );
-  // One pass for all photo metadata so we don't N+1 a query per friend.
   const photos = await queryAll<FriendPhotoMetaRow>(
     `SELECT friend_id, position, uploaded_at FROM friend_photos ORDER BY friend_id, position`,
   );
   res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
   res.json(rows.map(r => toFriendDto(r, photos)));
+});
+
+// Single endpoint that returns friends + predictions + gmap + content in one
+// round-trip. Cuts 4 cold-start Lambda invocations down to 1.
+router.get('/bootstrap', async (_req, res) => {
+  const [friendRows, photoRows, predRows, contentRows, cacheRows] = await Promise.all([
+    queryAll<FriendRow>(`SELECT ${SELECT_FRIEND_COLS} FROM friends ORDER BY rank`),
+    queryAll<FriendPhotoMetaRow>(`SELECT friend_id, position, uploaded_at FROM friend_photos ORDER BY friend_id, position`),
+    queryAll<PredictionRow>(`SELECT ${SELECT_PREDICTION_COLS} FROM predictions ORDER BY created_at DESC, id DESC`),
+    queryAll<{ key: string; value: string }>('SELECT key, value FROM site_content'),
+    queryAll<{ id_a: string; id_b: string; distance_meters: number }>('SELECT id_a, id_b, distance_meters FROM gmap_route_cache'),
+  ]);
+
+  // Build gmap (reuse friendRows so we don't query twice)
+  const geocoded: GeoFriend[] = [];
+  const ungeocodedIds: string[] = [];
+  const addrById = new Map<string, { street: string; postcode: string; city: string }>();
+  for (const row of friendRows) {
+    addrById.set(row.id, { street: row.street, postcode: row.postcode, city: row.city });
+    if (row.lat != null && row.lon != null) {
+      geocoded.push({ id: row.id, name: row.name, lat: row.lat, lon: row.lon, area: row.area });
+    } else {
+      ungeocodedIds.push(row.id);
+    }
+  }
+  const routeCache = new Map<string, number>();
+  for (const row of cacheRows) routeCache.set(cacheKey(row.id_a, row.id_b), row.distance_meters);
+  const { pairs, unpairedIds } = computePairs(geocoded, routeCache);
+
+  const content: Record<string, string> = {};
+  for (const r of contentRows) content[r.key] = r.value;
+
+  res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=30');
+  res.json({
+    friends: friendRows.map(r => toFriendDto(r, photoRows)),
+    predictions: predRows.map(toPredictionDto),
+    gmap: {
+      pairs: pairs.map(p => ({
+        rank: p.rank,
+        proximity: p.proximity,
+        proximityLabel: p.proximityLabel,
+        proximityColor: p.proximityColor,
+        emoji: p.emoji,
+        friends: p.friendIds,
+        distanceMeters: Math.round(p.distanceMeters),
+        distanceLabel: p.distanceLabel,
+        area: p.area,
+        mapsUrl: buildMapsUrl(addrById.get(p.friendIds[0])!, addrById.get(p.friendIds[1])!),
+      })),
+      gLessIds: [...unpairedIds, ...ungeocodedIds],
+      pending: ungeocodedIds.length > 0,
+      geocodedCount: geocoded.length,
+      totalCount: friendRows.length,
+    },
+    content,
+  });
 });
 
 router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {

@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import type { Friend } from '../../data/friends';
 import { PhotoCell } from './PhotoCell';
-import { TIER_DISPLAY } from './tier-map';
+import { parseTierDisplay } from './tier-map';
+import { useFriendsList } from '../../lib/state';
 
 interface PersonCardProps {
   friend: Friend;
@@ -11,6 +13,8 @@ interface PersonCardProps {
 }
 
 export function PersonCard({ friend, edit, onOpen, rankWithinTier, onRemovePhoto }: PersonCardProps) {
+  const { siteContent } = useFriendsList();
+  const tierDisplay = useMemo(() => parseTierDisplay(siteContent['tier_names']), [siteContent]);
   const bio = friend.bio || '';
   return (
     <div
@@ -26,7 +30,7 @@ export function PersonCard({ friend, edit, onOpen, rankWithinTier, onRemovePhoto
         onRemovePhoto={onRemovePhoto}
       />
       <div className="card-body">
-        <div className="card-rank">#{rankWithinTier} · {TIER_DISPLAY[friend.tier].label}</div>
+        <div className="card-rank">#{rankWithinTier} · {tierDisplay[friend.tier].label}</div>
         <div className="card-name">{friend.name}</div>
         <div className="card-meta">
           {friend.address.street} · {friend.address.postcode} {friend.address.city}

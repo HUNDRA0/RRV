@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { Friend, TierId } from '../data/friends';
-import { ApiError, api, tokenStore, type ApiGMap, type ApiPrediction, type SiteContent } from './api';
+import { ApiError, api, tokenStore, type ApiGMap, type ApiPrediction, type SiteContent, type BootstrapPayload } from './api';
 
 interface FriendsListState {
   // Loading + error surface for the initial fetch.
@@ -79,12 +79,8 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setLoadError(null);
     try {
-      const [f, p, g, c] = await Promise.all([
-        api.fetchFriends(),
-        api.fetchPredictions(),
-        api.fetchGMap(),
-        api.fetchContent(),
-      ]);
+      const { friends: f, predictions: p, gmap: g, content: c } =
+        await api.fetchBootstrap() as BootstrapPayload;
       setFriends(f);
       setPredictions(p);
       setGmap(g);

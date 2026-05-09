@@ -1197,7 +1197,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .events-list { display: grid; gap: 14px; }
 .event {
   display: grid;
-  grid-template-columns: 110px 1fr auto;
+  grid-template-columns: 110px 1fr auto auto;
   align-items: center;
   gap: 24px;
   padding: 22px 26px;
@@ -1293,6 +1293,14 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
   color: var(--mute);
   margin-top: 4px;
 }
+.event-cal-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 20px; line-height: 1;
+  padding: 6px; border-radius: 8px;
+  opacity: 0.5; transition: opacity 0.15s, background 0.15s;
+  align-self: center;
+}
+.event-cal-btn:hover { opacity: 1; background: rgba(109,63,224,0.08); }
 @media (max-width: 700px) {
   .event { grid-template-columns: 80px 1fr; gap: 16px; padding: 16px 18px; }
   .event-date { padding: 8px 0; }

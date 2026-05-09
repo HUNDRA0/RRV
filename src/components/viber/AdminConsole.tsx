@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Friend } from '../../data/friends';
 import { useEsc, useLockBody, useLocalState, dayOfYear } from '../../hooks/useViberHooks';
 import { useFriendsList } from '../../lib/state';
-import { TIER_CSS, TIER_DISPLAY } from './tier-map';
+import { TIER_CSS, TIER_DISPLAY, TIER_ORDER_VIBER, parseTierDisplay, type TierDisplay } from './tier-map';
+import type { TierId } from '../../data/friends';
 import { QUOTES_SEED } from './QuoteTicker';
 import { EVENTS_SEED, type EventItem } from './EventsSection';
 import { parseLunchData, type LunchData, type LunchDebt } from './LunchSection';
@@ -231,9 +232,10 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
                 <li>Citat: <b>{quotesDraft.split('\n').filter(Boolean).length}</b></li>
                 <li>Geokodade (för G Map): <b>{friends.filter((f) => f.lat != null).length}/{friends.length}</b></li>
               </ul>
-              <p className="card-meta" style={{ marginTop: 16 }}>
+              <p className="card-meta" style={{ marginTop: 16, marginBottom: 28 }}>
                 För G Map-pins: kör <code>npm run geocode</code> i terminalen.
               </p>
+              <TierNamesEditor siteContent={siteContent} updateContent={updateContent} />
             </div>
           )}
         </div>
@@ -278,12 +280,13 @@ interface PersonEditorProps {
   friend: Friend;
   note: string;
   onNoteChange: (v: string) => void;
-  updateFriend: (id: string, patch: { bio?: string; currentMove?: string; tier?: 's' | 'a' | 'i' }) => Promise<void>;
+  updateFriend: (id: string, patch: { name?: string; bio?: string; currentMove?: string; tier?: 's' | 'a' | 'i' }) => Promise<void>;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
 }
 
 function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, deletePhoto }: PersonEditorProps) {
+  const [name, setName] = useState(friend.name);
   const [bio, setBio] = useState(friend.bio || '');
   const [move, setMove] = useState(friend.currentMove || '');
   const [tier, setTier] = useState<'s' | 'a' | 'i'>(friend.tier);
@@ -293,7 +296,9 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
 
   async function save() {
     setSaving(true);
-    const patch: { bio?: string; currentMove?: string } = {};
+    const patch: { name?: string; bio?: string; currentMove?: string } = {};
+    const trimmedName = name.trim();
+    if (trimmedName && trimmedName !== friend.name) patch.name = trimmedName;
     if (bio !== (friend.bio || '')) patch.bio = bio;
     const trimmedMove = move.trim() || 'To be continued';
     if (trimmedMove !== (friend.currentMove || '')) patch.currentMove = trimmedMove;
@@ -335,6 +340,11 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
           <div className="card-meta">{TIER_DISPLAY[tier].label}</div>
         </div>
       </div>
+
+      <label className="admin-field">
+        <span>Namn</span>
+        <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
+      </label>
 
       <label className="admin-field">
         <span>Tier</span>
@@ -816,6 +826,66 @@ function LunchTab({ friends, siteContent, updateContent }: LunchTabProps) {
         <button className="btn btn-purple" onClick={() => save()} disabled={saving}>
           {saving ? 'Sparar…' : 'Spara'}
         </button>
+        {savedAt && <span className="card-meta" style={{ color: 'var(--purple-2)' }}>✓ Sparat</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Tier name editor — lives in the Data tab
+// ─────────────────────────────────────────────────────────────────────
+
+interface TierNamesEditorProps {
+  siteContent: Record<string, string>;
+  updateContent: (key: string, value: string) => Promise<void>;
+}
+
+function TierNamesEditor({ siteContent, updateContent }: TierNamesEditorProps) {
+  const initial = useMemo(() => parseTierDisplay(siteContent['tier_names']), [siteContent]);
+  const [names, setNames] = useState<Record<TierId, TierDisplay>>({ ...initial });
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  function update(tid: TierId, field: keyof TierDisplay, val: string) {
+    setNames((prev) => ({ ...prev, [tid]: { ...prev[tid], [field]: val } }));
+  }
+
+  async function save() {
+    const patch: Partial<Record<string, Partial<TierDisplay>>> = {};
+    for (const tid of TIER_ORDER_VIBER) {
+      const d = TIER_DISPLAY[tid];
+      const n = names[tid];
+      const diff: Partial<TierDisplay> = {};
+      if (n.letter !== d.letter) diff.letter = n.letter;
+      if (n.label !== d.label) diff.label = n.label;
+      if (n.sublabel !== d.sublabel) diff.sublabel = n.sublabel;
+      if (Object.keys(diff).length) patch[tid] = diff;
+    }
+    await updateContent('tier_names', Object.keys(patch).length ? JSON.stringify(patch) : '');
+    setSavedAt(Date.now());
+    setTimeout(() => setSavedAt(null), 2500);
+  }
+
+  const TIER_LABEL: Record<TierId, string> = { s: 'S-tier', a: 'A-tier', i: 'I-tier' };
+
+  return (
+    <div style={{ borderTop: '1px solid rgba(0,0,0,0.08)', paddingTop: 20 }}>
+      <div className="section-eyebrow" style={{ marginBottom: 14 }}>Tiernamn</div>
+      {TIER_ORDER_VIBER.map((tid) => (
+        <div key={tid} style={{ marginBottom: 16 }}>
+          <div className="card-meta" style={{ marginBottom: 6, fontWeight: 600 }}>{TIER_LABEL[tid]}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '60px 1fr 1fr', gap: 8 }}>
+            <input type="text" value={names[tid].letter} onChange={(e) => update(tid, 'letter', e.target.value)} placeholder="S"
+              style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13, textAlign: 'center' }} />
+            <input type="text" value={names[tid].label} onChange={(e) => update(tid, 'label', e.target.value)} placeholder="Namn"
+              style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }} />
+            <input type="text" value={names[tid].sublabel} onChange={(e) => update(tid, 'sublabel', e.target.value)} placeholder="Beskrivning"
+              style={{ padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }} />
+          </div>
+        </div>
+      ))}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 }}>
+        <button className="btn btn-purple" onClick={save}>Spara tiernamn</button>
         {savedAt && <span className="card-meta" style={{ color: 'var(--purple-2)' }}>✓ Sparat</span>}
       </div>
     </div>

@@ -103,7 +103,16 @@ export type SiteContent = Record<string, string>;
 
 // ── Endpoint wrappers ────────────────────────────────────────────────
 
+export interface BootstrapPayload {
+  friends: Friend[];
+  predictions: ApiPrediction[];
+  gmap: ApiGMap;
+  content: SiteContent;
+}
+
 export const api = {
+  fetchBootstrap: () => request<BootstrapPayload>('/api/bootstrap'),
+  // kept for direct cache-busted calls after mutations
   fetchFriends: () => request<Friend[]>('/api/friends'),
   fetchPredictions: () => request<ApiPrediction[]>('/api/predictions'),
   fetchGMap: () => request<ApiGMap>('/api/gmap'),
