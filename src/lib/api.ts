@@ -133,7 +133,7 @@ export const api = {
       auth: true,
     }),
 
-  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number; tier?: 's' | 'a' | 'i' }) =>
+  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number; tier?: string }) =>
     request<Friend>(`/api/friends/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: patch,

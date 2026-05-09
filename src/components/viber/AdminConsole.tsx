@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Friend } from '../../data/friends';
 import { useEsc, useLockBody, useLocalState, dayOfYear } from '../../hooks/useViberHooks';
 import { useFriendsList } from '../../lib/state';
-import { TIER_CSS, TIER_DISPLAY, TIER_ORDER_VIBER, parseTierConfig, getTierCss, type TierConfig } from './tier-map';
+import { parseTierConfig, getTierCss, type TierConfig } from './tier-map';
 import { QUOTES_SEED } from './QuoteTicker';
 import { EVENTS_SEED, type EventItem } from './EventsSection';
 import { parseLunchData, type LunchData, type LunchDebt } from './LunchSection';
