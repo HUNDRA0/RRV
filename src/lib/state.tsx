@@ -47,7 +47,7 @@ interface FriendsListState {
   toggleEditMode: () => void;
 
   // Admin mutations against friends.
-  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number; tier?: 's' | 'a' | 'i' }) => Promise<void>;
+  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number; tier?: string }) => Promise<void>;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
 }
@@ -167,7 +167,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateFriend = useCallback(
-    async (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number; tier?: 's' | 'a' | 'i' }) => {
+    async (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number; tier?: string }) => {
       const updated = await api.updateFriend(id, patch);
       setFriends(prev => prev.map(f => (f.id === id ? updated : f)));
     },

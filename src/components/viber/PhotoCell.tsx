@@ -1,5 +1,5 @@
 import type { Friend } from '../../data/friends';
-import { TIER_CSS } from './tier-map';
+import { getTierCss } from './tier-map';
 
 interface PhotoCellProps {
   friend: Friend;
@@ -11,7 +11,7 @@ interface PhotoCellProps {
 export function PhotoCell({ friend, onClick, edit, onRemovePhoto }: PhotoCellProps) {
   const arr = friend.photos || [];
   const main = arr[0];
-  const tierCss = TIER_CSS[friend.tier];
+  const tierCss = getTierCss(friend.tier);
   const handleRemove = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!main || !onRemovePhoto) return;

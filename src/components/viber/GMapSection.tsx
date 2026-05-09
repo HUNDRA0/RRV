@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import type { Friend, TierId } from '../../data/friends';
-import { TIER_CSS } from './tier-map';
+import type { Friend } from '../../data/friends';
+import { getTierCss } from './tier-map';
 
-const TIER_SHORT: Record<TierId, string> = { s: 'Eliten', a: 'NPT', i: 'IDT' };
+const TIER_SHORT: Record<string, string> = { s: 'Eliten', a: 'NPT', i: 'IDT' };
 
 interface GMapSectionProps {
   friends: Friend[];
@@ -131,7 +131,7 @@ export function GMapSection({ friends, manualPairs }: GMapSectionProps) {
             <div
               key={f.id}
               className="gmap-pin"
-              data-tier={TIER_CSS[f.tier]}
+              data-tier={getTierCss(f.tier)}
               style={{
                 left: `${p.x}%`,
                 top: `${p.y}%`,

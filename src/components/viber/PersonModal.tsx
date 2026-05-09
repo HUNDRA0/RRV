@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Friend } from '../../data/friends';
 import { Editable } from './Editable';
-import { TIER_CSS, TIER_DISPLAY } from './tier-map';
+import { getTierCss, findTier, parseTierConfig } from './tier-map';
+import { useMemo } from 'react';
+import { useFriendsList } from '../../lib/state';
 import { useEsc, useLockBody } from '../../hooks/useViberHooks';
 
 interface PersonModalProps {
@@ -47,8 +49,10 @@ export function PersonModal({
     e.target.value = '';
   }
 
-  const tierCss = TIER_CSS[friend.tier];
-  const tierLabel = TIER_DISPLAY[friend.tier].label;
+  const { siteContent } = useFriendsList();
+  const tiers = useMemo(() => parseTierConfig(siteContent['tier_config']), [siteContent]);
+  const tierCss = getTierCss(friend.tier);
+  const tierLabel = findTier(tiers, friend.tier).label;
   const currentUrl = arr[idx]?.url;
 
   return (
