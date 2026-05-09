@@ -22,9 +22,6 @@ function NavTabs({ active, onJump }: NavTabsProps) {
   const hoverIdRef = useRef<string | null>(null);
   const settledRef = useRef(false);
 
-  // Imperative measure — bypass React state so we don't fight CSS transitions.
-  // First paint may have width 0 until fonts load; we re-measure aggressively
-  // until we get a stable non-zero width, then keep observing.
   const measure = () => {
     const targetId = hoverIdRef.current || active;
     const el = refs.current[targetId];
@@ -36,12 +33,9 @@ function NavTabs({ active, onJump }: NavTabsProps) {
     if (eR.width === 0) return;
     const left = eR.left - wR.left;
     if (!settledRef.current) {
-      // Skip the slide-in animation on the very first paint so the pill just
-      // appears under the active tab instead of zooming from x=0.
       ind.style.transition = 'none';
       ind.style.width = `${eR.width}px`;
       ind.style.transform = `translateX(${left}px)`;
-      // force reflow then re-enable
       ind.offsetHeight;
       ind.style.transition = '';
       settledRef.current = true;
@@ -51,9 +45,6 @@ function NavTabs({ active, onJump }: NavTabsProps) {
     }
   };
 
-  // When the active section changes (scroll-driven), drop the sticky hover so
-  // the indicator follows the page instead of staying parked on whatever tab
-  // the cursor happened to be over last.
   useLayoutEffect(() => {
     hoverIdRef.current = null;
     measure();
@@ -103,9 +94,10 @@ interface StickyNavProps {
 export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, theme, onToggleTheme }: StickyNavProps) {
   const scrolled = useScrolled(20);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const settingsAnchorRef = useRef<HTMLDivElement | null>(null);
   const menuAnchorRef = useRef<HTMLDivElement | null>(null);
+
+  // Label of the currently active section — shown on mobile in the navbar
+  const activeLabel = TABS.find(([id]) => id === active)?.[1] ?? '';
 
   const jump = (id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -113,26 +105,16 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, t
   };
 
   useEffect(() => {
-    if (!menuOpen && !settingsOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { setMenuOpen(false); setSettingsOpen(false); }
-    };
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false); };
     const onPointer = (e: PointerEvent) => {
       const target = e.target as Node | null;
-      if (settingsOpen && settingsAnchorRef.current && !settingsAnchorRef.current.contains(target)) {
-        setSettingsOpen(false);
-      }
-      if (menuOpen && menuAnchorRef.current && !menuAnchorRef.current.contains(target)) {
-        setMenuOpen(false);
-      }
+      if (menuAnchorRef.current && !menuAnchorRef.current.contains(target)) setMenuOpen(false);
     };
     window.addEventListener('keydown', onKey);
     window.addEventListener('pointerdown', onPointer);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('pointerdown', onPointer);
-    };
-  }, [menuOpen, settingsOpen]);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('pointerdown', onPointer); };
+  }, [menuOpen]);
 
   return (
     <div className="nav-wrap" data-scrolled={scrolled} data-menu-open={menuOpen}>
@@ -145,7 +127,11 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, t
         >
           <span className="nav-brand-v">V</span><span className="nav-brand-r">R</span>
         </div>
+
+        {/* Desktop: tab row — Mobile: active section label */}
         <NavTabs active={active} onJump={jump} />
+        <span className="nav-active-label">{activeLabel}</span>
+
         <div className="nav-actions">
           {isAdmin && (
             <button
@@ -157,44 +143,31 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, t
               {edit ? '● Edit' : '○ Edit'}
             </button>
           )}
-          <div className="nav-anchor" ref={settingsAnchorRef}>
-            <button
-              className="nav-edit nav-admin"
-              onClick={() => { setSettingsOpen((v) => !v); setMenuOpen(false); }}
-              title="Inställningar"
-              aria-expanded={settingsOpen}
-            >
-              ⚙
-            </button>
-            {settingsOpen && (
-              <div className="nav-settings" role="menu">
-                <button
-                  className="nav-settings-row"
-                  onClick={onToggleTheme}
-                  role="menuitemcheckbox"
-                  aria-checked={theme === 'dark'}
-                >
-                  <span className="nav-settings-icon">{theme === 'dark' ? '🌙' : '☀︎'}</span>
-                  <span className="nav-settings-label">Dark mode</span>
-                  <span className="nav-toggle" data-on={theme === 'dark'}>
-                    <span className="nav-toggle-knob" />
-                  </span>
-                </button>
-                <button
-                  className="nav-settings-row"
-                  onClick={() => { setSettingsOpen(false); onAdminClick(); }}
-                >
-                  <span className="nav-settings-icon">{isAdmin ? '🔓' : '🔒'}</span>
-                  <span className="nav-settings-label">{isAdmin ? 'Admin console' : 'Admin-login'}</span>
-                  <span className="nav-settings-chev">›</span>
-                </button>
-              </div>
-            )}
-          </div>
+
+          {/* Dark mode toggle — always visible, no dropdown */}
+          <button
+            className="nav-theme-btn"
+            onClick={onToggleTheme}
+            title={theme === 'dark' ? 'Byt till ljust läge' : 'Byt till mörkt läge'}
+            aria-label={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          >
+            {theme === 'dark' ? '🌙' : '☀︎'}
+          </button>
+
+          {/* Admin / settings — direct click, no dropdown needed */}
+          <button
+            className="nav-edit nav-admin"
+            onClick={onAdminClick}
+            title={isAdmin ? 'Admin console' : 'Admin-login'}
+          >
+            {isAdmin ? '🔓' : '⚙'}
+          </button>
+
+          {/* Hamburger (mobile only) */}
           <div className="nav-anchor" ref={menuAnchorRef}>
             <button
               className="nav-burger"
-              onClick={() => { setMenuOpen((v) => !v); setSettingsOpen(false); }}
+              onClick={() => setMenuOpen((v) => !v)}
               aria-label={menuOpen ? 'Stäng meny' : 'Öppna meny'}
               aria-expanded={menuOpen}
             >
