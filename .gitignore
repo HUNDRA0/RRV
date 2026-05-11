@@ -42,3 +42,6 @@ coverage/
 # Vercel / Netlify
 .vercel
 .netlify
+
+# Claude Code worktrees (local only)
+.claude/worktrees/
