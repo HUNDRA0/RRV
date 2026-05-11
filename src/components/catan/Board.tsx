@@ -4,7 +4,7 @@ const RESOURCE_EMOJI_BOARD: Record<Resource, string> = {
   wood: '🌲',
   brick: '🧱',
   grain: '🌾',
-  ore: '⛏️',
+  ore: '🪨',
   wool: '🐑',
 };
 const RESOURCES_ORDER: Resource[] = ['wood', 'brick', 'grain', 'wool', 'ore'];
@@ -511,12 +511,16 @@ export function Board({
             if (!corner) return null;
             const isMe = p.id === myPlayerId;
             const isCurrent = idx === state.currentPlayerIndex;
-            const cardW = isMe ? 165 : 132;
-            const cardH = isMe ? 62 : 44;
+            const cardW = isMe ? 185 : 156;
+            const cardH = isMe ? 70 : 54;
             const cardX = corner.anchorRight ? corner.x - cardW : corner.x;
             const cardY = corner.anchorBottom ? corner.y - cardH : corner.y;
             const pc = PLAYER_COLORS[p.color] ?? '#888';
             const res = isMe ? (p.resources as Record<string, number>) : null;
+            // Arrow sits just outside the card edge (below top cards, above bottom cards)
+            const arrowY = corner.anchorBottom ? cardY - 10 : cardY + cardH + 10;
+            const arrowChar = corner.anchorBottom ? '▲' : '▼';
+            const arrowX = cardX + cardW / 2;
 
             return (
               <g key={p.id}>
@@ -525,46 +529,72 @@ export function Board({
                   x={cardX} y={cardY} width={cardW} height={cardH}
                   rx={10}
                   fill="rgba(15,10,30,0.62)"
-                  stroke={isCurrent ? 'rgba(139,92,246,0.8)' : 'rgba(255,255,255,0.12)'}
-                  strokeWidth={isCurrent ? 2 : 1}
+                  stroke={isCurrent ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.12)'}
+                  strokeWidth={1}
                 />
-                {/* Color dot */}
-                <circle cx={cardX + 14} cy={cardY + 16} r={6} fill={pc} />
-                {/* Current player indicator */}
+                {/* Pulsing gold border for current player */}
                 {isCurrent && (
-                  <text x={cardX + 24} y={cardY + 21} fontSize={9} fill="#a78bfa"
-                    fontFamily="var(--font-body)"
-                    style={{ userSelect: 'none', pointerEvents: 'none' }}>
-                    ▶
-                  </text>
+                  <rect
+                    x={cardX} y={cardY} width={cardW} height={cardH}
+                    rx={10}
+                    fill="none"
+                    stroke="#fbbf24"
+                    strokeWidth={2.5}
+                    className="catan-corner-pulse"
+                  />
                 )}
+                {/* Color dot */}
+                <circle cx={cardX + 16} cy={cardY + 18} r={7} fill={pc} />
                 {/* Player name */}
                 <text
-                  x={cardX + 34} y={cardY + 21}
-                  fontSize={13} fontWeight="700" fill="white"
+                  x={cardX + 32} y={cardY + 24}
+                  fontSize={14} fontWeight="700" fill="white"
                   fontFamily="var(--font-body)"
                   style={{ userSelect: 'none', pointerEvents: 'none' }}
                 >
-                  {p.name.length > 10 ? p.name.slice(0, 9) + '…' : p.name}
+                  {p.name.length > 11 ? p.name.slice(0, 10) + '…' : p.name}
                 </text>
                 {/* VP */}
                 <text
-                  x={cardX + cardW - 8} y={cardY + 21}
-                  textAnchor="end" fontSize={11} fill="rgba(255,255,255,0.65)"
+                  x={cardX + cardW - 8} y={cardY + 24}
+                  textAnchor="end" fontSize={12} fill="rgba(255,255,255,0.70)"
                   fontFamily="var(--font-body)"
                   style={{ userSelect: 'none', pointerEvents: 'none' }}
                 >
                   ⭐{p.vp}
                 </text>
+                {/* Hand count for other players */}
+                {!isMe && (
+                  <text
+                    x={cardX + 10} y={cardY + cardH - 10}
+                    fontSize={11} fill="rgba(255,255,255,0.60)"
+                    fontFamily="var(--font-body)"
+                    style={{ userSelect: 'none', pointerEvents: 'none' }}
+                  >
+                    🃏 {(p as {handSize?: number}).handSize ?? '?'}
+                  </text>
+                )}
                 {/* Resource row (only for myself) */}
                 {isMe && res && (
                   <text
-                    x={cardX + 8} y={cardY + 51}
-                    fontSize={10} fill="rgba(255,255,255,0.82)"
+                    x={cardX + 8} y={cardY + cardH - 10}
+                    fontSize={11} fill="rgba(255,255,255,0.85)"
                     fontFamily="var(--font-body)"
                     style={{ userSelect: 'none', pointerEvents: 'none' }}
                   >
                     {RESOURCES_ORDER.map(r => `${RESOURCE_EMOJI_BOARD[r]}${res[r] ?? 0}`).join(' ')}
+                  </text>
+                )}
+                {/* Directional arrow for current player */}
+                {isCurrent && (
+                  <text
+                    x={arrowX} y={arrowY}
+                    textAnchor="middle" fontSize={14} fill="#fbbf24"
+                    fontFamily="var(--font-body)"
+                    style={{ userSelect: 'none', pointerEvents: 'none' }}
+                    className="catan-corner-pulse"
+                  >
+                    {arrowChar}
                   </text>
                 )}
               </g>
@@ -644,13 +674,13 @@ export function Board({
                   .filter(([, n]) => n > 0)
                   .map(([r, n]) => `+${n}${RESOURCE_EMOJI_BOARD[r as Resource]}`)
                   .join(' ');
-                const name = player.name.length > 9 ? player.name.slice(0, 8) + '…' : player.name;
+                const name = player.name.length > 12 ? player.name.slice(0, 11) + '…' : player.name;
                 if (line) gains.push({ name, line });
               });
             }
 
-            const gainsH = gains.length > 0 ? gains.length * 20 + 16 : 0;
-            const gainsY = 56; // sits just below the result card (which ends at y=46)
+            const gainsH = gains.length > 0 ? gains.length * 28 + 20 : 0;
+            const gainsY = 66; // sits just below the result card (which ends at y=50)
 
             return (
               <g>
@@ -672,21 +702,21 @@ export function Board({
 
                 {/* Central result card */}
                 <g className="catan-result-card">
-                  <rect x={-72} y={-40} width={144} height={86}
-                    rx={18} fill="rgba(0,0,0,0.35)" transform="translate(3,4)" />
-                  <rect x={-72} y={-40} width={144} height={86}
-                    rx={18} fill="rgba(14,8,32,0.90)"
-                    stroke={isSeven ? '#f59e0b' : '#7c3aed'} strokeWidth={2.5}
+                  <rect x={-90} y={-50} width={180} height={116}
+                    rx={20} fill="rgba(0,0,0,0.40)" transform="translate(4,5)" />
+                  <rect x={-90} y={-50} width={180} height={116}
+                    rx={20} fill="rgba(14,8,32,0.92)"
+                    stroke={isSeven ? '#f59e0b' : '#7c3aed'} strokeWidth={3}
                   />
-                  <text x={0} y={6} textAnchor="middle"
-                    fontSize={40} fontWeight="900"
+                  <text x={0} y={18} textAnchor="middle"
+                    fontSize={56} fontWeight="900"
                     fill={isSeven ? '#fbbf24' : 'white'}
                     fontFamily="var(--font-body)"
                     style={{ userSelect: 'none', pointerEvents: 'none' }}>
                     {isSeven ? '⚔️' : sum}
                   </text>
-                  <text x={0} y={35} textAnchor="middle"
-                    fontSize={13} fill="rgba(255,255,255,0.55)"
+                  <text x={0} y={50} textAnchor="middle"
+                    fontSize={15} fill="rgba(255,255,255,0.60)"
                     fontFamily="var(--font-body)"
                     style={{ userSelect: 'none', pointerEvents: 'none' }}>
                     {isSeven ? 'Rövaren aktiveras!' : `${d1} + ${d2}`}
@@ -696,15 +726,16 @@ export function Board({
                 {/* Resource gains card — one row per player who got something */}
                 {gains.length > 0 && (
                   <g className="catan-result-card" style={{ animationDelay: '0.38s' }}>
-                    <rect x={-88} y={gainsY} width={176} height={gainsH}
-                      rx={12} fill="rgba(14,8,32,0.88)"
-                      stroke="rgba(255,255,255,0.14)" strokeWidth={1.5}
+                    <rect x={-112} y={gainsY} width={224} height={gainsH}
+                      rx={14} fill="rgba(14,8,32,0.92)"
+                      stroke="rgba(255,255,255,0.20)" strokeWidth={2}
                     />
                     {gains.map(({ name, line }, i) => (
                       <text key={i}
-                        x={0} y={gainsY + 14 + i * 20}
-                        textAnchor="middle" fontSize={12}
-                        fill="rgba(255,255,255,0.92)"
+                        x={0} y={gainsY + 20 + i * 28}
+                        textAnchor="middle" fontSize={16}
+                        fontWeight="600"
+                        fill="rgba(255,255,255,0.95)"
                         fontFamily="var(--font-body)"
                         style={{ userSelect: 'none', pointerEvents: 'none' }}>
                         {name}: {line}
@@ -716,13 +747,13 @@ export function Board({
                 {/* "Ingen fick resurser" note when sum ≠ 7 but no gains */}
                 {!isSeven && gains.length === 0 && (
                   <g className="catan-result-card" style={{ animationDelay: '0.38s' }}>
-                    <rect x={-88} y={gainsY} width={176} height={36}
-                      rx={12} fill="rgba(14,8,32,0.78)"
-                      stroke="rgba(255,255,255,0.10)" strokeWidth={1.5}
+                    <rect x={-112} y={gainsY} width={224} height={44}
+                      rx={14} fill="rgba(14,8,32,0.82)"
+                      stroke="rgba(255,255,255,0.12)" strokeWidth={1.5}
                     />
-                    <text x={0} y={gainsY + 13}
-                      textAnchor="middle" fontSize={11}
-                      fill="rgba(255,255,255,0.45)"
+                    <text x={0} y={gainsY + 17}
+                      textAnchor="middle" fontSize={14}
+                      fill="rgba(255,255,255,0.50)"
                       fontFamily="var(--font-body)"
                       style={{ userSelect: 'none', pointerEvents: 'none' }}>
                       Ingen fick resurser

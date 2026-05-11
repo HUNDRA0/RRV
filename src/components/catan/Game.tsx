@@ -1,9 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { ClientGameState, ClientPlayer, Resources } from './types';
 import { Board } from './Board';
 import type { DiceAnimPhase } from './Board';
 import { TradeModal } from './TradeModal';
-import { RobberModal } from './RobberModal';
 import { DevCardModal } from './DevCardModal';
 import {
   canAfford,
@@ -14,7 +13,7 @@ import {
 } from './gameHelpers';
 
 const RESOURCE_EMOJI: Record<string, string> = {
-  wood: '🌲', brick: '🧱', grain: '🌾', ore: '⛏️', wool: '🐑',
+  wood: '🌲', brick: '🧱', grain: '🌾', ore: '🪨', wool: '🐑',
 };
 const RESOURCES_LIST = ['wood', 'brick', 'grain', 'ore', 'wool'] as const;
 
@@ -105,7 +104,7 @@ function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenT
               className={`catan-bar-icon-btn${buildMode === 'city' ? ' active' : ''}`}
               disabled={!canBuildCity}
               onClick={() => toggleBuild('city')}
-              title="Stad (🌾🌾⛏️⛏️⛏️)"
+              title="Stad (🌾🌾🪨🪨🪨)"
             >
               🏙️
             </button>
@@ -113,7 +112,7 @@ function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenT
               className="catan-bar-icon-btn"
               disabled={!canBuyDev}
               onClick={() => onAction({ type: 'buyDevCard' })}
-              title="Köp utvecklingskort (🌾🐑⛏️)"
+              title="Köp utvecklingskort (🌾🐑🪨)"
             >
               🂠
             </button>
@@ -209,12 +208,19 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
   const [chatText, setChatText] = useState('');
   const [chatSending, setChatSending] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
+  const chatMessagesRef = useRef<HTMLDivElement>(null);
 
   // Dice animation state
   const [diceAnimPhase, setDiceAnimPhase] = useState<DiceAnimPhase>('idle');
   const [animDisplayDice, setAnimDisplayDice] = useState<[number, number]>([1, 1]);
   const diceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const diceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-scroll chat to bottom when new messages arrive
+  useEffect(() => {
+    const el = chatMessagesRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [state.chatMessages?.length]);
 
   const myPlayer: ClientPlayer | undefined = state.players.find(p => p.id === state.myPlayerId);
   if (!myPlayer) {
@@ -362,8 +368,7 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
     }
   };
 
-  const currentPlayer = state.players[state.currentPlayerIndex];
-  const recentMessages = (state.chatMessages ?? []).slice(-3);
+  const recentMessages = (state.chatMessages ?? []).slice(-50);
 
   return (
     <div className="catan-game-wrap">
@@ -373,13 +378,6 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
           {state.phase === 'ended' && state.winner && (
             <span className="catan-winner-badge">
               🏆 {state.players.find(p => p.id === state.winner)?.name ?? 'Okänd'} vann!
-            </span>
-          )}
-          {state.phase !== 'ended' && currentPlayer && (
-            <span className="catan-turn-info">
-              {currentPlayer.id === myPlayer.id
-                ? '🎯 Din tur!'
-                : `⏳ ${currentPlayer.name}s tur`}
             </span>
           )}
         </div>
@@ -394,6 +392,19 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
         const offer = state.tradeOffer!;
         const from = state.players.find(p => p.id === offer.fromPlayerId);
         const myResponse = offer.responses[myPlayer.id];
+
+        // After responding, show a compact one-liner — no need to keep the full card
+        if (myResponse !== 'pending') {
+          return (
+            <div className="catan-trade-card" style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 15 }}>🔄</span>
+              <span style={{ fontSize: 13, color: 'var(--mute)', flex: 1 }}>
+                {from?.name}: {myResponse === 'accept' ? 'accepterat ✅' : 'nekat ❌'} — väntar på värden
+              </span>
+            </div>
+          );
+        }
+
         return (
           <div className="catan-trade-card">
             <div className="catan-trade-card-header">
@@ -407,22 +418,16 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
               <span className="catan-trade-card-label">Vill ha</span>
               <span className="catan-trade-card-res">{formatResources(offer.want)}</span>
             </div>
-            {myResponse === 'pending' ? (
-              <div className="catan-trade-card-actions">
-                <button className="catan-btn catan-btn-primary catan-btn-sm"
-                  onClick={() => void dispatch({ type: 'tradeRespond', accept: true })}>
-                  ✅ Acceptera
-                </button>
-                <button className="catan-btn catan-btn-secondary catan-btn-sm"
-                  onClick={() => void dispatch({ type: 'tradeRespond', accept: false })}>
-                  ❌ Neka
-                </button>
-              </div>
-            ) : (
-              <p className="catan-trade-card-status">
-                Du har {myResponse === 'accept' ? 'accepterat ✅' : 'nekat ❌'}
-              </p>
-            )}
+            <div className="catan-trade-card-actions">
+              <button className="catan-btn catan-btn-primary catan-btn-sm"
+                onClick={() => void dispatch({ type: 'tradeRespond', accept: true })}>
+                ✅ Acceptera
+              </button>
+              <button className="catan-btn catan-btn-secondary catan-btn-sm"
+                onClick={() => void dispatch({ type: 'tradeRespond', accept: false })}>
+                ❌ Neka
+              </button>
+            </div>
           </div>
         );
       })()}
@@ -470,7 +475,7 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
 
       {/* Chat panel */}
       <div className="catan-chat-wrap">
-        <div className="catan-chat-messages">
+        <div className="catan-chat-messages" ref={chatMessagesRef}>
           {recentMessages.length === 0 ? (
             <p className="catan-chat-empty">Inga meddelanden än…</p>
           ) : (
@@ -553,14 +558,6 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
           myPlayer={myPlayer}
           onAction={(action) => void dispatch(action)}
           onClose={() => setShowTrade(false)}
-        />
-      )}
-
-      {isMyTurn && pendingType === 'moveRobber' && (
-        <RobberModal
-          state={state}
-          onAction={(action) => void dispatch(action)}
-          onClose={() => {/* closes automatically when pendingAction clears */}}
         />
       )}
 

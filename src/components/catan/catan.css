@@ -354,6 +354,17 @@
   animation: catanRoadGlow 0.9s ease-in-out infinite;
 }
 
+/* Pulsing gold border for current player corner card */
+@keyframes catanCornerPulse {
+  0%, 100% { opacity: 0.55; stroke-width: 2; }
+  50%       { opacity: 1;    stroke-width: 3.5; }
+}
+.catan-corner-pulse {
+  animation: catanCornerPulse 1.1s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 /* ----- Sidebar ----- */
 .catan-sidebar {
   display: flex;
@@ -615,6 +626,9 @@
   flex-direction: column;
   gap: 3px;
   min-height: 44px;
+  max-height: 180px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
   margin-bottom: 0;
 }
 
@@ -629,9 +643,8 @@
   font-size: 13px;
   color: var(--ink-soft);
   line-height: 1.45;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .catan-chat-msg.system {
