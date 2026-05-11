@@ -26,6 +26,9 @@
     <!-- Robots -->
     <meta name="robots" content="noindex, nofollow" />
 
+    <!-- Kickstart bootstrap fetch before JS loads — breaks the HTML→JS→fetch waterfall -->
+    <script>window.__bootstrap=fetch('/api/bootstrap').then(function(r){return r.json()});</script>
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

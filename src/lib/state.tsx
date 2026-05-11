@@ -83,8 +83,14 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     setLoadError(null);
     try {
+      // Consume the early fetch started in index.html (breaks JS waterfall).
+      // Only used once — cleared immediately so subsequent refreshes go via API.
+      const earlyFetch = (window as Window & { __bootstrap?: Promise<BootstrapPayload> }).__bootstrap;
+      if (earlyFetch) {
+        delete (window as Window & { __bootstrap?: Promise<BootstrapPayload> }).__bootstrap;
+      }
       const { friends: f, predictions: p, gmap: g, content: c, dailyQuote: dq } =
-        await api.fetchBootstrap() as BootstrapPayload;
+        earlyFetch ? await earlyFetch : await api.fetchBootstrap() as BootstrapPayload;
       setFriends(f);
       setPredictions(p);
       setGmap(g);
