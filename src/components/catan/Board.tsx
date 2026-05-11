@@ -1,21 +1,23 @@
 import type { ClientGameState, HexTile, Vertex, PlayerColor } from './types';
 
+// Dark base colour (radial gradient edge)
 const TERRAIN_COLORS: Record<string, string> = {
-  wood:   '#2d6e28',
-  grain:  '#d4a820',
-  wool:   '#6aaa2e',
-  ore:    '#607d8b',
-  brick:  '#a03a18',
-  desert: '#c8a96e',
+  wood:   '#1a4a18',
+  grain:  '#b88010',
+  wool:   '#4a8c18',
+  ore:    '#404e58',
+  brick:  '#7a2808',
+  desert: '#b89848',
 };
 
+// Light centre colour (radial gradient highlight)
 const TERRAIN_COLORS_LIGHT: Record<string, string> = {
-  wood:   '#4a9e42',
-  grain:  '#f0cc3a',
-  wool:   '#8dcc48',
-  ore:    '#8fa8b4',
-  brick:  '#cc5228',
-  desert: '#dfc08a',
+  wood:   '#2e7028',
+  grain:  '#dca818',
+  wool:   '#6ab028',
+  ore:    '#6a848e',
+  brick:  '#b03818',
+  desert: '#d8b868',
 };
 
 const PLAYER_COLORS: Record<PlayerColor, string> = {
@@ -231,9 +233,10 @@ export function Board({ state, validVertices, validEdges, validHexes, onVertexCl
           <filter id="drop-shadow">
             <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.3" />
           </filter>
-          <radialGradient id="ocean-grad" cx="50%" cy="50%" r="60%">
-            <stop offset="0%" stopColor="#90caf9" />
-            <stop offset="100%" stopColor="#1565c0" />
+          <radialGradient id="ocean-grad" cx="50%" cy="45%" r="70%">
+            <stop offset="0%" stopColor="#64b5f6" />
+            <stop offset="60%" stopColor="#1e88e5" />
+            <stop offset="100%" stopColor="#0d47a1" />
           </radialGradient>
         </defs>
 
@@ -252,99 +255,95 @@ export function Board({ state, validVertices, validEdges, validHexes, onVertexCl
         {/* Hex tiles */}
         {hexes.map(hex => {
           const { cx, cy } = hexCenter(hex, HEX_SIZE);
-          const outerPts = hexCorners(cx, cy, HEX_SIZE - 1);
-          const innerPts = hexCorners(cx, cy, HEX_SIZE - 4);
+          // Three rings: shadow / parchment border / inner terrain
+          const shadowPts  = hexCorners(cx, cy, HEX_SIZE - 1);
+          const borderPts  = hexCorners(cx, cy, HEX_SIZE - 1);
+          const terrainPts = hexCorners(cx, cy, HEX_SIZE - 11);
           const isValidRobber = validHexes.includes(hex.id);
-          const col = TERRAIN_COLORS[hex.terrain] ?? '#ccc';
+          const col      = TERRAIN_COLORS[hex.terrain]      ?? '#ccc';
           const colLight = TERRAIN_COLORS_LIGHT[hex.terrain] ?? '#eee';
           const isRed = hex.number === 6 || hex.number === 8;
-          const dots = hex.number ? (PROB_DOTS[hex.number] ?? 0) : 0;
+          const dots  = hex.number ? (PROB_DOTS[hex.number] ?? 0) : 0;
+          // Vertical centre of terrain area (above number token)
+          const emojiY = hex.number ? cy - 18 : cy;
 
           return (
             <g key={hex.id}
               onClick={isValidRobber ? () => onHexClick(hex.id) : undefined}
               style={isValidRobber ? { cursor: 'pointer' } : {}}
             >
-              {/* Shadow */}
-              <polygon points={pointsStr(outerPts)} fill="rgba(0,0,0,0.18)" transform="translate(2,3)" />
-
-              {/* Hex body with gradient effect */}
               <defs>
-                <radialGradient id={`hg-${hex.id}`} cx="40%" cy="35%" r="65%">
+                <radialGradient id={`hg-${hex.id}`} cx="38%" cy="32%" r="68%">
                   <stop offset="0%" stopColor={colLight} />
                   <stop offset="100%" stopColor={col} />
                 </radialGradient>
               </defs>
-              <polygon points={pointsStr(outerPts)} fill={`url(#hg-${hex.id})`} />
-              <polygon points={pointsStr(innerPts)} fill="none"
-                stroke={isValidRobber ? '#ff9800' : 'rgba(255,255,255,0.15)'}
-                strokeWidth={isValidRobber ? 3 : 1}
+
+              {/* Drop shadow */}
+              <polygon points={pointsStr(shadowPts)} fill="rgba(0,0,0,0.22)" transform="translate(2,4)" />
+
+              {/* Parchment/cardboard border — mimics real tile edge */}
+              <polygon points={pointsStr(borderPts)}
+                fill="#c8a44a"
+                stroke="#8a6820"
+                strokeWidth={1.5}
               />
-              {/* Outer border */}
-              <polygon points={pointsStr(outerPts)} fill="none"
-                stroke={isValidRobber ? '#ff9800' : 'rgba(0,0,0,0.25)'}
-                strokeWidth={isValidRobber ? 4 : 1.5}
-                filter={isValidRobber ? 'url(#glow-valid)' : undefined}
+              {/* Subtle inner shadow on the parchment ring */}
+              <polygon points={pointsStr(terrainPts)}
+                fill="none"
+                stroke="rgba(0,0,0,0.18)"
+                strokeWidth={3}
               />
 
-              {/* Terrain illustrations — big main emoji + secondary details */}
-              <g style={{ userSelect: 'none', pointerEvents: 'none' }}>
-                {hex.terrain === 'wood' && (<>
-                  <text x={cx - 20} y={hex.number ? cy - 22 : cy - 8} textAnchor="middle" dominantBaseline="central" fontSize={38}>🌲</text>
-                  <text x={cx + 22} y={hex.number ? cy - 18 : cy - 4} textAnchor="middle" dominantBaseline="central" fontSize={28}>🌲</text>
-                  <text x={cx + 2}  y={hex.number ? cy - 8  : cy + 14} textAnchor="middle" dominantBaseline="central" fontSize={20}>🌿</text>
-                </>)}
-                {hex.terrain === 'wool' && (<>
-                  <text x={cx - 18} y={hex.number ? cy - 20 : cy - 6} textAnchor="middle" dominantBaseline="central" fontSize={36}>🐑</text>
-                  <text x={cx + 20} y={hex.number ? cy - 14 : cy + 4} textAnchor="middle" dominantBaseline="central" fontSize={26}>🐑</text>
-                </>)}
-                {hex.terrain === 'grain' && (<>
-                  <text x={cx - 18} y={hex.number ? cy - 22 : cy - 8} textAnchor="middle" dominantBaseline="central" fontSize={38}>🌾</text>
-                  <text x={cx + 20} y={hex.number ? cy - 16 : cy - 2} textAnchor="middle" dominantBaseline="central" fontSize={30}>🌾</text>
-                </>)}
-                {hex.terrain === 'ore' && (<>
-                  <text x={cx - 14} y={hex.number ? cy - 18 : cy - 4} textAnchor="middle" dominantBaseline="central" fontSize={36}>🪨</text>
-                  <text x={cx + 18} y={hex.number ? cy - 10 : cy + 6} textAnchor="middle" dominantBaseline="central" fontSize={26}>⛏️</text>
-                </>)}
-                {hex.terrain === 'brick' && (<>
-                  <text x={cx} y={hex.number ? cy - 22 : cy - 8} textAnchor="middle" dominantBaseline="central" fontSize={38}>🧱</text>
-                  <text x={cx - 20} y={hex.number ? cy - 6 : cy + 10} textAnchor="middle" dominantBaseline="central" fontSize={22}>🧱</text>
-                </>)}
-                {hex.terrain === 'desert' && (<>
-                  <text x={cx - 10} y={hex.number ? cy - 20 : cy - 6} textAnchor="middle" dominantBaseline="central" fontSize={36}>🏜️</text>
-                  <text x={cx + 22} y={hex.number ? cy - 10 : cy + 6} textAnchor="middle" dominantBaseline="central" fontSize={24}>🌵</text>
-                </>)}
-              </g>
+              {/* Terrain surface */}
+              <polygon points={pointsStr(terrainPts)} fill={`url(#hg-${hex.id})`} />
 
-              {/* Number token */}
+              {/* Robber valid highlight */}
+              {isValidRobber && (
+                <polygon points={pointsStr(terrainPts)} fill="rgba(255,152,0,0.22)"
+                  stroke="#ff9800" strokeWidth={3}
+                  filter="url(#glow-valid)"
+                />
+              )}
+
+              {/* Terrain illustration — single centred emoji, big and clear */}
+              <text
+                x={cx} y={emojiY}
+                textAnchor="middle" dominantBaseline="central"
+                fontSize={hex.number ? 40 : 50}
+                style={{ userSelect: 'none', pointerEvents: 'none' }}
+              >
+                {TERRAIN_EMOJI[hex.terrain]}
+              </text>
+
+              {/* Number token — centred beige circle like the real game */}
               {hex.number && !hex.hasRobber && (
                 <g>
-                  <circle cx={cx} cy={cy + 18} r={21}
-                    fill="rgba(255,253,240,0.97)"
-                    stroke={isRed ? '#c0392b' : 'rgba(0,0,0,0.15)'}
-                    strokeWidth={isRed ? 1.5 : 1}
-                    filter="url(#drop-shadow)"
+                  {/* Token shadow */}
+                  <circle cx={cx} cy={cy + 23} r={22} fill="rgba(0,0,0,0.18)" />
+                  {/* Token body */}
+                  <circle cx={cx} cy={cy + 21} r={22}
+                    fill="#f4e8c0"
+                    stroke={isRed ? '#9a1a10' : '#8a7030'}
+                    strokeWidth={2}
                   />
-                  <text x={cx} y={cy + 16}
+                  {/* Number */}
+                  <text x={cx} y={cy + 19}
                     textAnchor="middle" dominantBaseline="central"
-                    fontSize={isRed ? 17 : 16}
-                    fontWeight="bold"
-                    fill={isRed ? '#c0392b' : '#2c2c2c'}
-                    fontFamily="var(--font-body)"
+                    fontSize={isRed ? 19 : 17}
+                    fontWeight="800"
+                    fill={isRed ? '#9a1a10' : '#1c1208'}
+                    fontFamily="Georgia, serif"
                   >
                     {hex.number}
                   </text>
-                  <ProbDots cx={cx} cy={cy + 32} count={dots} red={isRed} />
+                  {/* Probability dots */}
+                  <ProbDots cx={cx} cy={cy + 34} count={dots} red={isRed} />
                 </g>
               )}
 
               {/* Robber */}
               {hex.hasRobber && <RobberShape x={cx} y={cy + 10} />}
-
-              {/* Robber valid indicator */}
-              {isValidRobber && (
-                <polygon points={pointsStr(outerPts)} fill="rgba(255,152,0,0.15)" />
-              )}
             </g>
           );
         })}
