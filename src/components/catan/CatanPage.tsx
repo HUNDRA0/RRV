@@ -37,20 +37,22 @@ export function CatanPage() {
   const isInGame = gameId && token && state && state.phase !== 'lobby';
 
   return (
-    <section id="spel" className="catan-page">
-      {error && (
-        <div className="catan-global-error">⚠️ {error}</div>
-      )}
+    <div className="catan-page">
+      <button
+        className="catan-back-btn"
+        onClick={() => { window.location.hash = ''; }}
+        aria-label="Tillbaka till huvudsidan"
+      >
+        ← Viber Rankings
+      </button>
+
+      {error && <div className="catan-global-error">⚠️ {error}</div>}
 
       {isInGame ? (
-        <Game
-          state={state}
-          sendAction={sendAction}
-          onLeave={handleLeave}
-        />
+        <Game state={state} sendAction={sendAction} onLeave={handleLeave} />
       ) : (
         <Lobby onGameStart={handleGameStart} />
       )}
-    </section>
+    </div>
   );
 }

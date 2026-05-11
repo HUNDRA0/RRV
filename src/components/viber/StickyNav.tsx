@@ -101,6 +101,11 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, t
   const activeLabel = TABS.find(([id]) => id === active)?.[1] ?? '';
 
   const jump = (id: string) => {
+    if (id === 'spel') {
+      window.location.hash = 'catan';
+      setMenuOpen(false);
+      return;
+    }
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setMenuOpen(false);
   };

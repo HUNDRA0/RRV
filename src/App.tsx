@@ -13,7 +13,6 @@ import { PersonModal } from './components/viber/PersonModal';
 import { EditBanner } from './components/viber/EditBanner';
 import { AdminLoginModal } from './components/viber/AdminLoginModal';
 import { AdminConsole } from './components/viber/AdminConsole';
-import { CatanPage } from './components/catan/CatanPage';
 import {
   useActiveSection,
   useGlobalReveal,
@@ -21,7 +20,7 @@ import {
 } from './hooks/useViberHooks';
 import { useFriendsList } from './lib/state';
 
-const SECTION_IDS = ['rankings', 'leaderboard', 'gmap', 'moves', 'events', 'lunch', 'spel'];
+const SECTION_IDS = ['rankings', 'leaderboard', 'gmap', 'moves', 'events', 'lunch'];
 
 export function App() {
   const {
@@ -165,7 +164,6 @@ export function App() {
           <MovesSection friends={friends} edit={isEditing} onSetMove={onSetMove} />
           <EventsSection events={events} />
           <LunchSection friends={friends} data={lunchData} />
-          <CatanPage />
         </>
       )}
 
