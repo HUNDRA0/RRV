@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
-import type { ClientGameState, ClientPlayer } from './types';
+import type { ClientGameState, ClientPlayer, Resource, Resources } from './types';
 import { Board } from './Board';
-import { Sidebar } from './Sidebar';
+import { Sidebar, DieFace } from './Sidebar';
 import { TradeModal } from './TradeModal';
 import { RobberModal } from './RobberModal';
 import { DevCardModal } from './DevCardModal';
@@ -12,6 +12,223 @@ import {
   getValidRobberHexes,
 } from './gameHelpers';
 
+// ---- Constants (shared with action bar) ----
+const RESOURCE_EMOJI: Record<Resource, string> = {
+  wood: '🌲',
+  brick: '🧱',
+  grain: '🌾',
+  ore: '⛏️',
+  wool: '🐑',
+};
+
+const RESOURCES: Resource[] = ['wood', 'brick', 'grain', 'ore', 'wool'];
+
+const BUILDING_COSTS: Record<string, Resources> = {
+  settlement: { wood: 1, brick: 1, grain: 1, wool: 1, ore: 0 },
+  road: { wood: 1, brick: 1, grain: 0, wool: 0, ore: 0 },
+  city: { wood: 0, brick: 0, grain: 2, wool: 0, ore: 3 },
+  devCard: { wood: 0, brick: 0, grain: 1, wool: 1, ore: 1 },
+};
+
+function canAfford(resources: Resources, cost: Resources): boolean {
+  return RESOURCES.every(r => resources[r] >= cost[r]);
+}
+
+function totalResources(r: Resources): number {
+  return RESOURCES.reduce((s, k) => s + r[k], 0);
+}
+
+// ---- Action bar component ----
+interface ActionBarProps {
+  state: ClientGameState;
+  myPlayer: ClientPlayer;
+  buildMode: string | null;
+  setBuildMode: (mode: string | null) => void;
+  onAction: (action: object) => void;
+  onOpenTrade: () => void;
+  onOpenDevCard: () => void;
+}
+
+function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenTrade, onOpenDevCard }: ActionBarProps) {
+  const isMyTurn = state.players[state.currentPlayerIndex]?.id === myPlayer.id;
+  const isPlaying = state.phase === 'playing';
+  const isSetup = state.phase === 'setup';
+  const res = myPlayer.resources;
+  const myDevCards = Array.isArray(myPlayer.devCards) ? myPlayer.devCards : [];
+  const totalRes = totalResources(res);
+  const pendingType = state.pendingAction?.type;
+
+  const canBuildSettlement = canAfford(res, BUILDING_COSTS.settlement);
+  const canBuildRoad = canAfford(res, BUILDING_COSTS.road);
+  const canBuildCity = canAfford(res, BUILDING_COSTS.city);
+  const canBuyDev = canAfford(res, BUILDING_COSTS.devCard) && state.devDeckSize > 0;
+
+  const handleRollDice = () => {
+    if (buildMode) setBuildMode(null);
+    onAction({ type: 'rollDice' });
+  };
+
+  const handleEndTurn = () => {
+    setBuildMode(null);
+    onAction({ type: 'endTurn' });
+  };
+
+  const toggleBuild = (mode: string) => {
+    setBuildMode(buildMode === mode ? null : mode);
+  };
+
+  return (
+    <div className="catan-action-bar">
+      {/* Resources section */}
+      <div className="catan-bar-resources">
+        {RESOURCES.map(r => (
+          <div key={r} className={`catan-bar-res${res[r] > 0 ? ' has' : ''}`}>
+            <span className="catan-bar-res-emoji">{RESOURCE_EMOJI[r]}</span>
+            <span className="catan-bar-res-count">{res[r]}</span>
+          </div>
+        ))}
+        <span className="catan-bar-res-total" title="Totalt antal kort">🃏{totalRes}</span>
+      </div>
+
+      <div className="catan-bar-sep" />
+
+      {/* Dice section */}
+      {state.dice && (
+        <>
+          <div className="catan-bar-dice">
+            <DieFace value={state.dice[0]} />
+            <DieFace value={state.dice[1]} />
+            <span className="catan-bar-dice-sum">={state.dice[0] + state.dice[1]}</span>
+          </div>
+          <div className="catan-bar-sep" />
+        </>
+      )}
+
+      {/* Actions section */}
+      <div className="catan-bar-actions">
+        {/* Setup phase */}
+        {isSetup && isMyTurn && (
+          <span className="catan-bar-status">
+            Placera {state.setupStep === 'settlement' ? 'bosättning' : 'väg'} på kartan
+          </span>
+        )}
+
+        {/* Playing phase — not rolled yet */}
+        {isPlaying && isMyTurn && !pendingType && !state.diceRolled && (
+          <button className="catan-bar-primary" onClick={handleRollDice}>
+            🎲 Kasta tärningar
+          </button>
+        )}
+
+        {/* Playing phase — rolled, can build */}
+        {isPlaying && isMyTurn && !pendingType && state.diceRolled && (
+          <>
+            <button
+              className={`catan-bar-icon-btn${buildMode === 'settlement' ? ' active' : ''}`}
+              disabled={!canBuildSettlement}
+              onClick={() => toggleBuild('settlement')}
+              title="Bosättning (🌲🧱🌾🐑)"
+            >
+              🏠
+            </button>
+            <button
+              className={`catan-bar-icon-btn${buildMode === 'road' ? ' active' : ''}`}
+              disabled={!canBuildRoad}
+              onClick={() => toggleBuild('road')}
+              title="Väg (🌲🧱)"
+            >
+              🛤️
+            </button>
+            <button
+              className={`catan-bar-icon-btn${buildMode === 'city' ? ' active' : ''}`}
+              disabled={!canBuildCity}
+              onClick={() => toggleBuild('city')}
+              title="Stad (🌾🌾⛏️⛏️⛏️)"
+            >
+              🏙️
+            </button>
+            <button
+              className="catan-bar-icon-btn"
+              disabled={!canBuyDev}
+              onClick={() => onAction({ type: 'buyDevCard' })}
+              title="Köp utvecklingskort (🌾🐑⛏️)"
+            >
+              🂠
+            </button>
+            <button
+              className="catan-bar-icon-btn"
+              onClick={onOpenTrade}
+              title="Handla"
+            >
+              🔄
+            </button>
+            {myDevCards.length > 0 && !myPlayer.devCardPlayedThisTurn && (
+              <button
+                className="catan-bar-icon-btn"
+                onClick={onOpenDevCard}
+                title="Spela utvecklingskort"
+              >
+                ⚔️
+              </button>
+            )}
+            <button className="catan-bar-primary" onClick={handleEndTurn}>
+              ✅ Avsluta tur
+            </button>
+          </>
+        )}
+
+        {/* Pending: moveRobber */}
+        {pendingType === 'moveRobber' && isMyTurn && (
+          <span className="catan-bar-status">Klicka på en hex för att flytta rövaren</span>
+        )}
+
+        {/* Pending: steal */}
+        {pendingType === 'steal' && isMyTurn && (
+          <>
+            <span className="catan-bar-status">Stjäl från:</span>
+            {state.pendingAction?.stealFrom?.map(pid => {
+              const pp = state.players.find(p => p.id === pid);
+              return pp ? (
+                <button
+                  key={pid}
+                  className={`catan-bar-icon-btn player-${pp.color}`}
+                  onClick={() => onAction({ type: 'steal', targetPlayerId: pid })}
+                  title={pp.name}
+                  style={{ width: 'auto', padding: '0 10px', fontSize: 13, fontWeight: 700 }}
+                >
+                  {pp.name}
+                </button>
+              ) : null;
+            })}
+          </>
+        )}
+
+        {/* Pending: placeRoad */}
+        {pendingType === 'placeRoad' && isMyTurn && (
+          <span className="catan-bar-status">
+            Placera väg ({state.pendingAction?.roadsLeft} kvar)
+          </span>
+        )}
+
+        {/* Pending: yearOfPlenty / monopoly */}
+        {(pendingType === 'yearOfPlenty' || pendingType === 'monopoly') && isMyTurn && (
+          <button className="catan-bar-primary" onClick={onOpenDevCard}>
+            {pendingType === 'yearOfPlenty' ? '🎁 Välj resurser' : '💰 Välj resurs'}
+          </button>
+        )}
+
+        {/* Not my turn */}
+        {!isMyTurn && (
+          <span className="catan-bar-status">
+            ⏳ {state.players[state.currentPlayerIndex]?.name}s tur
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---- Main Game component ----
 interface GameProps {
   state: ClientGameState;
   sendAction: (action: object) => Promise<void>;
@@ -130,7 +347,7 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
     setChatSending(true);
     setChatText('');
     try {
-      await sendChat(text); // updates state immediately from response
+      await sendChat(text);
     } catch {
       // silently ignore chat errors
     } finally {
@@ -235,7 +452,18 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
         />
       </div>
 
-      {/* Leave button below the game layout */}
+      {/* Fixed action bar — always visible */}
+      <ActionBar
+        state={state}
+        myPlayer={myPlayer}
+        buildMode={buildMode}
+        setBuildMode={setBuildMode}
+        onAction={(action) => void dispatch(action)}
+        onOpenTrade={() => setShowTrade(true)}
+        onOpenDevCard={() => setShowDevCard(true)}
+      />
+
+      {/* Leave button below the action bar */}
       <div className="catan-leave-btn-wrap">
         <button
           className="catan-btn catan-btn-ghost catan-btn-sm catan-leave-btn"

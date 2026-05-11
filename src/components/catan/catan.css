@@ -277,7 +277,7 @@
 .catan-game-wrap {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 16px 60px;
+  padding: 0 16px 0;
 }
 
 .catan-game-header {
@@ -702,6 +702,127 @@
 }
 .catan-confirm-leave-btn:not(:disabled):hover { opacity: 0.88; }
 
+/* ---- Fixed action bar ---- */
+.catan-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  background: var(--paper);
+  border-top: 2px solid var(--line);
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.10);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.catan-bar-resources {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.catan-bar-res {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px 7px;
+  border-radius: 8px;
+  border: 1.5px solid var(--line);
+  background: var(--bg);
+  min-width: 36px;
+}
+.catan-bar-res.has {
+  background: var(--purple-soft);
+  border-color: var(--purple);
+}
+.catan-bar-res-emoji { font-size: 18px; line-height: 1; }
+.catan-bar-res-count { font-size: 13px; font-weight: 700; color: var(--ink); }
+.catan-bar-res-total {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+.catan-bar-sep {
+  width: 1px;
+  height: 40px;
+  background: var(--line);
+  flex-shrink: 0;
+}
+
+.catan-bar-dice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.catan-bar-dice-sum {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ink);
+  min-width: 28px;
+}
+
+.catan-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.catan-bar-icon-btn {
+  width: 42px;
+  height: 42px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--bg);
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.catan-bar-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.catan-bar-icon-btn:not(:disabled):hover { background: var(--bg-2); transform: translateY(-1px); }
+.catan-bar-icon-btn.active {
+  background: var(--purple-soft);
+  border-color: var(--purple);
+  box-shadow: 0 0 0 2px rgba(139,92,246,0.25);
+}
+
+.catan-bar-primary {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background: var(--purple);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: var(--font-body);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, transform 0.1s;
+  flex-shrink: 0;
+}
+.catan-bar-primary:hover { background: var(--purple-2); }
+.catan-bar-primary:active { transform: scale(0.97); }
+
+.catan-bar-status {
+  font-size: 14px;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
 /* ============================================================
    MOBILE — everything stacks vertically
    ============================================================ */
@@ -755,4 +876,12 @@
   .catan-resource-count { font-size: 13px; }
 
   .catan-btn { padding: 11px 14px; font-size: 14px; }
+
+  /* Mobile action bar */
+  .catan-action-bar { padding: 8px 12px; gap: 8px; }
+  .catan-bar-res { padding: 3px 5px; min-width: 30px; }
+  .catan-bar-res-emoji { font-size: 15px; }
+  .catan-bar-res-count { font-size: 12px; }
+  .catan-bar-icon-btn { width: 36px; height: 36px; font-size: 17px; }
+  .catan-bar-primary { padding: 8px 14px; font-size: 14px; }
 }
