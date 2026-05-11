@@ -8,8 +8,8 @@ const BASE = '/api/catan';
 // Ended: stop polling entirely
 function pollInterval(phase: string | undefined, winner: string | null | undefined): number | null {
   if (winner) return null;          // game over — no more reads needed
-  if (phase === 'playing') return 3000;
-  return 5000;                      // lobby / setup
+  if (phase === 'playing') return 5000;
+  return 30000;                     // lobby / setup
 }
 
 export function useGame(gameId: string | null, token: string | null) {
