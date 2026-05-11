@@ -166,7 +166,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .nav-brand-r { color: var(--ink); }
 .nav-brand:hover { transform: scale(1.05) rotate(-1deg); }
 
-.nav-tabs { position: relative; display: flex; gap: 0; padding: 4px; background: rgba(28, 22, 18, 0.04); border-radius: 999px; min-width: 0; overflow: hidden; }
+.nav-tabs { position: relative; display: flex; gap: 0; padding: 4px; background: rgba(28, 22, 18, 0.04); border-radius: 999px; min-width: 0; overflow: hidden; justify-self: start; }
 .nav-tab {
   position: relative; z-index: 1;
   border: 0; background: transparent;
