@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import type { ClientGameState, ClientPlayer, Resource, Resources } from './types';
 import { Board } from './Board';
+import type { DiceAnimPhase } from './Board';
 import { Sidebar } from './Sidebar';
 import { TradeModal } from './TradeModal';
 import { RobberModal } from './RobberModal';
@@ -204,6 +205,12 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
   const [chatSending, setChatSending] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
 
+  // Dice animation state
+  const [diceAnimPhase, setDiceAnimPhase] = useState<DiceAnimPhase>('idle');
+  const [animDisplayDice, setAnimDisplayDice] = useState<[number, number]>([1, 1]);
+  const diceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const diceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const myPlayer: ClientPlayer | undefined = state.players.find(p => p.id === state.myPlayerId);
   if (!myPlayer) {
     return (
@@ -249,6 +256,31 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
       await sendAction(action);
       setBuildMode(null);
     } catch (err) {
+      setActionError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  /** Roll dice with animation: shake → settle on result → hide after 2.8 s */
+  const handleRollDice = async () => {
+    if (diceAnimPhase !== 'idle') return;
+    // Start shaking with random cycling faces
+    setDiceAnimPhase('rolling');
+    diceIntervalRef.current = setInterval(() => {
+      setAnimDisplayDice([
+        (Math.ceil(Math.random() * 6)) as 1|2|3|4|5|6,
+        (Math.ceil(Math.random() * 6)) as 1|2|3|4|5|6,
+      ]);
+    }, 75);
+    try {
+      setActionError(null);
+      await sendAction({ type: 'rollDice' });
+      // Stop cycling, show real result with pop
+      if (diceIntervalRef.current) { clearInterval(diceIntervalRef.current); diceIntervalRef.current = null; }
+      setDiceAnimPhase('showing');
+      diceTimerRef.current = setTimeout(() => setDiceAnimPhase('idle'), 2800);
+    } catch (err) {
+      if (diceIntervalRef.current) { clearInterval(diceIntervalRef.current); diceIntervalRef.current = null; }
+      setDiceAnimPhase('idle');
       setActionError(err instanceof Error ? err.message : String(err));
     }
   };
@@ -389,7 +421,11 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
         <Board
           state={state}
           myPlayerId={myPlayer.id}
-          onRollDice={isMyTurn && state.phase === 'playing' && !state.diceRolled ? () => void dispatch({ type: 'rollDice' }) : undefined}
+          onRollDice={isMyTurn && state.phase === 'playing' && !state.diceRolled && diceAnimPhase === 'idle'
+            ? () => void handleRollDice()
+            : undefined}
+          diceAnimPhase={diceAnimPhase}
+          animDisplayDice={animDisplayDice}
           validVertices={validVertices}
           validEdges={validEdges}
           validHexes={validHexes}

@@ -77,10 +77,14 @@ const SVG_DIE_DOTS: Record<number, [number, number][]> = {
   6: [[25, 22], [75, 22], [25, 50], [75, 50], [25, 78], [75, 78]],
 };
 
+export type DiceAnimPhase = 'idle' | 'rolling' | 'showing';
+
 interface BoardProps {
   state: ClientGameState;
   myPlayerId: string;
   onRollDice?: () => void;
+  diceAnimPhase?: DiceAnimPhase;
+  animDisplayDice?: [number, number];
   validVertices: string[];
   validEdges: string[];
   validHexes: string[];
@@ -189,7 +193,12 @@ function HarborIcon({ x, y, harbor }: { x: number; y: number; harbor: string }) 
   );
 }
 
-export function Board({ state, myPlayerId, onRollDice, validVertices, validEdges, validHexes, onVertexClick, onEdgeClick, onHexClick }: BoardProps) {
+export function Board({
+  state, myPlayerId, onRollDice,
+  diceAnimPhase = 'idle', animDisplayDice = [1, 1],
+  validVertices, validEdges, validHexes,
+  onVertexClick, onEdgeClick, onHexClick,
+}: BoardProps) {
   const { hexes, vertices, edges } = state.board;
 
   const xs = vertices.map(v => v.x);
@@ -565,14 +574,110 @@ export function Board({ state, myPlayerId, onRollDice, validVertices, validEdges
         {(() => {
           const isMyTurn = state.players[state.currentPlayerIndex]?.id === myPlayerId;
           const diceAreaX = minX + 12;
-          const diceAreaY = maxY - padBottom + 12;
+          const diceAreaY = maxY - padBottom + 10;
+          const DIE_SIZE = 36;
+          const gap = 8;
 
+          /** Render a single die face (dots) at position x,y with given size */
+          const renderDieFace = (value: number, x: number, y: number, size: number) => {
+            const clampedVal = Math.max(1, Math.min(6, Math.round(value))) as 1|2|3|4|5|6;
+            const dots = SVG_DIE_DOTS[clampedVal] ?? [[50, 50]];
+            return (
+              <>
+                <rect x={x} y={y} width={size} height={size}
+                  rx={size * 0.22} fill="white" stroke="#d0c8b8" strokeWidth={1.5} />
+                {dots.map(([px, py], i) => (
+                  <circle key={i}
+                    cx={x + (px / 100) * size}
+                    cy={y + (py / 100) * size}
+                    r={size * 0.096} fill="#1c1208"
+                  />
+                ))}
+              </>
+            );
+          };
+
+          // ── Phase: rolling ── animated shaking dice with cycling faces
+          if (diceAnimPhase === 'rolling') {
+            return (
+              <g>
+                <g className="catan-die-roll-1">
+                  {renderDieFace(animDisplayDice[0], diceAreaX, diceAreaY, DIE_SIZE)}
+                </g>
+                <g className="catan-die-roll-2">
+                  {renderDieFace(animDisplayDice[1], diceAreaX + DIE_SIZE + gap, diceAreaY, DIE_SIZE)}
+                </g>
+              </g>
+            );
+          }
+
+          // ── Phase: showing ── dice pop in + central result card
+          if (diceAnimPhase === 'showing' && state.dice) {
+            const [d1, d2] = state.dice;
+            const sum = d1 + d2;
+            const isSeven = sum === 7;
+            const sumX = diceAreaX + DIE_SIZE * 2 + gap * 2 + 8;
+            // Center of the board (axial origin = pixel 0,0)
+            const cardCX = 0;
+            const cardCY = 0;
+
+            return (
+              <g>
+                {/* Corner dice — pop in */}
+                <g className="catan-die-pop-1">
+                  {renderDieFace(d1, diceAreaX, diceAreaY, DIE_SIZE)}
+                </g>
+                <g className="catan-die-pop-2">
+                  {renderDieFace(d2, diceAreaX + DIE_SIZE + gap, diceAreaY, DIE_SIZE)}
+                </g>
+                {/* Sum text next to dice */}
+                <g className="catan-die-pop-2" style={{ animationDelay: '0.20s' }}>
+                  <text x={sumX} y={diceAreaY + 24} fontSize={18} fontWeight="800"
+                    fill="white" fontFamily="var(--font-body)"
+                    style={{ userSelect: 'none', pointerEvents: 'none' }}>
+                    ={sum}
+                  </text>
+                </g>
+
+                {/* Central result card */}
+                <g className="catan-result-card">
+                  {/* Shadow */}
+                  <rect x={cardCX - 72} y={cardCY - 40} width={144} height={86}
+                    rx={18} fill="rgba(0,0,0,0.35)" transform="translate(3,4)" />
+                  {/* Card */}
+                  <rect x={cardCX - 72} y={cardCY - 40} width={144} height={86}
+                    rx={18}
+                    fill="rgba(14,8,32,0.90)"
+                    stroke={isSeven ? '#f59e0b' : '#7c3aed'}
+                    strokeWidth={2.5}
+                  />
+                  {/* Big number */}
+                  <text x={cardCX} y={cardCY + 6} textAnchor="middle"
+                    fontSize={40} fontWeight="900"
+                    fill={isSeven ? '#fbbf24' : 'white'}
+                    fontFamily="var(--font-body)"
+                    style={{ userSelect: 'none', pointerEvents: 'none' }}>
+                    {isSeven ? '⚔️' : sum}
+                  </text>
+                  {/* Sub-text */}
+                  <text x={cardCX} y={cardCY + 35} textAnchor="middle"
+                    fontSize={13} fill="rgba(255,255,255,0.55)"
+                    fontFamily="var(--font-body)"
+                    style={{ userSelect: 'none', pointerEvents: 'none' }}>
+                    {isSeven ? 'Rövaren aktiveras!' : `${d1} + ${d2}`}
+                  </text>
+                </g>
+              </g>
+            );
+          }
+
+          // ── Phase: idle — show button or static dice ──
           if (state.phase === 'playing' && isMyTurn && !state.diceRolled && onRollDice) {
             return (
               <g onClick={onRollDice} style={{ cursor: 'pointer' }}>
-                <rect x={diceAreaX} y={diceAreaY} width={150} height={42} rx={21}
+                <rect x={diceAreaX} y={diceAreaY} width={154} height={42} rx={21}
                   fill="#7c3aed" />
-                <text x={diceAreaX + 75} y={diceAreaY + 27} textAnchor="middle"
+                <text x={diceAreaX + 77} y={diceAreaY + 27} textAnchor="middle"
                   fill="white" fontSize={15} fontWeight="800"
                   fontFamily="var(--font-body)"
                   style={{ userSelect: 'none', pointerEvents: 'none' }}>
@@ -584,31 +689,11 @@ export function Board({ state, myPlayerId, onRollDice, validVertices, validEdges
 
           if (state.dice) {
             const [d1, d2] = state.dice;
-            const DIE_SIZE = 36;
-            const gap = 8;
-            const sumX = diceAreaX + DIE_SIZE * 2 + gap * 2 + 6;
-
-            const renderDie = (value: number, offsetX: number) => {
-              const dots = SVG_DIE_DOTS[value] ?? [[50, 50]];
-              return (
-                <g key={offsetX}>
-                  <rect x={offsetX} y={diceAreaY} width={DIE_SIZE} height={DIE_SIZE}
-                    rx={8} fill="white" stroke="#ccc" strokeWidth={2} />
-                  {dots.map(([px, py], i) => (
-                    <circle key={i}
-                      cx={offsetX + (px / 100) * DIE_SIZE}
-                      cy={diceAreaY + (py / 100) * DIE_SIZE}
-                      r={3.5} fill="#1c1612"
-                    />
-                  ))}
-                </g>
-              );
-            };
-
+            const sumX = diceAreaX + DIE_SIZE * 2 + gap * 2 + 8;
             return (
               <g>
-                {renderDie(d1, diceAreaX)}
-                {renderDie(d2, diceAreaX + DIE_SIZE + gap)}
+                {renderDieFace(d1, diceAreaX, diceAreaY, DIE_SIZE)}
+                {renderDieFace(d2, diceAreaX + DIE_SIZE + gap, diceAreaY, DIE_SIZE)}
                 <text x={sumX} y={diceAreaY + 24} fontSize={18} fontWeight="800"
                   fill="white" fontFamily="var(--font-body)"
                   style={{ userSelect: 'none', pointerEvents: 'none' }}>
