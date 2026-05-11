@@ -512,7 +512,7 @@ export function Board({
             const isMe = p.id === myPlayerId;
             const isCurrent = idx === state.currentPlayerIndex;
             const cardW = isMe ? 185 : 156;
-            const cardH = isMe ? 70 : 54;
+            const cardH = isMe ? 78 : 54;
             const cardX = corner.anchorRight ? corner.x - cardW : corner.x;
             const cardY = corner.anchorBottom ? corner.y - cardH : corner.y;
             const pc = PLAYER_COLORS[p.color] ?? '#888';
@@ -577,8 +577,8 @@ export function Board({
                 {/* Resource row (only for myself) */}
                 {isMe && res && (
                   <text
-                    x={cardX + 8} y={cardY + cardH - 10}
-                    fontSize={11} fill="rgba(255,255,255,0.85)"
+                    x={cardX + 8} y={cardY + cardH - 12}
+                    fontSize={14} fill="rgba(255,255,255,0.90)"
                     fontFamily="var(--font-body)"
                     style={{ userSelect: 'none', pointerEvents: 'none' }}
                   >
