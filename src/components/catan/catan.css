@@ -626,7 +626,7 @@
   flex-direction: column;
   gap: 3px;
   min-height: 44px;
-  max-height: 180px;
+  max-height: 72px;
   overflow-y: auto;
   scroll-behavior: smooth;
   margin-bottom: 0;
