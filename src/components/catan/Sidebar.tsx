@@ -13,9 +13,9 @@ const RESOURCES: Resource[] = ['wood', 'brick', 'grain', 'ore', 'wool'];
 const DEV_CARD_LABELS: Record<DevCardType, string> = {
   knight: '⚔️ Riddare',
   roadBuilding: '🛤️ Vägbygge',
-  yearOfPlenty: '🎁 Riklighetens år',
+  yearOfPlenty: '🎁 Överflödets år',
   monopoly: '💰 Monopol',
-  victoryPoint: '⭐ Segerspoäng',
+  victoryPoint: '⭐ Segerpoäng',
 };
 
 const BUILDING_COSTS: Record<string, Resources> = {
@@ -112,12 +112,12 @@ export function Sidebar({ state, myPlayer, onAction, onOpenTrade, onOpenDevCard,
                   {p.id === myPlayer.id && !isCurrent && <span className="catan-me-badge">Du</span>}
                 </div>
                 <div className="catan-player-stats">
-                  <span title="VP">⭐{p.vp}</span>
+                  <span title="Segerpoäng">⭐{p.vp}</span>
                   <span title="Resurser">🃏{Array.isArray(p.devCards) ? totalResources(p.resources) : Object.values(p.resources).reduce((a, b) => a + b, 0)}</span>
-                  <span title="Riddare">⚔️{p.playedKnights}</span>
-                  <span title="Dev-kort">🂠{devCount}</span>
-                  {p.hasLargestArmy && <span title="Störst armé">🏆A</span>}
-                  {p.hasLongestRoad && <span title="Längsta väg">🏆V</span>}
+                  <span title="Spelade riddare">⚔️{p.playedKnights}</span>
+                  <span title="Utvecklingskort">🂠{devCount}</span>
+                  {p.hasLargestArmy && <span title="Största armén">🏆A</span>}
+                  {p.hasLongestRoad && <span title="Längsta vägen">🏆V</span>}
                 </div>
               </div>
             </div>
@@ -141,9 +141,9 @@ export function Sidebar({ state, myPlayer, onAction, onOpenTrade, onOpenDevCard,
       {/* Dev cards */}
       {myDevCards.length > 0 && (
         <div className="catan-sidebar-section">
-          <h3 className="catan-sidebar-heading">Dev-kort</h3>
+          <h3 className="catan-sidebar-heading">Utvecklingskort</h3>
           <button className="catan-btn catan-btn-secondary catan-btn-sm" onClick={onOpenDevCard}>
-            Spela dev-kort ({myDevCards.length})
+            Spela utvecklingskort ({myDevCards.length})
           </button>
         </div>
       )}
@@ -212,7 +212,7 @@ export function Sidebar({ state, myPlayer, onAction, onOpenTrade, onOpenDevCard,
                       onClick={() => onAction({ type: 'buyDevCard' })}
                       title="Kostar 🌾🐑⛏️"
                     >
-                      🂠 Köp dev-kort {!canBuyDev && '(har ej råd)'}
+                      🂠 Köp utvecklingskort {!canBuyDev && '(har ej råd)'}
                     </button>
                     <button
                       className="catan-btn catan-btn-secondary"
@@ -225,7 +225,7 @@ export function Sidebar({ state, myPlayer, onAction, onOpenTrade, onOpenDevCard,
                         className="catan-btn catan-btn-secondary"
                         onClick={onOpenDevCard}
                       >
-                        {DEV_CARD_LABELS.knight.split(' ')[0]} Spela dev-kort
+                        {DEV_CARD_LABELS.knight.split(' ')[0]} Spela utvecklingskort
                       </button>
                     )}
                     <button

@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Lobby } from './Lobby';
 import { Game } from './Game';
+import { RulesModal } from './RulesModal';
 import { useGame } from './hooks/useGame';
 import './catan.css';
 
 export function CatanPage() {
   const [gameId, setGameId] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [showRules, setShowRules] = useState(false);
 
   // Restore from sessionStorage on mount
   useEffect(() => {
@@ -38,13 +40,22 @@ export function CatanPage() {
 
   return (
     <div className="catan-page">
-      <button
-        className="catan-back-btn"
-        onClick={() => { window.location.hash = ''; }}
-        aria-label="Tillbaka till huvudsidan"
-      >
-        ← Viber Rankings
-      </button>
+      <div className="catan-page-header">
+        <button
+          className="catan-back-btn"
+          onClick={() => { window.location.hash = ''; }}
+          aria-label="Tillbaka till huvudsidan"
+        >
+          ← Viber Rankings
+        </button>
+        <button
+          className="catan-rules-btn"
+          onClick={() => setShowRules(true)}
+          aria-label="Visa spelregler"
+        >
+          ? Regler
+        </button>
+      </div>
 
       {error && <div className="catan-global-error">⚠️ {error}</div>}
 
@@ -53,6 +64,8 @@ export function CatanPage() {
       ) : (
         <Lobby onGameStart={handleGameStart} />
       )}
+
+      {showRules && <RulesModal onClose={() => setShowRules(false)} />}
     </div>
   );
 }

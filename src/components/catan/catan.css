@@ -3,12 +3,21 @@
    Uses design tokens from src/index.css
    ============================================================ */
 
-/* ----- Back button ----- */
-.catan-back-btn {
+/* ----- Page header row (back btn + rules btn) ----- */
+.catan-page-header {
   position: fixed;
   top: 14px;
   left: 16px;
+  right: 16px;
   z-index: 50;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.catan-page-header > * { pointer-events: auto; }
+
+/* ----- Back button ----- */
+.catan-back-btn {
   background: var(--paper);
   border: 1px solid var(--line-strong);
   border-radius: 99px;
@@ -22,6 +31,66 @@
   box-shadow: 0 2px 8px rgba(0,0,0,0.10);
 }
 .catan-back-btn:hover { background: var(--bg-2); color: var(--ink); }
+
+/* ----- Rules button ----- */
+.catan-rules-btn {
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: 99px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+}
+.catan-rules-btn:hover { background: var(--bg-2); color: var(--ink); }
+
+/* ----- Rules modal body ----- */
+.catan-rules-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 4px 0 8px;
+}
+.catan-rules-section h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+.catan-rules-section p,
+.catan-rules-section li {
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+  margin: 0 0 4px;
+}
+.catan-rules-section ol,
+.catan-rules-section ul {
+  padding-left: 20px;
+  margin: 0;
+}
+.catan-rules-resources {
+  list-style: none;
+  padding-left: 0 !important;
+}
+.catan-rules-resources li { padding: 2px 0; }
+.catan-rules-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.catan-rules-table td {
+  padding: 5px 8px;
+  vertical-align: middle;
+  color: var(--ink-soft);
+}
+.catan-rules-table tr:nth-child(odd) td {
+  background: rgba(255,255,255,0.03);
+}
 
 /* ----- Page ----- */
 .catan-page {

@@ -14,9 +14,9 @@ const RESOURCES: Resource[] = ['wood', 'brick', 'grain', 'ore', 'wool'];
 const DEV_CARD_INFO: Record<DevCardType, { label: string; desc: string; emoji: string }> = {
   knight: { label: 'Riddare', desc: 'Flytta rövaren och stjäl en resurs', emoji: '⚔️' },
   roadBuilding: { label: 'Vägbygge', desc: 'Bygg 2 vägar gratis', emoji: '🛤️' },
-  yearOfPlenty: { label: 'Riklighetens år', desc: 'Ta 2 valfria resurser från banken', emoji: '🎁' },
+  yearOfPlenty: { label: 'Överflödets år', desc: 'Ta 2 valfria resurser från banken', emoji: '🎁' },
   monopoly: { label: 'Monopol', desc: 'Ta alla av en resurs från alla spelare', emoji: '💰' },
-  victoryPoint: { label: 'Segerspoäng', desc: '+1 segerspoäng', emoji: '⭐' },
+  victoryPoint: { label: 'Segerpoäng', desc: '+1 segerpoäng', emoji: '⭐' },
 };
 
 interface DevCardModalProps {
@@ -42,7 +42,7 @@ export function DevCardModal({ devCards, devCardPlayedThisTurn, diceRolled, onAc
   const canPlay = !devCardPlayedThisTurn;
 
   const handlePlay = (cardType: DevCardType) => {
-    if (!canPlay) { setError('Du kan bara spela ett dev-kort per tur'); return; }
+    if (!canPlay) { setError('Du kan bara spela ett utvecklingskort per tur'); return; }
     if (cardType === 'victoryPoint') {
       onAction({ type: 'playDevCard', card: cardType });
       onClose();
@@ -111,19 +111,19 @@ export function DevCardModal({ devCards, devCardPlayedThisTurn, diceRolled, onAc
     <div className="catan-modal-overlay" onClick={onClose}>
       <div className="catan-modal" onClick={e => e.stopPropagation()}>
         <div className="catan-modal-header">
-          <h2 className="catan-modal-title">Dev-kort 🂠</h2>
+          <h2 className="catan-modal-title">Utvecklingskort 🂠</h2>
           <button className="catan-modal-close" onClick={onClose}>✕</button>
         </div>
 
         {devCardPlayedThisTurn && (
           <p className="catan-muted" style={{ fontSize: 13, marginBottom: 12 }}>
-            Du har redan spelat ett dev-kort denna tur.
+            Du har redan spelat ett utvecklingskort denna tur.
           </p>
         )}
 
         {diceRolled === false && (
           <p className="catan-muted" style={{ fontSize: 13, marginBottom: 12 }}>
-            Riddare kan spelas innan tärningskast. Andra kan inte.
+            Riddare kan spelas innan tärningskast. Övriga kort kan inte.
           </p>
         )}
 
@@ -153,7 +153,7 @@ export function DevCardModal({ devCards, devCardPlayedThisTurn, diceRolled, onAc
             );
           })}
           {uniqueCards.length === 0 && (
-            <p className="catan-muted">Inga dev-kort på hand.</p>
+            <p className="catan-muted">Inga utvecklingskort på hand.</p>
           )}
         </div>
       </div>
