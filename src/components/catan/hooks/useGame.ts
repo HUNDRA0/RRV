@@ -38,17 +38,17 @@ export function useGame(gameId: string | null, token: string | null) {
       }
     }
 
-    // Backup heartbeat — only needed for players waiting on others.
+    // Backup heartbeat — picks up state changes from other players' actions.
     // Primary state updates come from sendAction/sendChat responses (instant).
-    // Playing: 30s heartbeat (almost never fires — actions are the main trigger)
-    // Setup/lobby phase: 10s (waiting for host to start)
+    // Playing: 3s so the next player sees the new turn within a few seconds
+    // Setup/lobby phase: 5s (waiting for others to place / host to start)
     // Winner set: stop entirely
     function schedule() {
       if (cancelled) return;
       const phase = stateRef.current?.phase;
       const winner = stateRef.current?.winner;
       if (winner) return; // game over
-      const ms = phase === 'playing' ? 30_000 : 10_000;
+      const ms = phase === 'playing' ? 3_000 : 5_000;
       timer = setTimeout(async () => {
         await poll();
         schedule();
