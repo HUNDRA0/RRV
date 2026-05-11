@@ -48,6 +48,7 @@ async function createPlayerToken(gameId: string, playerId: string): Promise<stri
 function filterStateForPlayer(state: GameState, requestingPlayerId: string | null) {
   return {
     ...state,
+    myPlayerId: requestingPlayerId ?? '',
     devDeck: state.devDeck.length, // just count
     players: state.players.map(p => {
       if (p.id === requestingPlayerId) {

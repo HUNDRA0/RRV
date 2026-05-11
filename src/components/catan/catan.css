@@ -3,10 +3,10 @@
    Uses design tokens from src/index.css
    ============================================================ */
 
-/* ----- Page / Section ----- */
+/* ----- Page ----- */
 .catan-page {
   min-height: 100vh;
-  padding: 80px 0 40px;
+  padding: 80px 0 60px;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-body);
@@ -40,13 +40,13 @@
   padding: 40px 36px;
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.10);
   border: 1px solid var(--line);
 }
 
 .catan-lobby-title {
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 700;
   margin: 0 0 6px;
   color: var(--ink);
@@ -58,9 +58,7 @@
   margin: 0;
 }
 
-.catan-form-group {
-  margin-bottom: 12px;
-}
+.catan-form-group { margin-bottom: 12px; }
 
 .catan-label {
   display: block;
@@ -85,245 +83,183 @@
 .catan-input:focus { border-color: var(--purple); }
 
 .catan-divider {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 16px 0;
-  color: var(--mute);
-  font-size: 13px;
+  display: flex; align-items: center; gap: 10px;
+  margin: 16px 0; color: var(--mute); font-size: 13px;
 }
-.catan-divider::before,
-.catan-divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--line);
+.catan-divider::before, .catan-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--line);
 }
 
-.catan-error {
-  color: var(--rose);
-  font-size: 13px;
-  margin: 8px 0 0;
-}
+.catan-error { color: var(--rose); font-size: 13px; margin: 8px 0 0; }
 
 /* ----- Room code ----- */
-.catan-room-code-wrap {
-  text-align: center;
-  margin-bottom: 24px;
-}
+.catan-room-code-wrap { text-align: center; margin-bottom: 24px; }
 .catan-room-code-label {
-  display: block;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--mute);
-  margin-bottom: 4px;
+  display: block; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--mute); margin-bottom: 6px;
 }
 .catan-room-code {
-  font-family: var(--font-mono);
-  font-size: 32px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  color: var(--purple);
+  font-family: var(--font-mono); font-size: 38px; font-weight: 800;
+  letter-spacing: 0.25em; color: var(--purple);
 }
-.catan-room-code-sm {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--mute);
-}
+.catan-room-code-sm { font-family: var(--font-mono); font-size: 13px; color: var(--mute); }
 
 /* ----- Lobby player list ----- */
-.catan-players-list {
-  margin-bottom: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
+.catan-players-list { margin-bottom: 20px; display: flex; flex-direction: column; gap: 8px; }
 .catan-lobby-player {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  font-weight: 500;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-radius: var(--radius);
+  background: var(--bg); border: 1px solid var(--line); font-weight: 500;
 }
-
 .catan-player-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: var(--pc, var(--mute));
-  flex-shrink: 0;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--pc, var(--mute)); flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.12);
 }
 
 /* ----- Buttons ----- */
 .catan-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px 18px;
-  border: none;
-  border-radius: var(--radius);
-  font-size: 14px;
-  font-weight: 600;
-  font-family: var(--font-body);
-  cursor: pointer;
-  transition: opacity 0.15s, transform 0.1s, background 0.15s;
-  white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 10px 18px; border: none; border-radius: var(--radius);
+  font-size: 14px; font-weight: 600; font-family: var(--font-body);
+  cursor: pointer; transition: opacity 0.15s, transform 0.1s, background 0.15s;
+  white-space: nowrap; width: 100%;
 }
-.catan-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.catan-btn:disabled { opacity: 0.38; cursor: not-allowed; }
 .catan-btn:not(:disabled):active { transform: scale(0.97); }
 
-.catan-btn-primary {
-  background: var(--purple);
-  color: #fff;
-}
+.catan-btn-primary { background: var(--purple); color: #fff; }
 .catan-btn-primary:not(:disabled):hover { background: var(--purple-2); }
 
 .catan-btn-secondary {
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--bg); color: var(--ink);
   border: 1.5px solid var(--line-strong);
 }
 .catan-btn-secondary:not(:disabled):hover { background: var(--bg-2); }
 
 .catan-btn-active {
-  background: var(--purple-soft);
-  color: var(--purple);
+  background: var(--purple-soft); color: var(--purple);
   border: 1.5px solid var(--purple);
 }
 
 .catan-btn-ghost {
-  background: transparent;
-  color: var(--mute);
+  background: transparent; color: var(--mute);
   border: 1.5px solid var(--line);
 }
 .catan-btn-ghost:not(:disabled):hover { color: var(--ink); border-color: var(--line-strong); }
 
-.catan-btn-sm {
-  padding: 6px 12px;
-  font-size: 13px;
-}
+.catan-btn-sm { padding: 7px 12px; font-size: 13px; }
 
-.catan-lobby-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 16px;
-}
+.catan-lobby-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
 
 /* ----- Game layout ----- */
 .catan-game-wrap {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 0 16px 40px;
+  padding: 0 16px 60px;
 }
 
 .catan-game-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 0 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0 14px;
   border-bottom: 1px solid var(--line);
-  margin-bottom: 20px;
-  gap: 12px;
+  margin-bottom: 16px;
+  gap: 12px; flex-wrap: wrap;
 }
 
-.catan-game-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+.catan-game-info { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.catan-phase-badge {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; padding: 4px 10px; border-radius: 99px;
+  background: var(--purple-soft); color: var(--purple);
 }
 
 .catan-turn-info {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ink);
+  font-size: 15px; font-weight: 600; color: var(--ink);
 }
 
 .catan-winner-badge {
-  background: var(--gold);
-  color: #1a1612;
-  padding: 4px 12px;
-  border-radius: 99px;
-  font-size: 14px;
-  font-weight: 700;
+  background: var(--gold); color: #1a1612;
+  padding: 4px 14px; border-radius: 99px;
+  font-size: 14px; font-weight: 700;
 }
 
 .catan-action-error {
-  background: rgba(199, 92, 79, 0.12);
+  background: rgba(199, 92, 79, 0.10);
   border: 1px solid var(--rose);
   border-radius: var(--radius);
-  color: var(--rose);
-  padding: 8px 14px;
-  font-size: 13px;
-  margin-bottom: 12px;
+  color: var(--rose); padding: 10px 14px;
+  font-size: 13px; margin-bottom: 12px;
 }
 
+/* Desktop: board left, sidebar right */
 .catan-game-layout {
   display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 20px;
+  grid-template-columns: 1fr 290px;
+  gap: 16px;
   align-items: start;
-}
-
-@media (max-width: 768px) {
-  .catan-game-layout {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* ----- Board ----- */
 .catan-board-wrap {
-  background: var(--paper);
+  background: transparent;
   border-radius: var(--radius-lg);
-  padding: 16px;
-  border: 1px solid var(--line);
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
 }
 
 .catan-board-svg {
   width: 100%;
   height: auto;
+  display: block;
+  margin: 0 auto;
+  border-radius: var(--radius-lg);
+  overflow: visible;
+}
+
+/* Pulsing animation for valid placement spots */
+@keyframes valid-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.15); }
+}
+.catan-valid-pulse {
+  animation: valid-pulse 1.2s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
 }
 
 /* ----- Sidebar ----- */
 .catan-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
+.catan-sidebar::-webkit-scrollbar { display: none; }
 
 .catan-sidebar-section {
   background: var(--paper);
   border-radius: var(--radius);
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
 }
 
 .catan-sidebar-heading {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--mute);
-  margin: 0 0 10px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--mute); margin: 0 0 10px;
 }
 
 /* ----- Player rows ----- */
 .catan-player-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: var(--radius);
-  margin-bottom: 6px;
-  border: 1px solid transparent;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: var(--radius);
+  margin-bottom: 5px; border: 1.5px solid transparent;
   transition: background 0.15s;
 }
 .catan-player-row:last-child { margin-bottom: 0; }
@@ -331,345 +267,232 @@
   background: var(--purple-soft);
   border-color: var(--purple);
 }
-.catan-player-row.is-me {
-  border-color: var(--line-strong);
-}
+.catan-player-row.is-me { border-color: var(--line-strong); }
 
 .catan-player-color-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--pc, var(--mute));
-  flex-shrink: 0;
-  border: 2px solid rgba(255,255,255,0.4);
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--pc, var(--mute)); flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.35);
 }
 
 .catan-player-info { flex: 1; min-width: 0; }
-
-.catan-player-name-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 2px;
-}
-
+.catan-player-name-row { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
 .catan-player-name {
-  font-weight: 600;
-  font-size: 14px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 600; font-size: 14px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
 .catan-turn-badge {
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--purple);
-  color: #fff;
-  padding: 2px 6px;
-  border-radius: 99px;
-  white-space: nowrap;
+  font-size: 10px; font-weight: 700;
+  background: var(--purple); color: #fff;
+  padding: 2px 7px; border-radius: 99px; white-space: nowrap;
 }
-
 .catan-me-badge {
-  font-size: 10px;
-  font-weight: 700;
-  background: var(--bg-2);
-  color: var(--mute);
-  padding: 2px 6px;
-  border-radius: 99px;
+  font-size: 10px; font-weight: 700;
+  background: var(--bg-2); color: var(--mute);
+  padding: 2px 7px; border-radius: 99px;
 }
 
 .catan-player-stats {
-  display: flex;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--mute);
-  flex-wrap: wrap;
+  display: flex; gap: 7px; font-size: 12px; color: var(--mute); flex-wrap: wrap;
 }
 
 /* ----- Resources ----- */
-.catan-resources {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
+.catan-resources { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .catan-resource-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 8px 10px;
-  border-radius: var(--radius);
-  background: var(--bg);
-  border: 1.5px solid var(--line);
-  min-width: 48px;
-  opacity: 0.5;
-  transition: opacity 0.15s;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 7px 8px; border-radius: var(--radius);
+  background: var(--bg); border: 1.5px solid var(--line);
+  min-width: 44px; opacity: 0.4;
+  transition: opacity 0.15s, border-color 0.15s;
 }
-.catan-resource-chip.has-res { opacity: 1; }
+.catan-resource-chip.has-res {
+  opacity: 1; border-color: var(--line-strong);
+}
 
-.catan-resource-icon { font-size: 20px; line-height: 1; }
-.catan-resource-count { font-size: 16px; font-weight: 700; margin-top: 2px; }
+.catan-resource-icon { font-size: 18px; line-height: 1; }
+.catan-resource-count { font-size: 15px; font-weight: 700; margin-top: 2px; }
 
 /* ----- Dice ----- */
-.catan-dice-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.catan-dice-sum {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--ink);
-}
+.catan-dice-row { display: flex; align-items: center; gap: 10px; }
+.catan-dice-sum { font-size: 22px; font-weight: 800; color: var(--ink); }
 
 /* ----- Actions ----- */
-.catan-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+.catan-actions { display: flex; flex-direction: column; gap: 7px; }
 
-/* ----- Trade offer in sidebar ----- */
+/* ----- Trade offer ----- */
 .catan-trade-offer {
-  border-color: var(--gold);
-  background: rgba(199, 155, 58, 0.06);
+  border-color: var(--gold) !important;
+  background: rgba(199, 155, 58, 0.07) !important;
 }
-
-.catan-trade-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-  margin: 8px 0;
-  color: var(--ink-soft);
-}
+.catan-trade-row { display: flex; flex-direction: column; gap: 4px; font-size: 13px; margin: 8px 0; color: var(--ink-soft); }
 
 /* ----- Log ----- */
 .catan-log {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 160px;
-  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 3px;
+  max-height: 140px; overflow-y: auto;
 }
-
 .catan-log-entry {
-  font-size: 12px;
-  color: var(--ink-soft);
-  padding: 4px 0;
-  border-bottom: 1px solid var(--line);
-  line-height: 1.4;
+  font-size: 12px; color: var(--ink-soft);
+  padding: 4px 0; border-bottom: 1px solid var(--line); line-height: 1.4;
 }
 .catan-log-entry:last-child { border-bottom: none; }
 
 /* ----- Modals ----- */
 .catan-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 100;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 200;
+  display: flex; align-items: center; justify-content: center;
   padding: 16px;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
 }
 
 .catan-modal {
   background: var(--paper);
   border-radius: var(--radius-lg);
   padding: 28px 28px 24px;
-  width: 100%;
-  max-width: 460px;
-  max-height: 90vh;
+  width: 100%; max-width: 480px;
+  max-height: 90dvh;
   overflow-y: auto;
   border: 1px solid var(--line-strong);
-  box-shadow: 0 16px 48px rgba(0,0,0,0.2);
+  box-shadow: 0 24px 64px rgba(0,0,0,0.25);
 }
 
 .catan-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 20px;
 }
-
 .catan-modal-title {
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 700;
-  margin: 0;
-  color: var(--ink);
+  font-family: var(--font-display); font-size: 22px; font-weight: 700;
+  margin: 0; color: var(--ink);
 }
-
 .catan-modal-close {
-  background: none;
-  border: none;
-  font-size: 18px;
-  color: var(--mute);
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: var(--radius);
-  transition: color 0.15s, background 0.15s;
+  background: none; border: none; font-size: 20px;
+  color: var(--mute); cursor: pointer; padding: 4px 8px;
+  border-radius: var(--radius); transition: color 0.15s, background 0.15s;
+  line-height: 1;
 }
 .catan-modal-close:hover { color: var(--ink); background: var(--bg); }
 
-/* ----- Tabs in modal ----- */
+/* ----- Tabs ----- */
 .catan-tabs {
-  display: flex;
-  gap: 4px;
-  background: var(--bg);
-  border-radius: var(--radius);
-  padding: 4px;
-  margin-bottom: 20px;
+  display: flex; gap: 4px; background: var(--bg);
+  border-radius: var(--radius); padding: 4px; margin-bottom: 20px;
 }
-
 .catan-tab {
-  flex: 1;
-  padding: 8px;
-  border: none;
-  background: transparent;
-  border-radius: calc(var(--radius) - 2px);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--mute);
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  flex: 1; padding: 8px; border: none; background: transparent;
+  border-radius: calc(var(--radius) - 2px); font-size: 14px; font-weight: 600;
+  color: var(--mute); cursor: pointer; transition: background 0.15s, color 0.15s;
 }
 .catan-tab.active {
-  background: var(--paper);
-  color: var(--ink);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  background: var(--paper); color: var(--ink);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.10);
 }
 
 /* ----- Trade modal ----- */
-.catan-trade-grid {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
+.catan-trade-grid { display: flex; gap: 8px; flex-wrap: wrap; }
 .catan-trade-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 12px 14px;
-  border: 2px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg);
-  font-size: 24px;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 12px 14px;
+  border: 2px solid var(--line); border-radius: var(--radius);
+  background: var(--bg); font-size: 24px;
+  cursor: pointer; transition: border-color 0.15s, background 0.15s;
   min-width: 64px;
 }
 .catan-trade-chip:hover:not(.disabled) { border-color: var(--purple); }
 .catan-trade-chip.selected { border-color: var(--purple); background: var(--purple-soft); }
-.catan-trade-chip.disabled { opacity: 0.35; cursor: not-allowed; }
-
-.catan-trade-section { }
+.catan-trade-chip.disabled { opacity: 0.32; cursor: not-allowed; }
 
 .catan-trade-row-adj {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 0;
-  font-size: 18px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; font-size: 18px;
   border-bottom: 1px solid var(--line);
 }
 .catan-trade-row-adj:last-child { border-bottom: none; }
 
 .catan-adj-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
+  width: 30px; height: 30px; border-radius: 50%;
   border: 1.5px solid var(--line-strong);
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.12s;
+  background: var(--bg); color: var(--ink); font-size: 16px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s; flex-shrink: 0;
 }
 .catan-adj-btn:hover { background: var(--bg-2); }
-
-.catan-adj-val {
-  font-size: 18px;
-  font-weight: 700;
-  min-width: 24px;
-  text-align: center;
-}
+.catan-adj-val { font-size: 18px; font-weight: 700; min-width: 24px; text-align: center; }
 
 /* ----- Dev cards ----- */
-.catan-devcards {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
+.catan-devcards { display: flex; flex-direction: column; gap: 10px; }
 .catan-devcard {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px;
-  border-radius: var(--radius);
-  background: var(--bg);
-  border: 1px solid var(--line);
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px; border-radius: var(--radius);
+  background: var(--bg); border: 1px solid var(--line);
   transition: opacity 0.15s;
 }
-.catan-devcard.disabled { opacity: 0.45; }
-
+.catan-devcard.disabled { opacity: 0.4; }
 .catan-devcard-emoji { font-size: 28px; }
-
-.catan-devcard-info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.catan-devcard-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.catan-devcard-desc {
-  font-size: 12px;
-  color: var(--mute);
-}
+.catan-devcard-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.catan-devcard-name { font-size: 14px; font-weight: 600; color: var(--ink); }
+.catan-devcard-desc { font-size: 12px; color: var(--mute); }
 
 /* ----- Player color custom properties ----- */
 .player-red    { --pc: #e53935; }
-.player-blue   { --pc: #1e88e5; }
-.player-orange { --pc: #fb8c00; }
+.player-blue   { --pc: #1565c0; }
+.player-orange { --pc: #e65100; }
 .player-white  { --pc: #9e9e9e; }
 
-/* ----- Responsive ----- */
+/* ============================================================
+   MOBILE — everything stacks vertically
+   ============================================================ */
+@media (max-width: 900px) {
+  .catan-game-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Sidebar becomes horizontal strip below the board */
+  .catan-sidebar {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  /* Actions section spans full width */
+  .catan-actions-section {
+    grid-column: 1 / -1;
+  }
+
+  .catan-sidebar {
+    padding-bottom: 24px;
+  }
+}
+
 @media (max-width: 600px) {
-  .catan-lobby-card {
-    padding: 24px 20px;
-  }
+  .catan-page { padding: 70px 0 40px; }
 
-  .catan-modal {
-    padding: 20px 16px;
-    max-height: 95vh;
-  }
+  .catan-game-wrap { padding: 0 10px 40px; }
 
-  .catan-room-code {
-    font-size: 24px;
-  }
+  .catan-lobby-card { padding: 24px 20px; }
 
-  .catan-game-header {
-    flex-wrap: wrap;
-  }
+  .catan-room-code { font-size: 30px; letter-spacing: 0.18em; }
 
-  .catan-board-wrap {
-    padding: 8px;
-  }
+  .catan-modal { padding: 20px 16px; max-height: 95dvh; }
+
+  .catan-game-header { padding: 8px 0 12px; }
+
+  .catan-board-wrap { margin: 0 -4px; border-radius: var(--radius); }
+
+  /* On mobile sidebar is single column */
+  .catan-sidebar { grid-template-columns: 1fr; }
+
+  .catan-resources { gap: 5px; }
+  .catan-resource-chip { min-width: 40px; padding: 6px 6px; }
+  .catan-resource-icon { font-size: 16px; }
+  .catan-resource-count { font-size: 13px; }
+
+  .catan-btn { padding: 11px 14px; font-size: 14px; }
 }

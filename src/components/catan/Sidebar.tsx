@@ -162,7 +162,7 @@ export function Sidebar({ state, myPlayer, onAction, onOpenTrade, onOpenDevCard,
 
       {/* Actions */}
       {(isMyTurn || isSetup) && (
-        <div className="catan-sidebar-section">
+        <div className="catan-sidebar-section catan-actions-section">
           <h3 className="catan-sidebar-heading">Åtgärder</h3>
           <div className="catan-actions">
             {/* Setup phase */}
@@ -255,7 +255,7 @@ export function Sidebar({ state, myPlayer, onAction, onOpenTrade, onOpenDevCard,
                     <button
                       key={pid}
                       className={`catan-btn catan-btn-secondary player-${pp.color}`}
-                      onClick={() => onAction({ type: 'steal', fromPlayerId: pid })}
+                      onClick={() => onAction({ type: 'steal', targetPlayerId: pid })}
                     >
                       Stjäl från {pp.name}
                     </button>
@@ -339,7 +339,7 @@ export function Sidebar({ state, myPlayer, onAction, onOpenTrade, onOpenDevCard,
                       <button
                         key={p.id}
                         className={`catan-btn catan-btn-secondary player-${p.color}`}
-                        onClick={() => onAction({ type: 'completeTrade', withPlayerId: p.id })}
+                        onClick={() => onAction({ type: 'tradeComplete', acceptingPlayerId: p.id })}
                       >
                         Välj {p.name}
                       </button>
@@ -348,7 +348,7 @@ export function Sidebar({ state, myPlayer, onAction, onOpenTrade, onOpenDevCard,
                 ) : (
                   <p className="catan-muted" style={{ fontSize: 13 }}>Väntar på svar…</p>
                 )}
-                <button className="catan-btn catan-btn-ghost" onClick={() => onAction({ type: 'cancelTrade' })}>
+                <button className="catan-btn catan-btn-ghost" onClick={() => onAction({ type: 'tradeCancel' })}>
                   Avbryt
                 </button>
               </div>
