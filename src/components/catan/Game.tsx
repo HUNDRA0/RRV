@@ -215,6 +215,32 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
   const [animDisplayDice, setAnimDisplayDice] = useState<[number, number]>([1, 1]);
   const diceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const diceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const diceAnimPhaseRef = useRef<DiceAnimPhase>('idle');
+  diceAnimPhaseRef.current = diceAnimPhase;
+  // undefined = not yet initialised (skip animation on first mount)
+  const prevDiceRef = useRef<[number, number] | null | undefined>(undefined);
+
+  // Show result card for ALL players when dice change (not just the roller)
+  useEffect(() => {
+    const dice = state.dice;
+    if (!dice) { prevDiceRef.current = null; return; }
+    const [d1, d2] = dice;
+    if (prevDiceRef.current === undefined) {
+      // First mount — don't animate stale dice from a previous turn
+      prevDiceRef.current = [d1, d2];
+      return;
+    }
+    const prev = prevDiceRef.current;
+    if (!prev || prev[0] !== d1 || prev[1] !== d2) {
+      prevDiceRef.current = [d1, d2];
+      // Only trigger if this client didn't already start the animation (i.e. not the roller)
+      if (diceAnimPhaseRef.current === 'idle') {
+        setDiceAnimPhase('showing');
+        if (diceTimerRef.current) clearTimeout(diceTimerRef.current);
+        diceTimerRef.current = setTimeout(() => setDiceAnimPhase('idle'), 2800);
+      }
+    }
+  }, [state.dice]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-scroll chat to bottom when new messages arrive
   useEffect(() => {
