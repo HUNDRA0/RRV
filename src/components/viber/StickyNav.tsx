@@ -8,7 +8,7 @@ const TABS: [string, string][] = [
   ['moves', 'Making Moves'],
   ['events', 'Events'],
   ['lunch', 'Lunch 🎟'],
-  ['spel', 'Spel 🎲'],
+  ['spel', 'Catan 🎲'],
 ];
 
 interface NavTabsProps {
