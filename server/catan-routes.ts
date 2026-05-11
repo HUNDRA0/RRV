@@ -49,7 +49,8 @@ function filterStateForPlayer(state: GameState, requestingPlayerId: string | nul
   return {
     ...state,
     myPlayerId: requestingPlayerId ?? '',
-    devDeck: state.devDeck.length, // just count
+    devDeck: undefined,
+    devDeckSize: state.devDeck.length,
     players: state.players.map(p => {
       if (p.id === requestingPlayerId) {
         return {

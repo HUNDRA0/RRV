@@ -23,12 +23,8 @@ export function useGame(gameId: string | null, token: string | null) {
           setError(body.error ?? `HTTP ${res.status}`);
           return;
         }
-        const data = await res.json() as ClientGameState & { devDeck?: number };
+        const data = await res.json() as ClientGameState;
         if (cancelled) return;
-        // Normalize devDeckSize (server sends devDeck as number in filtered response)
-        if (typeof data.devDeck === 'number' && data.devDeckSize === undefined) {
-          data.devDeckSize = data.devDeck;
-        }
         if (data.updatedAt !== updatedAtRef.current) {
           updatedAtRef.current = data.updatedAt;
           setState(data);
@@ -61,10 +57,7 @@ export function useGame(gameId: string | null, token: string | null) {
       const body = await res.json().catch(() => ({})) as { error?: string };
       throw new Error(body.error ?? `HTTP ${res.status}`);
     }
-    const data = await res.json() as ClientGameState & { devDeck?: number };
-    if (typeof data.devDeck === 'number' && data.devDeckSize === undefined) {
-      data.devDeckSize = data.devDeck;
-    }
+    const data = await res.json() as ClientGameState;
     updatedAtRef.current = data.updatedAt;
     setState(data);
   }

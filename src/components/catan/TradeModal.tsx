@@ -49,11 +49,7 @@ export function TradeModal({ state, myPlayer, onAction, onClose }: TradeModalPro
     if (!selectedGive || !selectedWant) { setError('Välj resurs att ge och ta'); return; }
     const ratio = getBankRatio(state, myPlayer, selectedGive);
     if (res[selectedGive] < ratio) { setError(`Du behöver ${ratio}x ${RESOURCE_EMOJI[selectedGive]}`); return; }
-    const giveRes = emptyResources();
-    giveRes[selectedGive] = ratio;
-    const wantRes = emptyResources();
-    wantRes[selectedWant] = 1;
-    onAction({ type: 'bankTrade', give: giveRes, want: wantRes });
+    onAction({ type: 'tradeBank', give: selectedGive, want: selectedWant });
     onClose();
   };
 
@@ -64,7 +60,7 @@ export function TradeModal({ state, myPlayer, onAction, onClose }: TradeModalPro
     for (const r of RESOURCES) {
       if (give[r] > res[r]) { setError(`Inte tillräckligt med ${RESOURCE_EMOJI[r]}`); return; }
     }
-    onAction({ type: 'offerTrade', give, want });
+    onAction({ type: 'tradeOffer', give, want });
     onClose();
   };
 

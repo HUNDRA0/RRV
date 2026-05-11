@@ -69,12 +69,12 @@ export function DevCardModal({ devCards, devCardPlayedThisTurn, diceRolled, onAc
         const next = [...pickedResources, r];
         setPickedResources(next);
         if (next.length === 2) {
-          onAction({ type: 'playDevCard', card: 'yearOfPlenty', resources: next });
+          onAction({ type: 'playDevCard', card: 'yearOfPlenty', params: { resource1: next[0], resource2: next[1] } });
           onClose();
         }
       }
     } else if (pickMode === 'monopoly') {
-      onAction({ type: 'playDevCard', card: 'monopoly', resource: r });
+      onAction({ type: 'playDevCard', card: 'monopoly', params: { resource: r } });
       onClose();
     }
   };

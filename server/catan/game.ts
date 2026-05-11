@@ -679,23 +679,13 @@ function handlePlayDevCard(
       const { resource1, resource2 } = params as { resource1: Resource; resource2: Resource };
       newState = {
         ...newState,
-        players: updatePlayer(newState.players, player.id, p => ({
-          ...p,
-          resources: addResources(p.resources, { ...emptyResources(), [resource1]: 1, [resource2]: (resource2 === resource1 ? 2 : 1) }),
-        })),
-        log: [...newState.log, `${player.name} played Year of Plenty: +1 ${resource1}, +1 ${resource2}.`],
-      };
-      // Fix the double-add: handle same resource correctly
-      const r1 = resource1;
-      const r2 = resource2;
-      newState = {
-        ...newState,
-        players: updatePlayer(state.players.map(p => p.id === player.id ? basePlayer : p), player.id, p => {
+        players: updatePlayer(newState.players, player.id, p => {
           const res = { ...p.resources };
-          res[r1] = (res[r1] ?? 0) + 1;
-          res[r2] = (res[r2] ?? 0) + 1;
+          res[resource1] = (res[resource1] ?? 0) + 1;
+          res[resource2] = (res[resource2] ?? 0) + 1;
           return { ...p, resources: res };
         }),
+        log: [...newState.log, `${player.name} played Year of Plenty: +1 ${resource1}, +1 ${resource2}.`],
       };
       break;
     }

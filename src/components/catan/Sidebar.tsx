@@ -301,10 +301,10 @@ export function Sidebar({ state, myPlayer, onAction, onOpenTrade, onOpenDevCard,
                 </div>
                 {myResponse === 'pending' && (
                   <div className="catan-actions">
-                    <button className="catan-btn catan-btn-primary" onClick={() => onAction({ type: 'respondTrade', accept: true })}>
+                    <button className="catan-btn catan-btn-primary" onClick={() => onAction({ type: 'tradeRespond', accept: true })}>
                       ✅ Acceptera
                     </button>
-                    <button className="catan-btn catan-btn-secondary" onClick={() => onAction({ type: 'respondTrade', accept: false })}>
+                    <button className="catan-btn catan-btn-secondary" onClick={() => onAction({ type: 'tradeRespond', accept: false })}>
                       ❌ Neka
                     </button>
                   </div>
