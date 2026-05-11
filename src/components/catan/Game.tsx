@@ -382,79 +382,87 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
         <div className="catan-action-error">{actionError}</div>
       )}
 
-      {/* Chat panel above the board */}
+      {/* ── Trade offer card — sits above chat, always fully visible ── */}
+      {state.tradeOffer && state.tradeOffer.fromPlayerId !== myPlayer.id && (() => {
+        const offer = state.tradeOffer!;
+        const from = state.players.find(p => p.id === offer.fromPlayerId);
+        const myResponse = offer.responses[myPlayer.id];
+        return (
+          <div className="catan-trade-card">
+            <div className="catan-trade-card-header">
+              <span className="catan-trade-card-icon">🔄</span>
+              <span className="catan-trade-card-title">{from?.name} erbjuder ett byte</span>
+            </div>
+            <div className="catan-trade-card-resources">
+              <span className="catan-trade-card-label">Ger</span>
+              <span className="catan-trade-card-res">{formatResources(offer.give)}</span>
+              <span className="catan-trade-card-arrow">→</span>
+              <span className="catan-trade-card-label">Vill ha</span>
+              <span className="catan-trade-card-res">{formatResources(offer.want)}</span>
+            </div>
+            {myResponse === 'pending' ? (
+              <div className="catan-trade-card-actions">
+                <button className="catan-btn catan-btn-primary catan-btn-sm"
+                  onClick={() => void dispatch({ type: 'tradeRespond', accept: true })}>
+                  ✅ Acceptera
+                </button>
+                <button className="catan-btn catan-btn-secondary catan-btn-sm"
+                  onClick={() => void dispatch({ type: 'tradeRespond', accept: false })}>
+                  ❌ Neka
+                </button>
+              </div>
+            ) : (
+              <p className="catan-trade-card-status">
+                Du har {myResponse === 'accept' ? 'accepterat ✅' : 'nekat ❌'}
+              </p>
+            )}
+          </div>
+        );
+      })()}
+
+      {state.tradeOffer && state.tradeOffer.fromPlayerId === myPlayer.id && (() => {
+        const offer = state.tradeOffer!;
+        const acceptedPlayers = Object.entries(offer.responses)
+          .filter(([, r]) => r === 'accept')
+          .map(([pid]) => state.players.find(p => p.id === pid))
+          .filter(Boolean) as ClientPlayer[];
+        return (
+          <div className="catan-trade-card catan-trade-card-mine">
+            <div className="catan-trade-card-header">
+              <span className="catan-trade-card-icon">🔄</span>
+              <span className="catan-trade-card-title">Ditt erbjudande</span>
+            </div>
+            <div className="catan-trade-card-resources">
+              <span className="catan-trade-card-label">Ger</span>
+              <span className="catan-trade-card-res">{formatResources(offer.give)}</span>
+              <span className="catan-trade-card-arrow">→</span>
+              <span className="catan-trade-card-label">Vill ha</span>
+              <span className="catan-trade-card-res">{formatResources(offer.want)}</span>
+            </div>
+            {acceptedPlayers.length > 0 ? (
+              <div className="catan-trade-card-actions">
+                {acceptedPlayers.map(p => (
+                  <button key={p.id}
+                    className={`catan-btn catan-btn-primary catan-btn-sm player-${p.color}`}
+                    onClick={() => void dispatch({ type: 'tradeComplete', acceptingPlayerId: p.id })}>
+                    Välj {p.name}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="catan-trade-card-status">Väntar på svar…</p>
+            )}
+            <button className="catan-btn catan-btn-ghost catan-btn-sm"
+              style={{ marginTop: 6 }}
+              onClick={() => void dispatch({ type: 'tradeCancel' })}>
+              Avbryt handel
+            </button>
+          </div>
+        );
+      })()}
+
+      {/* Chat panel */}
       <div className="catan-chat-wrap">
-
-        {/* ── Trade offer banner — incoming ── */}
-        {state.tradeOffer && state.tradeOffer.fromPlayerId !== myPlayer.id && (() => {
-          const offer = state.tradeOffer!;
-          const from = state.players.find(p => p.id === offer.fromPlayerId);
-          const myResponse = offer.responses[myPlayer.id];
-          return (
-            <div className="catan-trade-banner">
-              <div className="catan-trade-banner-title">
-                🔄 {from?.name} erbjuder ett byte
-              </div>
-              <div className="catan-trade-banner-row">
-                <span>Ger: {formatResources(offer.give)}</span>
-                <span>Vill ha: {formatResources(offer.want)}</span>
-              </div>
-              {myResponse === 'pending' ? (
-                <div className="catan-trade-banner-actions">
-                  <button className="catan-btn catan-btn-primary catan-btn-sm"
-                    onClick={() => void dispatch({ type: 'tradeRespond', accept: true })}>
-                    ✅ Acceptera
-                  </button>
-                  <button className="catan-btn catan-btn-secondary catan-btn-sm"
-                    onClick={() => void dispatch({ type: 'tradeRespond', accept: false })}>
-                    ❌ Neka
-                  </button>
-                </div>
-              ) : (
-                <span className="catan-trade-banner-status">
-                  Du har {myResponse === 'accept' ? 'accepterat ✅' : 'nekat ❌'}
-                </span>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* ── Trade offer banner — my sent offer ── */}
-        {state.tradeOffer && state.tradeOffer.fromPlayerId === myPlayer.id && (() => {
-          const offer = state.tradeOffer!;
-          const acceptedPlayers = Object.entries(offer.responses)
-            .filter(([, r]) => r === 'accept')
-            .map(([pid]) => state.players.find(p => p.id === pid))
-            .filter(Boolean) as ClientPlayer[];
-          return (
-            <div className="catan-trade-banner catan-trade-banner-mine">
-              <div className="catan-trade-banner-title">🔄 Ditt erbjudande</div>
-              <div className="catan-trade-banner-row">
-                <span>Ger: {formatResources(offer.give)}</span>
-                <span>Vill ha: {formatResources(offer.want)}</span>
-              </div>
-              {acceptedPlayers.length > 0 ? (
-                <div className="catan-trade-banner-actions">
-                  {acceptedPlayers.map(p => (
-                    <button key={p.id}
-                      className={`catan-btn catan-btn-primary catan-btn-sm player-${p.color}`}
-                      onClick={() => void dispatch({ type: 'tradeComplete', acceptingPlayerId: p.id })}>
-                      Välj {p.name}
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <span className="catan-trade-banner-status">Väntar på svar…</span>
-              )}
-              <button className="catan-btn catan-btn-ghost catan-btn-sm"
-                style={{ marginTop: 6 }}
-                onClick={() => void dispatch({ type: 'tradeCancel' })}>
-                Avbryt
-              </button>
-            </div>
-          );
-        })()}
-
         <div className="catan-chat-messages">
           {recentMessages.length === 0 ? (
             <p className="catan-chat-empty">Inga meddelanden än…</p>
