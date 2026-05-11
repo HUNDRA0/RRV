@@ -298,7 +298,14 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
       }
     } else if (state.phase === 'playing') {
       if (buildMode === 'settlement') {
-        void dispatch({ type: 'buildSettlement', vertexId });
+        // After placing a settlement, auto-enter road mode so valid spots are highlighted
+        setActionError(null);
+        sendAction({ type: 'buildSettlement', vertexId })
+          .then(() => setBuildMode('road'))
+          .catch(err => {
+            setActionError(err instanceof Error ? err.message : String(err));
+            setBuildMode(null);
+          });
       } else if (buildMode === 'city') {
         void dispatch({ type: 'buildCity', vertexId });
       }

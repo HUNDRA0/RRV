@@ -615,13 +615,42 @@ export function Board({
             );
           }
 
-          // ── Phase: showing ── dice pop in + central result card
+          // ── Phase: showing ── dice pop in + result card + resource gains
           if (diceAnimPhase === 'showing' && state.dice) {
             const [d1, d2] = state.dice;
             const sum = d1 + d2;
             const isSeven = sum === 7;
             const sumX = diceAreaX + DIE_SIZE * 2 + gap * 2 + 8;
-            // Board center = axial origin = SVG coordinate (0, 0)
+
+            // Calculate which players gain resources from this roll
+            const gains: Array<{ name: string; line: string }> = [];
+            if (!isSeven) {
+              const gainMap = new Map<string, Record<string, number>>();
+              for (const hex of hexes) {
+                if (hex.number !== sum || hex.hasRobber || hex.terrain === 'desert') continue;
+                for (const vertex of vertices) {
+                  if (!vertex.hexIds.includes(hex.id) || !vertex.building) continue;
+                  const { playerId, type: bt } = vertex.building;
+                  const amount = bt === 'city' ? 2 : 1;
+                  if (!gainMap.has(playerId)) gainMap.set(playerId, {});
+                  const g = gainMap.get(playerId)!;
+                  g[hex.terrain] = (g[hex.terrain] ?? 0) + amount;
+                }
+              }
+              gainMap.forEach((res, pid) => {
+                const player = state.players.find(p => p.id === pid);
+                if (!player) return;
+                const line = Object.entries(res)
+                  .filter(([, n]) => n > 0)
+                  .map(([r, n]) => `+${n}${RESOURCE_EMOJI_BOARD[r as Resource]}`)
+                  .join(' ');
+                const name = player.name.length > 9 ? player.name.slice(0, 8) + '…' : player.name;
+                if (line) gains.push({ name, line });
+              });
+            }
+
+            const gainsH = gains.length > 0 ? gains.length * 20 + 16 : 0;
+            const gainsY = 56; // sits just below the result card (which ends at y=46)
 
             return (
               <g>
@@ -641,19 +670,14 @@ export function Board({
                   </text>
                 </g>
 
-                {/* Central result card (centered at board origin 0,0) */}
+                {/* Central result card */}
                 <g className="catan-result-card">
-                  {/* Shadow */}
                   <rect x={-72} y={-40} width={144} height={86}
                     rx={18} fill="rgba(0,0,0,0.35)" transform="translate(3,4)" />
-                  {/* Card */}
                   <rect x={-72} y={-40} width={144} height={86}
-                    rx={18}
-                    fill="rgba(14,8,32,0.90)"
-                    stroke={isSeven ? '#f59e0b' : '#7c3aed'}
-                    strokeWidth={2.5}
+                    rx={18} fill="rgba(14,8,32,0.90)"
+                    stroke={isSeven ? '#f59e0b' : '#7c3aed'} strokeWidth={2.5}
                   />
-                  {/* Big number */}
                   <text x={0} y={6} textAnchor="middle"
                     fontSize={40} fontWeight="900"
                     fill={isSeven ? '#fbbf24' : 'white'}
@@ -661,7 +685,6 @@ export function Board({
                     style={{ userSelect: 'none', pointerEvents: 'none' }}>
                     {isSeven ? '⚔️' : sum}
                   </text>
-                  {/* Sub-text */}
                   <text x={0} y={35} textAnchor="middle"
                     fontSize={13} fill="rgba(255,255,255,0.55)"
                     fontFamily="var(--font-body)"
@@ -669,6 +692,43 @@ export function Board({
                     {isSeven ? 'Rövaren aktiveras!' : `${d1} + ${d2}`}
                   </text>
                 </g>
+
+                {/* Resource gains card — one row per player who got something */}
+                {gains.length > 0 && (
+                  <g className="catan-result-card" style={{ animationDelay: '0.38s' }}>
+                    <rect x={-88} y={gainsY} width={176} height={gainsH}
+                      rx={12} fill="rgba(14,8,32,0.88)"
+                      stroke="rgba(255,255,255,0.14)" strokeWidth={1.5}
+                    />
+                    {gains.map(({ name, line }, i) => (
+                      <text key={i}
+                        x={0} y={gainsY + 14 + i * 20}
+                        textAnchor="middle" fontSize={12}
+                        fill="rgba(255,255,255,0.92)"
+                        fontFamily="var(--font-body)"
+                        style={{ userSelect: 'none', pointerEvents: 'none' }}>
+                        {name}: {line}
+                      </text>
+                    ))}
+                  </g>
+                )}
+
+                {/* "Ingen fick resurser" note when sum ≠ 7 but no gains */}
+                {!isSeven && gains.length === 0 && (
+                  <g className="catan-result-card" style={{ animationDelay: '0.38s' }}>
+                    <rect x={-88} y={gainsY} width={176} height={36}
+                      rx={12} fill="rgba(14,8,32,0.78)"
+                      stroke="rgba(255,255,255,0.10)" strokeWidth={1.5}
+                    />
+                    <text x={0} y={gainsY + 13}
+                      textAnchor="middle" fontSize={11}
+                      fill="rgba(255,255,255,0.45)"
+                      fontFamily="var(--font-body)"
+                      style={{ userSelect: 'none', pointerEvents: 'none' }}>
+                      Ingen fick resurser
+                    </text>
+                  </g>
+                )}
               </g>
             );
           }
