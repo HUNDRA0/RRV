@@ -171,7 +171,7 @@ export function Board({ state, validVertices, validEdges, validHexes, onVertexCl
 
   const xs = vertices.map(v => v.x);
   const ys = vertices.map(v => v.y);
-  const pad = 80;
+  const pad = 44;
   const minX = Math.min(...xs) - pad;
   const minY = Math.min(...ys) - pad;
   const maxX = Math.max(...xs) + pad;
@@ -185,7 +185,7 @@ export function Board({ state, validVertices, validEdges, validHexes, onVertexCl
   const playerColorMap = new Map<string, PlayerColor>();
   state.players.forEach(p => playerColorMap.set(p.id, p.color));
 
-  const HEX_SIZE = 76;
+  const HEX_SIZE = 86;
 
   // Deduplicate harbor vertices — show one icon per harbor edge midpoint
   const harborPairs: Array<{ mx: number; my: number; harbor: string }> = [];
@@ -287,34 +287,54 @@ export function Board({ state, validVertices, validEdges, validHexes, onVertexCl
                 filter={isValidRobber ? 'url(#glow-valid)' : undefined}
               />
 
-              {/* Terrain emoji */}
-              <text x={cx} y={hex.number ? cy - 18 : cy + 6}
-                textAnchor="middle" dominantBaseline="central"
-                fontSize={hex.terrain === 'desert' ? 26 : 22}
-                style={{ userSelect: 'none', pointerEvents: 'none' }}
-              >
-                {TERRAIN_EMOJI[hex.terrain]}
-              </text>
+              {/* Terrain illustrations — big main emoji + secondary details */}
+              <g style={{ userSelect: 'none', pointerEvents: 'none' }}>
+                {hex.terrain === 'wood' && (<>
+                  <text x={cx - 20} y={hex.number ? cy - 22 : cy - 8} textAnchor="middle" dominantBaseline="central" fontSize={38}>🌲</text>
+                  <text x={cx + 22} y={hex.number ? cy - 18 : cy - 4} textAnchor="middle" dominantBaseline="central" fontSize={28}>🌲</text>
+                  <text x={cx + 2}  y={hex.number ? cy - 8  : cy + 14} textAnchor="middle" dominantBaseline="central" fontSize={20}>🌿</text>
+                </>)}
+                {hex.terrain === 'wool' && (<>
+                  <text x={cx - 18} y={hex.number ? cy - 20 : cy - 6} textAnchor="middle" dominantBaseline="central" fontSize={36}>🐑</text>
+                  <text x={cx + 20} y={hex.number ? cy - 14 : cy + 4} textAnchor="middle" dominantBaseline="central" fontSize={26}>🐑</text>
+                </>)}
+                {hex.terrain === 'grain' && (<>
+                  <text x={cx - 18} y={hex.number ? cy - 22 : cy - 8} textAnchor="middle" dominantBaseline="central" fontSize={38}>🌾</text>
+                  <text x={cx + 20} y={hex.number ? cy - 16 : cy - 2} textAnchor="middle" dominantBaseline="central" fontSize={30}>🌾</text>
+                </>)}
+                {hex.terrain === 'ore' && (<>
+                  <text x={cx - 14} y={hex.number ? cy - 18 : cy - 4} textAnchor="middle" dominantBaseline="central" fontSize={36}>🪨</text>
+                  <text x={cx + 18} y={hex.number ? cy - 10 : cy + 6} textAnchor="middle" dominantBaseline="central" fontSize={26}>⛏️</text>
+                </>)}
+                {hex.terrain === 'brick' && (<>
+                  <text x={cx} y={hex.number ? cy - 22 : cy - 8} textAnchor="middle" dominantBaseline="central" fontSize={38}>🧱</text>
+                  <text x={cx - 20} y={hex.number ? cy - 6 : cy + 10} textAnchor="middle" dominantBaseline="central" fontSize={22}>🧱</text>
+                </>)}
+                {hex.terrain === 'desert' && (<>
+                  <text x={cx - 10} y={hex.number ? cy - 20 : cy - 6} textAnchor="middle" dominantBaseline="central" fontSize={36}>🏜️</text>
+                  <text x={cx + 22} y={hex.number ? cy - 10 : cy + 6} textAnchor="middle" dominantBaseline="central" fontSize={24}>🌵</text>
+                </>)}
+              </g>
 
               {/* Number token */}
               {hex.number && !hex.hasRobber && (
                 <g>
-                  <circle cx={cx} cy={cy + 14} r={20}
+                  <circle cx={cx} cy={cy + 18} r={21}
                     fill="rgba(255,253,240,0.97)"
                     stroke={isRed ? '#c0392b' : 'rgba(0,0,0,0.15)'}
                     strokeWidth={isRed ? 1.5 : 1}
                     filter="url(#drop-shadow)"
                   />
-                  <text x={cx} y={cy + 12}
+                  <text x={cx} y={cy + 16}
                     textAnchor="middle" dominantBaseline="central"
-                    fontSize={isRed ? 16 : 15}
+                    fontSize={isRed ? 17 : 16}
                     fontWeight="bold"
                     fill={isRed ? '#c0392b' : '#2c2c2c'}
                     fontFamily="var(--font-body)"
                   >
                     {hex.number}
                   </text>
-                  <ProbDots cx={cx} cy={cy + 26} count={dots} red={isRed} />
+                  <ProbDots cx={cx} cy={cy + 32} count={dots} red={isRed} />
                 </g>
               )}
 
