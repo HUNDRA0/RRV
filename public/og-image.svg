@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f5f3f0"/>
+      <stop offset="100%" stop-color="#ede8f7"/>
+    </linearGradient>
+    <linearGradient id="vg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#a855f7"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="24" flood-color="#7c3aed" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern -->
+  <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+    <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#7c3aed" stroke-width="0.4" opacity="0.12"/>
+  </pattern>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- Logo card -->
+  <rect x="440" y="160" width="320" height="200" rx="36" fill="white" filter="url(#shadow)" opacity="0.95"/>
+
+  <!-- V letter -->
+  <text x="506" y="320" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="160" fill="url(#vg)">V</text>
+  <!-- R letter -->
+  <text x="630" y="320" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="160" fill="#1c1612">R</text>
+
+  <!-- Site name -->
+  <text x="600" y="415" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-weight="600" font-size="42" fill="#1c1612" letter-spacing="1">Viber Rankings</text>
+
+  <!-- Tagline -->
+  <text x="600" y="468" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="400" font-size="24" fill="#7c3aed" opacity="0.80">Den officiella tier-listan</text>
+</svg>
