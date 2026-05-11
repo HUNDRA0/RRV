@@ -791,6 +791,18 @@ function handleTradeRespond(state: GameState, playerId: string, accept: boolean)
 
   const newResponses = { ...state.tradeOffer.responses, [playerId]: accept ? 'accept' as const : 'decline' as const };
   const responderName = state.players.find(p => p.id === playerId)?.name ?? playerId;
+
+  // If everyone has declined (no pending, no accept left) — auto-cancel the offer
+  const allDeclined = Object.values(newResponses).every(r => r === 'decline');
+  if (allDeclined) {
+    return {
+      ...state,
+      tradeOffer: null,
+      log: [...state.log, `${responderName} declined the trade. Offer cancelled.`],
+      updatedAt: Date.now(),
+    };
+  }
+
   return {
     ...state,
     tradeOffer: { ...state.tradeOffer, responses: newResponses },
