@@ -153,18 +153,14 @@ function SettlementShape({ x, y, color, stroke, city }: { x: number; y: number; 
 
 function RobberShape({ x, y }: { x: number; y: number }) {
   return (
-    <g transform={`translate(${x},${y})`} style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.6))' }}>
-      {/* Body */}
-      <ellipse cx={0} cy={4} rx={8} ry={10} fill="#1a1a2e" />
-      {/* Head */}
-      <circle cx={0} cy={-8} r={8} fill="#1a1a2e" />
-      {/* Hat */}
-      <rect x={-9} y={-16} width={18} height={5} fill="#333" rx={2} />
-      <rect x={-5} y={-26} width={10} height={12} fill="#222" rx={2} />
-      {/* Eyes */}
-      <circle cx={-3} cy={-9} r={1.5} fill="#ff6b6b" />
-      <circle cx={3} cy={-9} r={1.5} fill="#ff6b6b" />
-    </g>
+    <text
+      x={x} y={y + 10}
+      textAnchor="middle" dominantBaseline="central"
+      fontSize={32}
+      style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.7))', userSelect: 'none', pointerEvents: 'none' }}
+    >
+      🏴‍☠️
+    </text>
   );
 }
 
