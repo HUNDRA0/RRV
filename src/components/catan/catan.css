@@ -277,7 +277,7 @@
 .catan-game-wrap {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 16px 0;
+  padding: 0 16px;
 }
 
 .catan-game-header {
@@ -879,9 +879,6 @@
 
   /* Mobile action bar */
   .catan-action-bar { padding: 8px 12px; gap: 8px; }
-  .catan-bar-res { padding: 3px 5px; min-width: 30px; }
-  .catan-bar-res-emoji { font-size: 15px; }
-  .catan-bar-res-count { font-size: 12px; }
   .catan-bar-icon-btn { width: 36px; height: 36px; font-size: 17px; }
   .catan-bar-primary { padding: 8px 14px; font-size: 14px; }
 }

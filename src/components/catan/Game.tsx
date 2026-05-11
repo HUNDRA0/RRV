@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import type { ClientGameState, ClientPlayer, Resource, Resources } from './types';
 import { Board } from './Board';
-import { Sidebar, DieFace } from './Sidebar';
+import { Sidebar } from './Sidebar';
 import { TradeModal } from './TradeModal';
 import { RobberModal } from './RobberModal';
 import { DevCardModal } from './DevCardModal';
@@ -13,14 +13,6 @@ import {
 } from './gameHelpers';
 
 // ---- Constants (shared with action bar) ----
-const RESOURCE_EMOJI: Record<Resource, string> = {
-  wood: '🌲',
-  brick: '🧱',
-  grain: '🌾',
-  ore: '⛏️',
-  wool: '🐑',
-};
-
 const RESOURCES: Resource[] = ['wood', 'brick', 'grain', 'ore', 'wool'];
 
 const BUILDING_COSTS: Record<string, Resources> = {
@@ -32,10 +24,6 @@ const BUILDING_COSTS: Record<string, Resources> = {
 
 function canAfford(resources: Resources, cost: Resources): boolean {
   return RESOURCES.every(r => resources[r] >= cost[r]);
-}
-
-function totalResources(r: Resources): number {
-  return RESOURCES.reduce((s, k) => s + r[k], 0);
 }
 
 // ---- Action bar component ----
@@ -55,18 +43,12 @@ function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenT
   const isSetup = state.phase === 'setup';
   const res = myPlayer.resources;
   const myDevCards = Array.isArray(myPlayer.devCards) ? myPlayer.devCards : [];
-  const totalRes = totalResources(res);
   const pendingType = state.pendingAction?.type;
 
   const canBuildSettlement = canAfford(res, BUILDING_COSTS.settlement);
   const canBuildRoad = canAfford(res, BUILDING_COSTS.road);
   const canBuildCity = canAfford(res, BUILDING_COSTS.city);
   const canBuyDev = canAfford(res, BUILDING_COSTS.devCard) && state.devDeckSize > 0;
-
-  const handleRollDice = () => {
-    if (buildMode) setBuildMode(null);
-    onAction({ type: 'rollDice' });
-  };
 
   const handleEndTurn = () => {
     setBuildMode(null);
@@ -79,31 +61,6 @@ function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenT
 
   return (
     <div className="catan-action-bar">
-      {/* Resources section */}
-      <div className="catan-bar-resources">
-        {RESOURCES.map(r => (
-          <div key={r} className={`catan-bar-res${res[r] > 0 ? ' has' : ''}`}>
-            <span className="catan-bar-res-emoji">{RESOURCE_EMOJI[r]}</span>
-            <span className="catan-bar-res-count">{res[r]}</span>
-          </div>
-        ))}
-        <span className="catan-bar-res-total" title="Totalt antal kort">🃏{totalRes}</span>
-      </div>
-
-      <div className="catan-bar-sep" />
-
-      {/* Dice section */}
-      {state.dice && (
-        <>
-          <div className="catan-bar-dice">
-            <DieFace value={state.dice[0]} />
-            <DieFace value={state.dice[1]} />
-            <span className="catan-bar-dice-sum">={state.dice[0] + state.dice[1]}</span>
-          </div>
-          <div className="catan-bar-sep" />
-        </>
-      )}
-
       {/* Actions section */}
       <div className="catan-bar-actions">
         {/* Setup phase */}
@@ -113,11 +70,9 @@ function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenT
           </span>
         )}
 
-        {/* Playing phase — not rolled yet */}
+        {/* Playing phase — not rolled yet: show waiting status (dice button is on the board) */}
         {isPlaying && isMyTurn && !pendingType && !state.diceRolled && (
-          <button className="catan-bar-primary" onClick={handleRollDice}>
-            🎲 Kasta tärningar
-          </button>
+          <span className="catan-bar-status">🎲 Kasta tärningen på brädet</span>
         )}
 
         {/* Playing phase — rolled, can build */}
@@ -433,6 +388,8 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
       <div className="catan-game-layout">
         <Board
           state={state}
+          myPlayerId={myPlayer.id}
+          onRollDice={isMyTurn && state.phase === 'playing' && !state.diceRolled ? () => void dispatch({ type: 'rollDice' }) : undefined}
           validVertices={validVertices}
           validEdges={validEdges}
           validHexes={validHexes}

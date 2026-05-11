@@ -1,4 +1,13 @@
-import type { ClientGameState, HexTile, Vertex, PlayerColor } from './types';
+import type { ClientGameState, HexTile, Vertex, PlayerColor, Resource } from './types';
+
+const RESOURCE_EMOJI_BOARD: Record<Resource, string> = {
+  wood: '🌲',
+  brick: '🧱',
+  grain: '🌾',
+  ore: '⛏️',
+  wool: '🐑',
+};
+const RESOURCES_ORDER: Resource[] = ['wood', 'brick', 'grain', 'wool', 'ore'];
 
 // Dark base colour (radial gradient edge)
 const TERRAIN_COLORS: Record<string, string> = {
@@ -58,8 +67,20 @@ const PROB_DOTS: Record<number, number> = {
   8: 5, 9: 4, 10: 3, 11: 2, 12: 1,
 };
 
+// Dot positions for in-SVG die faces (percentage of die size)
+const SVG_DIE_DOTS: Record<number, [number, number][]> = {
+  1: [[50, 50]],
+  2: [[25, 25], [75, 75]],
+  3: [[25, 25], [50, 50], [75, 75]],
+  4: [[25, 25], [75, 25], [25, 75], [75, 75]],
+  5: [[25, 25], [75, 25], [50, 50], [25, 75], [75, 75]],
+  6: [[25, 22], [75, 22], [25, 50], [75, 50], [25, 78], [75, 78]],
+};
+
 interface BoardProps {
   state: ClientGameState;
+  myPlayerId: string;
+  onRollDice?: () => void;
   validVertices: string[];
   validEdges: string[];
   validHexes: string[];
@@ -168,16 +189,18 @@ function HarborIcon({ x, y, harbor }: { x: number; y: number; harbor: string }) 
   );
 }
 
-export function Board({ state, validVertices, validEdges, validHexes, onVertexClick, onEdgeClick, onHexClick }: BoardProps) {
+export function Board({ state, myPlayerId, onRollDice, validVertices, validEdges, validHexes, onVertexClick, onEdgeClick, onHexClick }: BoardProps) {
   const { hexes, vertices, edges } = state.board;
 
   const xs = vertices.map(v => v.x);
   const ys = vertices.map(v => v.y);
-  const pad = 44;
-  const minX = Math.min(...xs) - pad;
-  const minY = Math.min(...ys) - pad;
-  const maxX = Math.max(...xs) + pad;
-  const maxY = Math.max(...ys) + pad;
+  const padTop = 44;
+  const padSide = 44;
+  const padBottom = 80;
+  const minX = Math.min(...xs) - padSide;
+  const minY = Math.min(...ys) - padTop;
+  const maxX = Math.max(...xs) + padSide;
+  const maxY = Math.max(...ys) + padBottom;
   const vbWidth = maxX - minX;
   const vbHeight = maxY - minY;
 
@@ -463,6 +486,140 @@ export function Board({ state, validVertices, validEdges, validHexes, onVertexCl
             />
           );
         })}
+
+        {/* ── Player corner cards ── */}
+        {(() => {
+          const CORNERS = [
+            { x: minX + 10, y: minY + 10, anchorRight: false, anchorBottom: false },
+            { x: maxX - 10, y: minY + 10, anchorRight: true,  anchorBottom: false },
+            { x: maxX - 10, y: maxY - padBottom - 10, anchorRight: true,  anchorBottom: true },
+            { x: minX + 10, y: maxY - padBottom - 10, anchorRight: false, anchorBottom: true },
+          ];
+          return state.players.slice(0, 4).map((p, idx) => {
+            const corner = CORNERS[idx];
+            if (!corner) return null;
+            const isMe = p.id === myPlayerId;
+            const isCurrent = idx === state.currentPlayerIndex;
+            const cardW = isMe ? 165 : 132;
+            const cardH = isMe ? 62 : 44;
+            const cx = corner.anchorRight ? corner.x - cardW : corner.x;
+            const cy = corner.anchorBottom ? corner.y - cardH : corner.y;
+            const pc = PLAYER_COLORS[p.color] ?? '#888';
+            const res = isMe ? (p.resources as Record<string, number>) : null;
+
+            return (
+              <g key={p.id}>
+                {/* Card background */}
+                <rect
+                  x={cx} y={cy} width={cardW} height={cardH}
+                  rx={10}
+                  fill="rgba(15,10,30,0.62)"
+                  stroke={isCurrent ? 'rgba(139,92,246,0.8)' : 'rgba(255,255,255,0.12)'}
+                  strokeWidth={isCurrent ? 2 : 1}
+                />
+                {/* Color dot */}
+                <circle cx={cx + 14} cy={cy + 16} r={6} fill={pc} />
+                {/* Current player indicator */}
+                {isCurrent && (
+                  <text x={cx + 24} y={cy + 21} fontSize={9} fill="#a78bfa"
+                    fontFamily="var(--font-body)"
+                    style={{ userSelect: 'none', pointerEvents: 'none' }}>
+                    ▶
+                  </text>
+                )}
+                {/* Player name */}
+                <text
+                  x={cx + 34} y={cy + 21}
+                  fontSize={13} fontWeight="700" fill="white"
+                  fontFamily="var(--font-body)"
+                  style={{ userSelect: 'none', pointerEvents: 'none' }}
+                >
+                  {p.name.length > 10 ? p.name.slice(0, 9) + '…' : p.name}
+                </text>
+                {/* VP */}
+                <text
+                  x={cx + cardW - 8} y={cy + 21}
+                  textAnchor="end" fontSize={11} fill="rgba(255,255,255,0.65)"
+                  fontFamily="var(--font-body)"
+                  style={{ userSelect: 'none', pointerEvents: 'none' }}
+                >
+                  ⭐{p.vp}
+                </text>
+                {/* Resource row (only for myself) */}
+                {isMe && res && (
+                  <text
+                    x={cx + 8} y={cy + 51}
+                    fontSize={10} fill="rgba(255,255,255,0.82)"
+                    fontFamily="var(--font-body)"
+                    style={{ userSelect: 'none', pointerEvents: 'none' }}
+                  >
+                    {RESOURCES_ORDER.map(r => `${RESOURCE_EMOJI_BOARD[r]}${res[r] ?? 0}`).join(' ')}
+                  </text>
+                )}
+              </g>
+            );
+          });
+        })()}
+
+        {/* ── Dice area (bottom-left ocean) ── */}
+        {(() => {
+          const isMyTurn = state.players[state.currentPlayerIndex]?.id === myPlayerId;
+          const diceAreaX = minX + 12;
+          const diceAreaY = maxY - padBottom + 12;
+
+          if (state.phase === 'playing' && isMyTurn && !state.diceRolled && onRollDice) {
+            return (
+              <g onClick={onRollDice} style={{ cursor: 'pointer' }}>
+                <rect x={diceAreaX} y={diceAreaY} width={150} height={42} rx={21}
+                  fill="#7c3aed" />
+                <text x={diceAreaX + 75} y={diceAreaY + 27} textAnchor="middle"
+                  fill="white" fontSize={15} fontWeight="800"
+                  fontFamily="var(--font-body)"
+                  style={{ userSelect: 'none', pointerEvents: 'none' }}>
+                  🎲 Kasta tärning
+                </text>
+              </g>
+            );
+          }
+
+          if (state.dice) {
+            const [d1, d2] = state.dice;
+            const DIE_SIZE = 36;
+            const gap = 8;
+            const sumX = diceAreaX + DIE_SIZE * 2 + gap * 2 + 6;
+
+            const renderDie = (value: number, offsetX: number) => {
+              const dots = SVG_DIE_DOTS[value] ?? [[50, 50]];
+              return (
+                <g key={offsetX}>
+                  <rect x={offsetX} y={diceAreaY} width={DIE_SIZE} height={DIE_SIZE}
+                    rx={8} fill="white" stroke="#ccc" strokeWidth={2} />
+                  {dots.map(([px, py], i) => (
+                    <circle key={i}
+                      cx={offsetX + (px / 100) * DIE_SIZE}
+                      cy={diceAreaY + (py / 100) * DIE_SIZE}
+                      r={3.5} fill="#1c1612"
+                    />
+                  ))}
+                </g>
+              );
+            };
+
+            return (
+              <g>
+                {renderDie(d1, diceAreaX)}
+                {renderDie(d2, diceAreaX + DIE_SIZE + gap)}
+                <text x={sumX} y={diceAreaY + 24} fontSize={18} fontWeight="800"
+                  fill="white" fontFamily="var(--font-body)"
+                  style={{ userSelect: 'none', pointerEvents: 'none' }}>
+                  ={d1 + d2}
+                </text>
+              </g>
+            );
+          }
+
+          return null;
+        })()}
       </svg>
     </div>
   );
