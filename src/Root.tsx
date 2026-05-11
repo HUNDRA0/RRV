@@ -21,22 +21,22 @@ export function Root() {
   const hash = useHash();
   const isCatan = hash === '#catan';
 
-  if (isCatan) {
-    return (
-      <Suspense fallback={
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 20, background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--font-body)' }}>
-          <span style={{ fontSize: 48 }}>🎲</span>
-          <span style={{ fontSize: 16, color: 'var(--mute)' }}>Laddar Catan…</span>
-        </div>
-      }>
-        <CatanPage />
-      </Suspense>
-    );
-  }
-
+  // FriendsListProvider stays mounted at all times so state (friends, etc.)
+  // survives navigation to/from Catan without re-fetching.
   return (
     <FriendsListProvider>
-      <App />
+      {isCatan ? (
+        <Suspense fallback={
+          <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 20, background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--font-body)' }}>
+            <span style={{ fontSize: 48 }}>🎲</span>
+            <span style={{ fontSize: 16, color: 'var(--mute)' }}>Laddar Catan…</span>
+          </div>
+        }>
+          <CatanPage />
+        </Suspense>
+      ) : (
+        <App />
+      )}
     </FriendsListProvider>
   );
 }
