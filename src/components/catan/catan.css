@@ -112,6 +112,38 @@
 
 .catan-error { color: var(--rose); font-size: 13px; margin: 8px 0 0; }
 
+/* ----- Share link ----- */
+.catan-share-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius);
+}
+
+.catan-share-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--mute);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  outline: none;
+  cursor: text;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.catan-share-input:focus {
+  border-color: var(--purple);
+  color: var(--ink);
+}
+
 /* ----- Room code ----- */
 .catan-room-code-wrap { text-align: center; margin-bottom: 24px; }
 .catan-room-code-label {

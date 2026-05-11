@@ -19,7 +19,7 @@ function useHash() {
 
 export function Root() {
   const hash = useHash();
-  const isCatan = hash === '#catan';
+  const isCatan = hash === '#catan' || hash.startsWith('#catan?');
 
   // FriendsListProvider stays mounted at all times so state (friends, etc.)
   // survives navigation to/from Catan without re-fetching.
