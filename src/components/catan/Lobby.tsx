@@ -62,31 +62,35 @@ export function Lobby({ onGameStart }: LobbyProps) {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Poll for players in waiting room
+  // Poll for game state — single request covers player list + phase check.
+  // 5 s is fine in lobby (not time-sensitive). Pauses when tab hidden.
   useEffect(() => {
     if (mode !== 'waiting' || !gameId) return;
+    let cancelled = false;
+
     const poll = async () => {
+      if (cancelled || document.visibilityState === 'hidden') return;
       try {
-        const res = await fetch(`/api/catan/${gameId}/players`);
-        if (res.ok) {
-          const data = await res.json() as PlayerInfo[];
-          setPlayers(data);
-        }
-        const stateRes = await fetch(`/api/catan/${gameId}`, {
+        const res = await fetch(`/api/catan/${gameId}`, {
           headers: token ? { 'x-catan-token': token } : {},
         });
-        if (stateRes.ok) {
-          const state = await stateRes.json() as ClientGameState;
-          setPhase(state.phase);
-          if (state.phase !== 'lobby' && gameId && token) {
-            onGameStart(gameId, token);
-          }
-        }
+        if (!res.ok || cancelled) return;
+        const gs = await res.json() as ClientGameState;
+        setPlayers(gs.players.map(p => ({ id: p.id, name: p.name, color: p.color })));
+        setPhase(gs.phase);
+        if (gs.phase !== 'lobby' && gameId && token) onGameStart(gameId, token);
       } catch { /* ignore poll errors */ }
     };
+
+    const onVisible = () => { if (document.visibilityState === 'visible') void poll(); };
+    document.addEventListener('visibilitychange', onVisible);
     void poll();
-    pollRef.current = setInterval(() => void poll(), 2000);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    pollRef.current = setInterval(() => void poll(), 5000);
+    return () => {
+      cancelled = true;
+      if (pollRef.current) clearInterval(pollRef.current);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [mode, gameId, token, onGameStart]);
 
   const handleCreate = async () => {

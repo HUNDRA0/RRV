@@ -3,10 +3,22 @@ import type { ClientGameState } from '../types';
 
 const BASE = '/api/catan';
 
+// Lobby: 5 s — just waiting for players to join, not time-sensitive
+// Playing: 3 s — turn-based, still comfortable
+// Ended: stop polling entirely
+function pollInterval(phase: string | undefined, winner: string | null | undefined): number | null {
+  if (winner) return null;          // game over — no more reads needed
+  if (phase === 'playing') return 3000;
+  return 5000;                      // lobby / setup
+}
+
 export function useGame(gameId: string | null, token: string | null) {
   const [state, setState] = useState<ClientGameState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const updatedAtRef = useRef(0);
+  // Keep a ref to the latest state so the interval callback can read it
+  const stateRef = useRef<ClientGameState | null>(null);
+  stateRef.current = state;
 
   useEffect(() => {
     if (!gameId || !token) return;
@@ -14,13 +26,16 @@ export function useGame(gameId: string | null, token: string | null) {
 
     async function poll() {
       if (cancelled) return;
+      // Skip the network hit when the tab is hidden (phone locked, switched app).
+      if (document.visibilityState === 'hidden') return;
+
       try {
         const res = await fetch(`${BASE}/${gameId}`, {
           headers: { 'x-catan-token': token! },
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({})) as { error?: string };
-          setError(body.error ?? `HTTP ${res.status}`);
+          if (!cancelled) setError(body.error ?? `HTTP ${res.status}`);
           return;
         }
         const data = await res.json() as ClientGameState;
@@ -35,22 +50,40 @@ export function useGame(gameId: string | null, token: string | null) {
       }
     }
 
-    void poll();
-    const interval = setInterval(() => void poll(), 2000);
+    // Self-scheduling poll loop — adjusts interval dynamically based on game phase
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    function schedule() {
+      if (cancelled) return;
+      const ms = pollInterval(stateRef.current?.phase, stateRef.current?.winner);
+      if (ms === null) return; // game ended, stop scheduling
+      timer = setTimeout(async () => {
+        await poll();
+        schedule(); // reschedule after each completed poll
+      }, ms);
+    }
+
+    // First poll immediately, then start scheduling
+    void poll().then(schedule);
+
+    // Re-poll immediately when the user comes back to the tab
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void poll();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
     return () => {
       cancelled = true;
-      clearInterval(interval);
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [gameId, token]);
+  }, [gameId, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function sendAction(action: object): Promise<void> {
     if (!gameId || !token) throw new Error('No active game');
     const res = await fetch(`${BASE}/${gameId}/action`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-catan-token': token,
-      },
+      headers: { 'Content-Type': 'application/json', 'x-catan-token': token },
       body: JSON.stringify(action),
     });
     if (!res.ok) {
@@ -79,7 +112,6 @@ export async function createGame(name: string): Promise<{ gameId: string; token:
 }
 
 export async function joinGame(code: string, name: string): Promise<{ gameId: string; token: string }> {
-  // First resolve code to gameId
   const codeRes = await fetch(`${BASE}/by-code/${code.toUpperCase()}`);
   if (!codeRes.ok) {
     const body = await codeRes.json().catch(() => ({})) as { error?: string };
