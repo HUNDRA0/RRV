@@ -125,8 +125,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .nav-admin { padding: 9px 12px !important; font-size: 14px; }
 .nav {
   pointer-events: auto;
-  display: grid; grid-template-columns: auto 1fr auto;
-  align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 14px;
   padding: 8px 8px 8px 18px;
   background: rgba(var(--paper-rgb), 0.55);
   backdrop-filter: saturate(160%) blur(18px);
@@ -136,8 +135,8 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
   box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 30px -12px rgba(76, 40, 176, 0.2);
   transition: padding 420ms var(--ease-spring), gap 420ms var(--ease-spring),
               background 420ms var(--ease-out), box-shadow 420ms var(--ease-out),
-              transform 420ms var(--ease-spring), width 420ms var(--ease-spring);
-  width: min(880px, 100%);
+              transform 420ms var(--ease-spring);
+  max-width: calc(100vw - 48px);
 }
 .nav-wrap[data-scrolled="true"] .nav {
   padding: 6px 6px 6px 14px;
@@ -147,7 +146,6 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
               0 16px 44px -10px rgba(76, 40, 176, 0.34),
               0 4px 16px -8px rgba(28, 22, 18, 0.1);
   transform: scale(0.96);
-  width: min(720px, 100%);
 }
 .nav-brand {
   font-family: var(--font-display);
@@ -166,7 +164,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .nav-brand-r { color: var(--ink); }
 .nav-brand:hover { transform: scale(1.05) rotate(-1deg); }
 
-.nav-tabs { position: relative; display: flex; gap: 0; padding: 4px; background: rgba(28, 22, 18, 0.04); border-radius: 999px; min-width: 0; overflow: hidden; justify-self: start; }
+.nav-tabs { position: relative; display: flex; gap: 0; padding: 4px; background: rgba(28, 22, 18, 0.04); border-radius: 999px; min-width: 0; overflow: hidden; flex-shrink: 1; }
 .nav-tab {
   position: relative; z-index: 1;
   border: 0; background: transparent;
