@@ -3,32 +3,20 @@ import type { ClientGameState } from '../types';
 
 const BASE = '/api/catan';
 
-// Lobby: 5 s — just waiting for players to join, not time-sensitive
-// Playing: 3 s — turn-based, still comfortable
-// Ended: stop polling entirely
-function pollInterval(phase: string | undefined, winner: string | null | undefined): number | null {
-  if (winner) return null;          // game over — no more reads needed
-  if (phase === 'playing') return 5000;
-  return 30000;                     // lobby / setup
-}
-
 export function useGame(gameId: string | null, token: string | null) {
   const [state, setState] = useState<ClientGameState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const updatedAtRef = useRef(0);
-  // Keep a ref to the latest state so the interval callback can read it
   const stateRef = useRef<ClientGameState | null>(null);
   stateRef.current = state;
 
   useEffect(() => {
     if (!gameId || !token) return;
     let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
     async function poll() {
-      if (cancelled) return;
-      // Skip the network hit when the tab is hidden (phone locked, switched app).
-      if (document.visibilityState === 'hidden') return;
-
+      if (cancelled || document.visibilityState === 'hidden') return;
       try {
         const res = await fetch(`${BASE}/${gameId}`, {
           headers: { 'x-catan-token': token! },
@@ -50,25 +38,32 @@ export function useGame(gameId: string | null, token: string | null) {
       }
     }
 
-    // Self-scheduling poll loop — adjusts interval dynamically based on game phase
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
+    // Backup heartbeat — only needed for players waiting on others.
+    // Primary state updates come from sendAction/sendChat responses (instant).
+    // Playing: 30s heartbeat (almost never fires — actions are the main trigger)
+    // Setup/lobby phase: 10s (waiting for host to start)
+    // Winner set: stop entirely
     function schedule() {
       if (cancelled) return;
-      const ms = pollInterval(stateRef.current?.phase, stateRef.current?.winner);
-      if (ms === null) return; // game ended, stop scheduling
+      const phase = stateRef.current?.phase;
+      const winner = stateRef.current?.winner;
+      if (winner) return; // game over
+      const ms = phase === 'playing' ? 30_000 : 10_000;
       timer = setTimeout(async () => {
         await poll();
-        schedule(); // reschedule after each completed poll
+        schedule();
       }, ms);
     }
 
-    // First poll immediately, then start scheduling
+    // One poll on mount to get initial state, then schedule heartbeat
     void poll().then(schedule);
 
-    // Re-poll immediately when the user comes back to the tab
+    // Sync immediately whenever the user switches back to the tab
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void poll();
+      if (document.visibilityState === 'visible') {
+        if (timer) { clearTimeout(timer); timer = null; }
+        void poll().then(schedule);
+      }
     };
     document.addEventListener('visibilitychange', onVisible);
 
@@ -79,6 +74,7 @@ export function useGame(gameId: string | null, token: string | null) {
     };
   }, [gameId, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // sendAction — returns new state immediately, no poll needed afterwards
   async function sendAction(action: object): Promise<void> {
     if (!gameId || !token) throw new Error('No active game');
     const res = await fetch(`${BASE}/${gameId}/action`, {
@@ -95,6 +91,7 @@ export function useGame(gameId: string | null, token: string | null) {
     setState(data);
   }
 
+  // sendChat — returns new state immediately (chat messages visible at once)
   async function sendChat(text: string): Promise<void> {
     if (!gameId || !token) return;
     const res = await fetch(`${BASE}/${gameId}/chat`, {
