@@ -1,6 +1,6 @@
 import type { HexTile, Vertex, Edge, TerrainType, Harbor } from './types.js';
 
-const HEX_SIZE = 60;
+const HEX_SIZE = 76;
 const SQRT3 = Math.sqrt(3);
 
 // Pointy-top hex pixel coords from axial (q, r)

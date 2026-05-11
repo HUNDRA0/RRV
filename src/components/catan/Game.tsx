@@ -15,12 +15,13 @@ import {
 interface GameProps {
   state: ClientGameState;
   sendAction: (action: object) => Promise<void>;
+  sendChat: (text: string) => Promise<void>;
   onLeave: () => void;
   gameId: string;
   token: string;
 }
 
-export function Game({ state, sendAction, onLeave, gameId, token }: GameProps) {
+export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: GameProps) {
   const [buildMode, setBuildMode] = useState<string | null>(null);
   const [showTrade, setShowTrade] = useState(false);
   const [showDevCard, setShowDevCard] = useState(false);
@@ -127,16 +128,9 @@ export function Game({ state, sendAction, onLeave, gameId, token }: GameProps) {
     const text = chatText.trim();
     if (!text || chatSending) return;
     setChatSending(true);
+    setChatText('');
     try {
-      await fetch(`/api/catan/${gameId}/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-catan-token': token,
-        },
-        body: JSON.stringify({ text }),
-      });
-      setChatText('');
+      await sendChat(text); // updates state immediately from response
     } catch {
       // silently ignore chat errors
     } finally {

@@ -20,7 +20,7 @@ export function CatanPage() {
     }
   }, []);
 
-  const { state, error, sendAction } = useGame(gameId, token);
+  const { state, error, sendAction, sendChat } = useGame(gameId, token);
 
   const handleGameStart = (gId: string, tok: string) => {
     setGameId(gId);
@@ -60,7 +60,7 @@ export function CatanPage() {
       {error && <div className="catan-global-error">⚠️ {error}</div>}
 
       {isInGame ? (
-        <Game state={state} sendAction={sendAction} onLeave={handleLeave} gameId={gameId} token={token} />
+        <Game state={state} sendAction={sendAction} sendChat={sendChat} onLeave={handleLeave} gameId={gameId} token={token} />
       ) : (
         <Lobby onGameStart={handleGameStart} />
       )}

@@ -95,7 +95,20 @@ export function useGame(gameId: string | null, token: string | null) {
     setState(data);
   }
 
-  return { state, error, sendAction };
+  async function sendChat(text: string): Promise<void> {
+    if (!gameId || !token) return;
+    const res = await fetch(`${BASE}/${gameId}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-catan-token': token },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) return;
+    const data = await res.json() as ClientGameState;
+    updatedAtRef.current = data.updatedAt;
+    setState(data);
+  }
+
+  return { state, error, sendAction, sendChat };
 }
 
 export async function createGame(name: string): Promise<{ gameId: string; token: string; code: string }> {
