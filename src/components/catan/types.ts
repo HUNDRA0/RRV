@@ -4,7 +4,7 @@ export type Harbor = 'any' | Resource;
 export type DevCardType = 'knight' | 'roadBuilding' | 'yearOfPlenty' | 'monopoly' | 'victoryPoint';
 export type PlayerColor = 'red' | 'blue' | 'orange' | 'white';
 export type BuildingType = 'settlement' | 'city';
-export type GamePhase = 'lobby' | 'setup' | 'playing' | 'ended';
+export type GamePhase = 'lobby' | 'diceOff' | 'setup' | 'playing' | 'ended';
 export type Resources = Record<Resource, number>;
 
 export interface HexTile {
@@ -86,6 +86,8 @@ export interface ClientGameState {
   largestArmyPlayerId: string | null;
   tradeOffer: TradeOffer | null;
   pendingAction: PendingAction | null;
+  diceOffRolls?: Record<string, [number, number] | null>;
+  diceOffActive?: string[];
   log: string[];
   chatMessages: Array<{ playerId: string; playerName: string; text: string; ts: number; system?: boolean }>;
   winner: string | null;

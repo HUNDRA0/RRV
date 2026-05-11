@@ -183,11 +183,24 @@ export function addCatanRoutes(router: Router): void {
   router.get('/catan/:id', async (req, res) => {
     const { id } = req.params as { id: string };
     const token = getToken(req);
+    const sinceParam = req.query.since as string | undefined;
 
-    const state = await loadGame(id);
+    let state = await loadGame(id);
     if (!state) {
       res.status(404).json({ error: 'Game not found' });
       return;
+    }
+
+    // Long poll: if client already has this version, hold up to 7 s for a change.
+    // Uses a single sleep + one re-read (2 DB reads total per cycle).
+    // Vercel hobby limit is 10 s per function; 7 s keeps us safely under.
+    if (sinceParam !== undefined && state.updatedAt === Number(sinceParam) && !state.winner) {
+      await new Promise<void>(resolve => {
+        const t = setTimeout(resolve, 7000);
+        req.on('close', () => { clearTimeout(t); resolve(); });
+      });
+      const fresh = await loadGame(id);
+      if (fresh) state = fresh;
     }
 
     let requestingPlayerId: string | null = null;

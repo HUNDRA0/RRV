@@ -125,6 +125,11 @@ function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenT
 
       {/* Actions section */}
       <div className="catan-bar-actions">
+        {/* Dice-off phase */}
+        {state.phase === 'diceOff' && (
+          <span className="catan-bar-status">🎲 Kasta tärning för att avgöra startspelare</span>
+        )}
+
         {/* Setup phase */}
         {isSetup && isMyTurn && (
           <span className="catan-bar-status">
@@ -459,6 +464,47 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
 
       {actionError && (
         <div className="catan-action-error">{actionError}</div>
+      )}
+
+      {/* ── Dice-off panel ── */}
+      {state.phase === 'diceOff' && state.diceOffRolls && (
+        <div className="catan-diceoff-panel">
+          <div className="catan-diceoff-header">
+            <span className="catan-diceoff-title">🎲 Vem börjar?</span>
+            {state.diceOffActive && state.diceOffActive.length < state.players.length && (
+              <span className="catan-diceoff-tiebreak">Oavgjort — kasta om!</span>
+            )}
+          </div>
+          <div className="catan-diceoff-rows">
+            {state.players.map(p => {
+              const roll = state.diceOffRolls![p.id];
+              const isActive = state.diceOffActive?.includes(p.id);
+              return (
+                <div key={p.id} className={`catan-diceoff-row${isActive ? ' active' : ''}`}>
+                  <span className={`catan-player-dot player-${p.color}`} style={{ width: 10, height: 10, borderRadius: '50%', display: 'inline-block', background: 'var(--pc)' }} />
+                  <span className="catan-diceoff-name">{p.name}</span>
+                  <span className="catan-diceoff-result">
+                    {roll
+                      ? `🎲 ${roll[0]} + ${roll[1]} = ${roll[0] + roll[1]}`
+                      : isActive ? '⏳' : '—'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          {state.diceOffActive?.includes(myPlayer.id) && !state.diceOffRolls[myPlayer.id] && (
+            <button
+              className="catan-btn catan-btn-primary"
+              style={{ marginTop: 10, width: '100%' }}
+              onClick={() => void dispatch({ type: 'diceOffRoll' })}
+            >
+              🎲 Kasta tärning
+            </button>
+          )}
+          {state.diceOffActive?.includes(myPlayer.id) && state.diceOffRolls[myPlayer.id] && (
+            <p className="catan-muted" style={{ marginTop: 8, fontSize: 13 }}>Väntar på de andra…</p>
+          )}
+        </div>
       )}
 
       {/* ── Trade offer card — sits above chat, always fully visible ── */}

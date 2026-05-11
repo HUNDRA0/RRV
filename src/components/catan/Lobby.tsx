@@ -85,7 +85,7 @@ export function Lobby({ onGameStart }: LobbyProps) {
     const onVisible = () => { if (document.visibilityState === 'visible') void poll(); };
     document.addEventListener('visibilitychange', onVisible);
     void poll();
-    pollRef.current = setInterval(() => void poll(), 20000);
+    pollRef.current = setInterval(() => void poll(), 3000);
     return () => {
       cancelled = true;
       if (pollRef.current) clearInterval(pollRef.current);

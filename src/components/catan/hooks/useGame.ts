@@ -7,23 +7,30 @@ export function useGame(gameId: string | null, token: string | null) {
   const [state, setState] = useState<ClientGameState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const updatedAtRef = useRef(0);
-  const stateRef = useRef<ClientGameState | null>(null);
-  stateRef.current = state;
 
   useEffect(() => {
     if (!gameId || !token) return;
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let inFlight = false;
 
-    async function poll() {
-      if (cancelled || document.visibilityState === 'hidden') return;
+    // Long-poll loop: sends ?since=<updatedAt> so the server holds the connection
+    // for up to 7 s if nothing has changed (2 DB reads per cycle vs constant timer reads).
+    // Primary state updates still come instantly via sendAction/sendChat responses.
+    async function longPoll() {
+      if (cancelled || inFlight || document.visibilityState === 'hidden') return;
+      inFlight = true;
       try {
-        const res = await fetch(`${BASE}/${gameId}`, {
+        const since = updatedAtRef.current;
+        const res = await fetch(`${BASE}/${gameId}?since=${since}`, {
           headers: { 'x-catan-token': token! },
         });
+        if (cancelled) return;
         if (!res.ok) {
           const body = await res.json().catch(() => ({})) as { error?: string };
           if (!cancelled) setError(body.error ?? `HTTP ${res.status}`);
+          // Back off 5 s on error before retrying
+          if (!cancelled) retryTimer = setTimeout(() => { retryTimer = null; void longPoll(); }, 5000);
           return;
         }
         const data = await res.json() as ClientGameState;
@@ -33,43 +40,28 @@ export function useGame(gameId: string | null, token: string | null) {
           setState(data);
           setError(null);
         }
+        if (!data.winner) void longPoll(); // chain immediately — server will hold next request
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : String(err));
+          retryTimer = setTimeout(() => { retryTimer = null; void longPoll(); }, 5000);
+        }
+      } finally {
+        inFlight = false;
       }
     }
 
-    // Backup heartbeat — picks up state changes from other players' actions.
-    // Primary state updates come from sendAction/sendChat responses (instant).
-    // Playing: 3s so the next player sees the new turn within a few seconds
-    // Setup/lobby phase: 5s (waiting for others to place / host to start)
-    // Winner set: stop entirely
-    function schedule() {
-      if (cancelled) return;
-      const phase = stateRef.current?.phase;
-      const winner = stateRef.current?.winner;
-      if (winner) return; // game over
-      const ms = phase === 'playing' ? 3_000 : 5_000;
-      timer = setTimeout(async () => {
-        await poll();
-        schedule();
-      }, ms);
-    }
+    void longPoll();
 
-    // One poll on mount to get initial state, then schedule heartbeat
-    void poll().then(schedule);
-
-    // Sync immediately whenever the user switches back to the tab
+    // Resume immediately when tab becomes visible (server hold was skipped while hidden)
     const onVisible = () => {
-      if (document.visibilityState === 'visible') {
-        if (timer) { clearTimeout(timer); timer = null; }
-        void poll().then(schedule);
-      }
+      if (document.visibilityState === 'visible' && !inFlight) void longPoll();
     };
     document.addEventListener('visibilitychange', onVisible);
 
     return () => {
       cancelled = true;
-      if (timer) clearTimeout(timer);
+      if (retryTimer) clearTimeout(retryTimer);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [gameId, token]); // eslint-disable-line react-hooks/exhaustive-deps

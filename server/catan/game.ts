@@ -132,14 +132,14 @@ export function startGame(state: GameState, playerId: string): GameState {
   if (state.phase !== 'lobby') throw new Error('Game already started');
   if (playerId !== state.hostId) throw new Error('Only the host can start the game');
   if (state.players.length < 2) throw new Error('Need at least 2 players to start');
+  const diceOffRolls: Record<string, [number, number] | null> = {};
+  state.players.forEach(p => { diceOffRolls[p.id] = null; });
   return {
     ...state,
-    phase: 'setup',
-    setupRound: 1,
-    setupDirection: 'forward',
-    setupStep: 'settlement',
-    currentPlayerIndex: 0,
-    log: [...state.log, 'Game started! Setup phase begins.'],
+    phase: 'diceOff',
+    diceOffRolls,
+    diceOffActive: state.players.map(p => p.id),
+    log: [...state.log, 'Spelet börjar! Varje spelare kastar tärning — högst summa börjar.'],
     updatedAt: Date.now(),
   };
 }
@@ -167,12 +167,16 @@ export type GameAction =
   | { type: 'tradeRespond'; accept: boolean }
   | { type: 'tradeComplete'; acceptingPlayerId: string }
   | { type: 'tradeCancel' }
-  | { type: 'endTurn' };
+  | { type: 'endTurn' }
+  | { type: 'diceOffRoll' };
 
 // ── Main dispatch ─────────────────────────────────────────────────────────────
 
 export function applyAction(state: GameState, playerId: string, action: GameAction): GameState {
   if (state.winner) throw new Error('Game is over');
+
+  // diceOffRoll is allowed by any active player regardless of currentPlayerIndex
+  if (action.type === 'diceOffRoll') return handleDiceOffRoll(state, playerId);
 
   // Trade respond is allowed for non-current players
   if (action.type === 'tradeRespond') return handleTradeRespond(state, playerId, action.accept);
@@ -772,6 +776,79 @@ function handleTradeOffer(state: GameState, player: Player, give: Resources, wan
     ...state,
     tradeOffer: { fromPlayerId: player.id, give, want, responses },
     log: [...state.log, `${player.name} made a trade offer.`],
+    updatedAt: Date.now(),
+  };
+}
+
+// ── Dice-off (starting roll) ──────────────────────────────────────────────────
+
+function handleDiceOffRoll(state: GameState, playerId: string): GameState {
+  if (state.phase !== 'diceOff') throw new Error('Not in dice-off phase');
+  const active = state.diceOffActive ?? state.players.map(p => p.id);
+  const rolls = state.diceOffRolls ?? {};
+
+  if (!active.includes(playerId)) throw new Error('You are not in the current roll-off');
+  if (rolls[playerId] !== null && rolls[playerId] !== undefined) throw new Error('You already rolled this round');
+
+  const player = state.players.find(p => p.id === playerId);
+  if (!player) throw new Error('Player not found');
+
+  const d1 = (Math.floor(Math.random() * 6) + 1) as 1|2|3|4|5|6;
+  const d2 = (Math.floor(Math.random() * 6) + 1) as 1|2|3|4|5|6;
+  const newRolls: Record<string, [number, number] | null> = { ...rolls, [playerId]: [d1, d2] };
+
+  // Check if all active players have rolled
+  const allRolled = active.every(pid => newRolls[pid] !== null);
+  if (!allRolled) {
+    return {
+      ...state,
+      diceOffRolls: newRolls,
+      log: [...state.log, `${player.name} kastade ${d1 + d2} (${d1}+${d2}).`],
+      updatedAt: Date.now(),
+    };
+  }
+
+  // All rolled — evaluate
+  const sums = active.map(pid => ({ pid, sum: newRolls[pid]![0] + newRolls[pid]![1] }));
+  const maxSum = Math.max(...sums.map(s => s.sum));
+  const winners = sums.filter(s => s.sum === maxSum);
+  const resultLine = active.map(pid => {
+    const r = newRolls[pid]!;
+    const pName = state.players.find(p => p.id === pid)?.name ?? pid;
+    return `${pName} ${r[0]+r[1]}`;
+  }).join(', ');
+
+  if (winners.length === 1) {
+    const winnerIdx = state.players.findIndex(p => p.id === winners[0].pid);
+    const winnerName = state.players[winnerIdx].name;
+    return {
+      ...state,
+      phase: 'setup',
+      currentPlayerIndex: winnerIdx,
+      diceOffRolls: undefined,
+      diceOffActive: undefined,
+      setupRound: 1,
+      setupDirection: 'forward',
+      setupStep: 'settlement',
+      log: [...state.log,
+        `${player.name} kastade ${d1 + d2} (${d1}+${d2}). Resultat: ${resultLine}. ${winnerName} börjar!`,
+      ],
+      updatedAt: Date.now(),
+    };
+  }
+
+  // Tie — keep tied players and re-roll
+  const tiedIds = winners.map(w => w.pid);
+  const tiedNames = tiedIds.map(pid => state.players.find(p => p.id === pid)?.name ?? pid).join(' och ');
+  const tieRolls: Record<string, [number, number] | null> = {};
+  tiedIds.forEach(pid => { tieRolls[pid] = null; });
+  return {
+    ...state,
+    diceOffRolls: tieRolls,
+    diceOffActive: tiedIds,
+    log: [...state.log,
+      `${player.name} kastade ${d1 + d2} (${d1}+${d2}). Resultat: ${resultLine}. Oavgjort mellan ${tiedNames} — kasta om!`,
+    ],
     updatedAt: Date.now(),
   };
 }
