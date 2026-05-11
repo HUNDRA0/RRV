@@ -2,7 +2,6 @@ import { useState, useRef } from 'react';
 import type { ClientGameState, ClientPlayer, Resources } from './types';
 import { Board } from './Board';
 import type { DiceAnimPhase } from './Board';
-import { Sidebar } from './Sidebar';
 import { TradeModal } from './TradeModal';
 import { RobberModal } from './RobberModal';
 import { DevCardModal } from './DevCardModal';
@@ -13,6 +12,18 @@ import {
   getValidCityPlacements,
   getValidRobberHexes,
 } from './gameHelpers';
+
+const RESOURCE_EMOJI: Record<string, string> = {
+  wood: '🌲', brick: '🧱', grain: '🌾', ore: '⛏️', wool: '🐑',
+};
+const RESOURCES_LIST = ['wood', 'brick', 'grain', 'ore', 'wool'] as const;
+
+function formatResources(r: Resources): string {
+  return RESOURCES_LIST
+    .filter(k => r[k] > 0)
+    .map(k => `${r[k]}×${RESOURCE_EMOJI[k]}`)
+    .join(' ') || '—';
+}
 
 // Building costs used by the action bar
 const BUILDING_COSTS: Record<string, Resources> = {
@@ -373,6 +384,77 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
 
       {/* Chat panel above the board */}
       <div className="catan-chat-wrap">
+
+        {/* ── Trade offer banner — incoming ── */}
+        {state.tradeOffer && state.tradeOffer.fromPlayerId !== myPlayer.id && (() => {
+          const offer = state.tradeOffer!;
+          const from = state.players.find(p => p.id === offer.fromPlayerId);
+          const myResponse = offer.responses[myPlayer.id];
+          return (
+            <div className="catan-trade-banner">
+              <div className="catan-trade-banner-title">
+                🔄 {from?.name} erbjuder ett byte
+              </div>
+              <div className="catan-trade-banner-row">
+                <span>Ger: {formatResources(offer.give)}</span>
+                <span>Vill ha: {formatResources(offer.want)}</span>
+              </div>
+              {myResponse === 'pending' ? (
+                <div className="catan-trade-banner-actions">
+                  <button className="catan-btn catan-btn-primary catan-btn-sm"
+                    onClick={() => void dispatch({ type: 'tradeRespond', accept: true })}>
+                    ✅ Acceptera
+                  </button>
+                  <button className="catan-btn catan-btn-secondary catan-btn-sm"
+                    onClick={() => void dispatch({ type: 'tradeRespond', accept: false })}>
+                    ❌ Neka
+                  </button>
+                </div>
+              ) : (
+                <span className="catan-trade-banner-status">
+                  Du har {myResponse === 'accept' ? 'accepterat ✅' : 'nekat ❌'}
+                </span>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ── Trade offer banner — my sent offer ── */}
+        {state.tradeOffer && state.tradeOffer.fromPlayerId === myPlayer.id && (() => {
+          const offer = state.tradeOffer!;
+          const acceptedPlayers = Object.entries(offer.responses)
+            .filter(([, r]) => r === 'accept')
+            .map(([pid]) => state.players.find(p => p.id === pid))
+            .filter(Boolean) as ClientPlayer[];
+          return (
+            <div className="catan-trade-banner catan-trade-banner-mine">
+              <div className="catan-trade-banner-title">🔄 Ditt erbjudande</div>
+              <div className="catan-trade-banner-row">
+                <span>Ger: {formatResources(offer.give)}</span>
+                <span>Vill ha: {formatResources(offer.want)}</span>
+              </div>
+              {acceptedPlayers.length > 0 ? (
+                <div className="catan-trade-banner-actions">
+                  {acceptedPlayers.map(p => (
+                    <button key={p.id}
+                      className={`catan-btn catan-btn-primary catan-btn-sm player-${p.color}`}
+                      onClick={() => void dispatch({ type: 'tradeComplete', acceptingPlayerId: p.id })}>
+                      Välj {p.name}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <span className="catan-trade-banner-status">Väntar på svar…</span>
+              )}
+              <button className="catan-btn catan-btn-ghost catan-btn-sm"
+                style={{ marginTop: 6 }}
+                onClick={() => void dispatch({ type: 'tradeCancel' })}>
+                Avbryt
+              </button>
+            </div>
+          );
+        })()}
+
         <div className="catan-chat-messages">
           {recentMessages.length === 0 ? (
             <p className="catan-chat-empty">Inga meddelanden än…</p>
@@ -411,29 +493,22 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
         </div>
       </div>
 
-      <div className="catan-game-layout">
-        <Board
-          state={state}
-          myPlayerId={myPlayer.id}
-          onRollDice={isMyTurn && state.phase === 'playing' && !state.diceRolled && diceAnimPhase === 'idle'
-            ? () => void handleRollDice()
-            : undefined}
-          diceAnimPhase={diceAnimPhase}
-          animDisplayDice={animDisplayDice}
-          validVertices={validVertices}
-          validEdges={validEdges}
-          validHexes={validHexes}
-          onVertexClick={handleVertexClick}
-          onEdgeClick={handleEdgeClick}
-          onHexClick={handleHexClick}
-        />
-
-        <Sidebar
-          state={state}
-          myPlayer={myPlayer}
-          onAction={(action) => void dispatch(action)}
-        />
-      </div>
+      {/* Board — full width, no sidebar */}
+      <Board
+        state={state}
+        myPlayerId={myPlayer.id}
+        onRollDice={isMyTurn && state.phase === 'playing' && !state.diceRolled && diceAnimPhase === 'idle'
+          ? () => void handleRollDice()
+          : undefined}
+        diceAnimPhase={diceAnimPhase}
+        animDisplayDice={animDisplayDice}
+        validVertices={validVertices}
+        validEdges={validEdges}
+        validHexes={validHexes}
+        onVertexClick={handleVertexClick}
+        onEdgeClick={handleEdgeClick}
+        onHexClick={handleHexClick}
+      />
 
       {/* Fixed action bar — always visible */}
       <ActionBar

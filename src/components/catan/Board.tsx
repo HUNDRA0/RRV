@@ -415,17 +415,24 @@ export function Board({
                   />
                 </>
               )}
-              {/* Valid edge highlight */}
+              {/* Valid edge highlight — outer glow + bright stripe + pulse */}
               {isValid && !roadColor && (
-                <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y}
-                  stroke="rgba(255,193,7,0.6)" strokeWidth={7} strokeLinecap="round"
-                  filter="url(#glow-valid)"
-                />
+                <>
+                  <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y}
+                    stroke="rgba(255,220,0,0.22)" strokeWidth={22} strokeLinecap="round"
+                    className="catan-road-valid-glow"
+                  />
+                  <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y}
+                    stroke="#ffe033" strokeWidth={9} strokeLinecap="round"
+                    filter="url(#glow-valid)"
+                    className="catan-road-valid-glow"
+                  />
+                </>
               )}
               {/* Wide invisible hit area */}
               {isValid && (
                 <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y}
-                  stroke="transparent" strokeWidth={22} strokeLinecap="round"
+                  stroke="transparent" strokeWidth={26} strokeLinecap="round"
                   style={{ cursor: 'pointer' }}
                   onClick={() => onEdgeClick(edge.id)}
                 />
@@ -565,13 +572,15 @@ export function Board({
           });
         })()}
 
-        {/* ── Dice area (bottom-left ocean) ── */}
+        {/* ── Dice area (bottom-center ocean) ── */}
         {(() => {
           const isMyTurn = state.players[state.currentPlayerIndex]?.id === myPlayerId;
-          const diceAreaX = minX + 12;
-          const diceAreaY = maxY - padBottom + 10;
           const DIE_SIZE = 36;
           const gap = 8;
+          // Center dice pair at x=0 (board axial origin)
+          // Two dice span: DIE_SIZE*2 + gap = 80px → start at -40
+          const diceAreaX = -(DIE_SIZE + gap / 2);    // -40
+          const diceAreaY = maxY - padBottom + 10;
 
           /** Render a single die face (dots) at position x,y with given size */
           const renderDieFace = (value: number, x: number, y: number, size: number) => {
@@ -666,12 +675,17 @@ export function Board({
 
           // ── Phase: idle — show button or static dice ──
           if (state.phase === 'playing' && isMyTurn && !state.diceRolled && onRollDice) {
+            // Centered button: 200px wide → from -100 to +100
             return (
               <g onClick={onRollDice} style={{ cursor: 'pointer' }}>
-                <rect x={diceAreaX} y={diceAreaY} width={154} height={42} rx={21}
+                {/* Button shadow */}
+                <rect x={-101} y={diceAreaY + 2} width={202} height={46} rx={23}
+                  fill="rgba(0,0,0,0.35)" />
+                {/* Button */}
+                <rect x={-101} y={diceAreaY} width={202} height={46} rx={23}
                   fill="#7c3aed" />
-                <text x={diceAreaX + 77} y={diceAreaY + 27} textAnchor="middle"
-                  fill="white" fontSize={15} fontWeight="800"
+                <text x={0} y={diceAreaY + 29} textAnchor="middle"
+                  fill="white" fontSize={17} fontWeight="800"
                   fontFamily="var(--font-body)"
                   style={{ userSelect: 'none', pointerEvents: 'none' }}>
                   🎲 Kasta tärning

@@ -314,13 +314,8 @@
   font-size: 13px; margin-bottom: 12px;
 }
 
-/* Desktop: board left, sidebar right */
-.catan-game-layout {
-  display: grid;
-  grid-template-columns: 1fr 290px;
-  gap: 16px;
-  align-items: start;
-}
+/* Board takes full width — sidebar removed */
+.catan-game-layout { display: block; }
 
 /* ----- Board ----- */
 .catan-board-wrap {
@@ -339,7 +334,7 @@
   overflow: visible;
 }
 
-/* Pulsing animation for valid placement spots */
+/* Pulsing animation for valid vertex spots */
 @keyframes valid-pulse {
   0%, 100% { opacity: 0.5; transform: scale(1); }
   50%       { opacity: 1;   transform: scale(1.15); }
@@ -348,6 +343,15 @@
   animation: valid-pulse 1.2s ease-in-out infinite;
   transform-origin: center;
   transform-box: fill-box;
+}
+
+/* Pulsing glow for valid road edges */
+@keyframes catanRoadGlow {
+  0%, 100% { opacity: 0.65; }
+  50%       { opacity: 1; }
+}
+.catan-road-valid-glow {
+  animation: catanRoadGlow 0.9s ease-in-out infinite;
 }
 
 /* ----- Sidebar ----- */
@@ -442,12 +446,36 @@
 /* ----- Actions ----- */
 .catan-actions { display: flex; flex-direction: column; gap: 7px; }
 
-/* ----- Trade offer ----- */
+/* ----- Trade offer (legacy sidebar) ----- */
 .catan-trade-offer {
   border-color: var(--gold) !important;
   background: rgba(199, 155, 58, 0.07) !important;
 }
 .catan-trade-row { display: flex; flex-direction: column; gap: 4px; font-size: 13px; margin: 8px 0; color: var(--ink-soft); }
+
+/* ----- Trade banner in chat area ----- */
+.catan-trade-banner {
+  background: var(--purple-soft);
+  border: 1.5px solid var(--purple);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.catan-trade-banner-mine {
+  background: rgba(199,155,58,0.08);
+  border-color: var(--gold);
+}
+.catan-trade-banner-title {
+  font-size: 12px; font-weight: 700;
+  color: var(--purple); margin-bottom: 5px;
+}
+.catan-trade-banner-mine .catan-trade-banner-title { color: var(--gold-dark, #a07820); }
+.catan-trade-banner-row {
+  display: flex; gap: 14px; font-size: 13px;
+  color: var(--ink-soft); margin-bottom: 7px; flex-wrap: wrap;
+}
+.catan-trade-banner-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.catan-trade-banner-status { font-size: 12px; color: var(--mute); font-style: italic; }
 
 /* ----- Log ----- */
 .catan-log {
@@ -917,9 +945,6 @@
   .catan-game-header { padding: 8px 0 12px; }
 
   .catan-board-wrap { margin: 0 -4px; border-radius: var(--radius); }
-
-  /* On mobile sidebar is single column */
-  .catan-sidebar { grid-template-columns: 1fr; }
 
   .catan-resources { gap: 5px; }
   .catan-resource-chip { min-width: 40px; padding: 6px 6px; }
