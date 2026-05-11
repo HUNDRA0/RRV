@@ -844,11 +844,63 @@
   flex-shrink: 0;
 }
 .catan-bar-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-.catan-bar-icon-btn:not(:disabled):hover { background: var(--bg-2); transform: translateY(-1px); }
+.catan-bar-icon-btn:hover { background: var(--bg-2); transform: translateY(-1px); }
+.catan-bar-icon-btn.cant-afford { opacity: 0.42; }
+.catan-bar-icon-btn.cant-afford:hover { opacity: 0.65; }
 .catan-bar-icon-btn.active {
   background: var(--purple-soft);
   border-color: var(--purple);
   box-shadow: 0 0 0 2px rgba(139,92,246,0.25);
+}
+
+/* ----- Cost tooltip (floats above action bar) ----- */
+.catan-cost-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--paper);
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--radius);
+  padding: 10px 14px 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+  white-space: nowrap;
+  z-index: 40;
+  animation: catanTooltipIn 0.18s ease both;
+}
+@keyframes catanTooltipIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.catan-cost-tooltip-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.catan-cost-tooltip-rows {
+  display: flex;
+  gap: 8px;
+}
+.catan-cost-row {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+.catan-cost-row.ok      { background: rgba(34,197,94,0.15); color: #16a34a; }
+.catan-cost-row.missing { background: rgba(239,68,68,0.12); color: #dc2626; }
+.catan-cost-tooltip-close {
+  background: none;
+  border: none;
+  font-size: 13px;
+  color: var(--mute);
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  margin-left: 2px;
 }
 
 .catan-bar-primary {

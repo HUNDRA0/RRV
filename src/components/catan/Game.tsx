@@ -43,6 +43,17 @@ interface ActionBarProps {
   onOpenDevCard: () => void;
 }
 
+const RESOURCE_EMOJI_BAR: Record<string, string> = {
+  wood: '🌲', brick: '🧱', grain: '🌾', ore: '🪨', wool: '🐑',
+};
+
+const BUILDING_INFO: Record<string, { name: string; emoji: string; cost: Resources }> = {
+  settlement: { name: 'Bosättning', emoji: '🏠', cost: BUILDING_COSTS.settlement },
+  road:       { name: 'Väg',        emoji: '🛤️', cost: BUILDING_COSTS.road },
+  city:       { name: 'Stad',       emoji: '🏙️', cost: BUILDING_COSTS.city },
+  devCard:    { name: 'Utvecklingskort', emoji: '🂠', cost: BUILDING_COSTS.devCard },
+};
+
 function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenTrade, onOpenDevCard }: ActionBarProps) {
   const isMyTurn = state.players[state.currentPlayerIndex]?.id === myPlayer.id;
   const isPlaying = state.phase === 'playing';
@@ -56,8 +67,11 @@ function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenT
   const canBuildCity = canAfford(res, BUILDING_COSTS.city);
   const canBuyDev = canAfford(res, BUILDING_COSTS.devCard) && state.devDeckSize > 0;
 
+  const [costTooltip, setCostTooltip] = useState<string | null>(null);
+
   const handleEndTurn = () => {
     setBuildMode(null);
+    setCostTooltip(null);
     onAction({ type: 'endTurn' });
   };
 
@@ -65,8 +79,50 @@ function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenT
     setBuildMode(buildMode === mode ? null : mode);
   };
 
+  /** Click handler for building buttons — toggle build mode if affordable, else show cost tooltip */
+  const handleBuildClick = (mode: string, canAffordIt: boolean) => {
+    if (canAffordIt) {
+      setCostTooltip(null);
+      toggleBuild(mode);
+    } else {
+      setCostTooltip(costTooltip === mode ? null : mode);
+    }
+  };
+
+  const handleDevCardClick = () => {
+    if (canBuyDev) {
+      setCostTooltip(null);
+      onAction({ type: 'buyDevCard' });
+    } else {
+      setCostTooltip(costTooltip === 'devCard' ? null : 'devCard');
+    }
+  };
+
+  const tooltipInfo = costTooltip ? BUILDING_INFO[costTooltip] : null;
+
   return (
     <div className="catan-action-bar">
+      {/* Cost tooltip — floats above the action bar */}
+      {tooltipInfo && (
+        <div className="catan-cost-tooltip">
+          <span className="catan-cost-tooltip-title">{tooltipInfo.emoji} {tooltipInfo.name}</span>
+          <div className="catan-cost-tooltip-rows">
+            {(Object.entries(tooltipInfo.cost) as [string, number][])
+              .filter(([, need]) => need > 0)
+              .map(([resource, need]) => {
+                const have = res[resource as keyof Resources] ?? 0;
+                const ok = have >= need;
+                return (
+                  <span key={resource} className={`catan-cost-row${ok ? ' ok' : ' missing'}`}>
+                    {RESOURCE_EMOJI_BAR[resource]} {have}/{need}
+                  </span>
+                );
+              })}
+          </div>
+          <button className="catan-cost-tooltip-close" onClick={() => setCostTooltip(null)}>✕</button>
+        </div>
+      )}
+
       {/* Actions section */}
       <div className="catan-bar-actions">
         {/* Setup phase */}
@@ -85,40 +141,32 @@ function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenT
         {isPlaying && isMyTurn && !pendingType && state.diceRolled && (
           <>
             <button
-              className={`catan-bar-icon-btn${buildMode === 'settlement' ? ' active' : ''}`}
-              disabled={!canBuildSettlement}
-              onClick={() => toggleBuild('settlement')}
-              title="Bosättning (🌲🧱🌾🐑)"
+              className={`catan-bar-icon-btn${buildMode === 'settlement' ? ' active' : ''}${!canBuildSettlement ? ' cant-afford' : ''}`}
+              onClick={() => handleBuildClick('settlement', canBuildSettlement)}
             >
               🏠
             </button>
             <button
-              className={`catan-bar-icon-btn${buildMode === 'road' ? ' active' : ''}`}
-              disabled={!canBuildRoad}
-              onClick={() => toggleBuild('road')}
-              title="Väg (🌲🧱)"
+              className={`catan-bar-icon-btn${buildMode === 'road' ? ' active' : ''}${!canBuildRoad ? ' cant-afford' : ''}`}
+              onClick={() => handleBuildClick('road', canBuildRoad)}
             >
               🛤️
             </button>
             <button
-              className={`catan-bar-icon-btn${buildMode === 'city' ? ' active' : ''}`}
-              disabled={!canBuildCity}
-              onClick={() => toggleBuild('city')}
-              title="Stad (🌾🌾🪨🪨🪨)"
+              className={`catan-bar-icon-btn${buildMode === 'city' ? ' active' : ''}${!canBuildCity ? ' cant-afford' : ''}`}
+              onClick={() => handleBuildClick('city', canBuildCity)}
             >
               🏙️
             </button>
             <button
-              className="catan-bar-icon-btn"
-              disabled={!canBuyDev}
-              onClick={() => onAction({ type: 'buyDevCard' })}
-              title="Köp utvecklingskort (🌾🐑🪨)"
+              className={`catan-bar-icon-btn${!canBuyDev ? ' cant-afford' : ''}`}
+              onClick={handleDevCardClick}
             >
               🂠
             </button>
             <button
               className="catan-bar-icon-btn"
-              onClick={onOpenTrade}
+              onClick={() => { setCostTooltip(null); onOpenTrade(); }}
               title="Handla"
             >
               🔄
