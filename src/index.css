@@ -339,13 +339,12 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 @media (max-width: 700px) {
   .nav-wrap { padding: 0 10px; top: 10px; }
   .nav {
-    grid-template-columns: auto 1fr auto;
-    padding: 7px 8px 7px 14px; gap: 6px; width: 100%;
+    padding: 7px 8px 7px 14px; gap: 6px; width: 100%; max-width: 100%;
   }
   .nav-tabs { display: none; }
-  .nav-active-label { display: block; }
+  .nav-active-label { display: block; flex: 1; }
   .nav-burger { display: inline-flex; }
-  .nav-actions { gap: 4px; justify-self: end; }
+  .nav-actions { gap: 4px; margin-left: auto; }
   .nav-edit { padding: 7px 10px; font-size: 11px; }
   .nav-admin { padding: 7px 9px !important; font-size: 13px; }
   .nav-theme-btn { width: 32px; height: 32px; font-size: 14px; }
@@ -354,7 +353,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
     padding: 5px 6px 5px 12px;
     gap: 4px;
     transform: scale(0.97);
-    width: 100%;
+    width: 100%; max-width: 100%;
   }
   .nav-wrap[data-scrolled="true"] .nav-brand { font-size: 18px; }
   .nav-wrap[data-scrolled="true"] .nav-active-label { font-size: 11px; }
