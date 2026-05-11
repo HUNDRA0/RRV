@@ -57,7 +57,23 @@ export function getValidRoadPlacements(state: ClientGameState, myId: string): st
 
   const occupiedEdgeIds = new Set(edges.filter(e => e.road).map(e => e.id));
 
-  // Build vertex adjacency for road connectivity checks
+  // ── Setup phase: road must touch the last-placed settlement (the one with no road yet) ──
+  if (state.phase === 'setup') {
+    const mySettlements = vertices.filter(
+      v => v.building?.playerId === myId && v.building.type === 'settlement',
+    );
+    // Last settlement = the one that doesn't yet have a road from this player touching it
+    const lastSettlement = mySettlements.find(v =>
+      !edges.some(e => e.road?.playerId === myId && (e.v1 === v.id || e.v2 === v.id)),
+    ) ?? mySettlements[mySettlements.length - 1];
+
+    if (!lastSettlement) return [];
+    return edges
+      .filter(e => !occupiedEdgeIds.has(e.id) && (e.v1 === lastSettlement.id || e.v2 === lastSettlement.id))
+      .map(e => e.id);
+  }
+
+  // ── Playing phase: any edge connected to own road network ──
   const myOccupiedVertexIds = new Set(
     vertices.filter(v => v.building?.playerId === myId).map(v => v.id),
   );
@@ -75,11 +91,10 @@ export function getValidRoadPlacements(state: ClientGameState, myId: string): st
   return edges
     .filter(e => {
       if (occupiedEdgeIds.has(e.id)) return false;
-      // Edge must touch at least one of my connected vertices
       const touchesMine = myConnectedVertices.has(e.v1) || myConnectedVertices.has(e.v2);
       if (!touchesMine) return false;
 
-      // Road cannot pass through opponent's building
+      // Road cannot pass through an opponent's building
       const v1Building = vertices.find(v => v.id === e.v1)?.building;
       const v2Building = vertices.find(v => v.id === e.v2)?.building;
       if (v1Building && v1Building.playerId !== myId && !myConnectedVertices.has(e.v2)) return false;
