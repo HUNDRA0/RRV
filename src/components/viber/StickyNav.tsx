@@ -35,14 +35,14 @@ function NavTabs({ active, onJump }: NavTabsProps) {
     const left = eR.left - wR.left;
     if (!settledRef.current) {
       ind.style.transition = 'none';
+      ind.style.left = `${left}px`;
       ind.style.width = `${eR.width}px`;
-      ind.style.transform = `translateX(${left}px)`;
       ind.offsetHeight;
       ind.style.transition = '';
       settledRef.current = true;
     } else {
+      ind.style.left = `${left}px`;
       ind.style.width = `${eR.width}px`;
-      ind.style.transform = `translateX(${left}px)`;
     }
   };
 

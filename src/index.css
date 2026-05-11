@@ -178,11 +178,11 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .nav-tab[aria-selected="true"] { color: white; }
 .nav-tabs .indicator {
   position: absolute; z-index: 0;
-  top: 4px; left: 0; bottom: 4px;
+  top: 4px; left: 0; bottom: 4px; width: 0;
   background: linear-gradient(160deg, var(--purple), var(--purple-2));
   border-radius: 999px;
   box-shadow: 0 6px 18px -4px rgba(139, 92, 246, 0.55);
-  transition: transform 420ms var(--ease-spring), opacity 200ms var(--ease-out);
+  transition: left 420ms var(--ease-spring), width 420ms var(--ease-spring), opacity 200ms var(--ease-out);
 }
 @media (max-width: 700px) { .nav-tab { padding: 8px 12px; font-size: 12px; } .nav-brand { font-size: 20px; } }
 .nav-wrap[data-scrolled="true"] .nav-tab { padding: 8px 11px; font-size: 12px; }
