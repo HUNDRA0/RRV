@@ -106,6 +106,22 @@ export function App() {
 
   const ready = !loadError && friends.length > 0;
 
+  // Show a splash screen until the first bootstrap response arrives.
+  // This prevents the "flash of default content" (wrong quote, empty nav, etc.)
+  if (loading && friends.length === 0 && !loadError) {
+    return (
+      <div className="app">
+        <AuroraBg />
+        <div className="splash">
+          <p className="splash-wordmark">Viber Rankings</p>
+          <div className="splash-dots">
+            <span /><span /><span />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app" data-edit={isEditing}>
       <AuroraBg />
