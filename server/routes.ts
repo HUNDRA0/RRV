@@ -15,6 +15,7 @@ import { Router, type NextFunction, type Request, type Response } from 'express'
 import { exec, queryAll, queryOne } from './db.js';
 import { decodeDataUrl } from './lib/photos.js';
 import { buildMapsUrl, cacheKey, computePairs, type GeoFriend } from './lib/gmap.js';
+import { addCatanRoutes } from './catan-routes.js';
 
 // ── DTO conversion ────────────────────────────────────────────────────
 
@@ -146,6 +147,8 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
 // ── Routes ────────────────────────────────────────────────────────────
 
 export const router: Router = Router();
+
+addCatanRoutes(router);
 
 router.post('/admin/login', async (req, res) => {
   const expected = process.env.ADMIN_PASSWORD;
