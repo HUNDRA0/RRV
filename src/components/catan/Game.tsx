@@ -15,6 +15,78 @@ import {
 const RESOURCE_EMOJI: Record<string, string> = {
   wood: '🌲', brick: '🧱', grain: '🌾', ore: '🪨', wool: '🐑',
 };
+
+// ── Swedish error translations ──────────────────────────────────────────────
+const ERROR_TRANSLATIONS: Record<string, string> = {
+  'Not your turn':                            'Det är inte din tur',
+  'Not in playing phase':                     'Spelet är inte i spelläge',
+  'Not in dice-off phase':                    'Inte i startfasen',
+  'Roll dice first':                          'Kasta tärningen först',
+  'Dice already rolled this turn':            'Du har redan kastat tärningen den här rundan',
+  'Resolve pending action first':             'Slutför din pågående åtgärd först',
+  'Not enough resources':                     'Du har inte tillräckligt med resurser',
+  'No settlements left':                      'Inga bosättningar kvar',
+  'No cities left':                           'Inga städer kvar',
+  'No roads left':                            'Inga vägar kvar',
+  'No roads left to place':                   'Inga vägar kvar att placera',
+  'Too close to another settlement':          'För nära en annan bosättning',
+  'Vertex already occupied':                  'Den platsen är redan upptagen',
+  'Settlement must be connected to your road':'Bosättningen måste anslutas till ditt vägnät',
+  'Road must connect to your last settlement':'Vägen måste anslutas till din senast placerade bosättning',
+  'Road must connect to your network':        'Vägen måste anslutas till ditt vägnät',
+  'Edge already has a road':                  'Det finns redan en väg där',
+  'No own settlement at that vertex':         'Du har ingen bosättning på den platsen',
+  'No pending robber move':                   'Ingen rövare att flytta',
+  'No pending steal':                         'Inget att stjäla',
+  'Must move robber to a different hex':      'Rövaren måste flyttas till ett annat fält',
+  'Invalid hex':                              'Ogiltigt fält',
+  'Cannot steal from that player':            'Du kan inte stjäla från den spelaren',
+  'Target player not found':                  'Spelaren hittades inte',
+  'Not enough resources to offer':            'Du har inte tillräckligt med resurser att erbjuda',
+  'A trade offer is already active':          'Ett handelserbjudande är redan aktivt',
+  'Cancel trade offer first':                 'Avbryt det pågående handelserbjudandet först',
+  'No active trade offer':                    'Inget aktivt handelserbjudande',
+  'Cannot respond to your own offer':         'Du kan inte svara på ditt eget erbjudande',
+  'Not a valid responder':                    'Du kan inte svara på detta erbjudande',
+  'You do not have the requested resources':  'Du har inte de begärda resurserna',
+  'Acceptor no longer has enough resources':  'Motparten har inte längre tillräckliga resurser',
+  'Offeror no longer has enough resources':   'Du har inte längre tillräckliga resurser',
+  'That player has not accepted':             'Den spelaren har inte accepterat',
+  'Only the offeror can complete the trade':  'Bara du kan slutföra handeln',
+  'Only the offeror can cancel the trade':    'Bara du kan avbryta handeln',
+  'Cannot trade a resource for itself':       'Du kan inte handla en resurs mot sig själv',
+  'Bank has no more of that resource':        'Banken har inga fler av den resursen',
+  'Development card deck is empty':           'Kortleken är tom',
+  'You do not have that card':                'Du har inte det kortet',
+  'Can only play one development card per turn': 'Du kan bara spela ett utvecklingskort per tur',
+  'Cannot play a card bought this turn':      'Du kan inte spela ett kort du köpte denna tur',
+  'Place a settlement first':                 'Placera en bosättning först',
+  'Place a road first':                       'Placera en väg först',
+  'You already rolled this round':            'Du har redan kastat denna omgång',
+  'You are not in the current roll-off':      'Du deltar inte i den nuvarande omrullningen',
+  'Game is over':                             'Spelet är slut',
+  'Game already started':                     'Spelet har redan börjat',
+  'Game is full':                             'Spelet är fullt',
+  'Only the host can start the game':         'Bara värden kan starta spelet',
+  'Need at least 2 players to start':         'Minst 2 spelare krävs för att starta',
+  'Already in game':                          'Du är redan med i spelet',
+  'No settlement found for road placement':   'Ingen bosättning hittades för vägplacering',
+  'Specify two resources':                    'Välj två resurser',
+  'Specify a resource':                       'Välj en resurs',
+  'No current player':                        'Ingen aktiv spelare',
+  'Player not found':                         'Spelaren hittades inte',
+  'Unknown action type':                      'Okänd åtgärd',
+};
+
+function translateError(msg: string): string {
+  // Exact match
+  if (ERROR_TRANSLATIONS[msg]) return ERROR_TRANSLATIONS[msg];
+  // Partial match (for dynamic messages like "Need 4 wood to trade")
+  for (const [key, val] of Object.entries(ERROR_TRANSLATIONS)) {
+    if (msg.startsWith(key) || msg.includes(key)) return val;
+  }
+  return msg; // fallback: show as-is if no translation found
+}
 const RESOURCES_LIST = ['wood', 'brick', 'grain', 'ore', 'wool'] as const;
 
 function formatResources(r: Resources): string {
@@ -463,7 +535,16 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
       </div>
 
       {actionError && (
-        <div className="catan-action-error">{actionError}</div>
+        <div className="catan-error-overlay" onClick={() => setActionError(null)}>
+          <div className="catan-error-modal" onClick={e => e.stopPropagation()}>
+            <div className="catan-error-modal-header">
+              <span className="catan-error-modal-icon">⚠️</span>
+              <span className="catan-error-modal-title">Något gick fel</span>
+              <button className="catan-modal-close" onClick={() => setActionError(null)}>✕</button>
+            </div>
+            <p className="catan-error-modal-msg">{translateError(actionError)}</p>
+          </div>
+        </div>
       )}
 
       {/* ── Dice-off panel ── */}
