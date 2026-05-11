@@ -137,7 +137,6 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
               background 420ms var(--ease-out), box-shadow 420ms var(--ease-out),
               transform 420ms var(--ease-spring);
   max-width: calc(100vw - 48px);
-  overflow: hidden;
 }
 .nav-wrap[data-scrolled="true"] .nav {
   padding: 6px 6px 6px 14px;
