@@ -51,6 +51,7 @@ function filterStateForPlayer(state: GameState, requestingPlayerId: string | nul
     myPlayerId: requestingPlayerId ?? '',
     devDeck: undefined,
     devDeckSize: state.devDeck.length,
+    chatMessages: state.chatMessages ?? [],
     players: state.players.map(p => {
       if (p.id === requestingPlayerId) {
         return {
@@ -250,5 +251,92 @@ export function addCatanRoutes(router: Router): void {
       return;
     }
     res.json(state.players.map((p: Player) => ({ id: p.id, name: p.name, color: p.color })));
+  });
+
+  // POST /api/catan/:id/chat
+  router.post('/catan/:id/chat', async (req, res) => {
+    const { id } = req.params as { id: string };
+    const token = getToken(req);
+    if (!token) {
+      res.status(401).json({ error: 'x-catan-token header required' });
+      return;
+    }
+
+    const playerId = await getPlayerId(id, token);
+    if (!playerId) {
+      res.status(401).json({ error: 'Invalid token' });
+      return;
+    }
+
+    const state = await loadGame(id);
+    if (!state) {
+      res.status(404).json({ error: 'Game not found' });
+      return;
+    }
+
+    const body = req.body as { text?: unknown };
+    const text = typeof body.text === 'string' ? body.text.trim().slice(0, 200) : '';
+    if (!text) {
+      res.status(400).json({ error: 'text is required' });
+      return;
+    }
+
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) {
+      res.status(403).json({ error: 'Player not in this game' });
+      return;
+    }
+
+    const chatMessages = [
+      ...(state.chatMessages ?? []),
+      { playerId, playerName: player.name, text, ts: Date.now() },
+    ].slice(-50);
+
+    const newState: GameState = { ...state, chatMessages };
+    await saveGame(newState);
+    res.json(filterStateForPlayer(newState, playerId));
+  });
+
+  // POST /api/catan/:id/leave
+  router.post('/catan/:id/leave', async (req, res) => {
+    const { id } = req.params as { id: string };
+    const token = getToken(req);
+    if (!token) {
+      res.status(401).json({ error: 'x-catan-token header required' });
+      return;
+    }
+
+    const playerId = await getPlayerId(id, token);
+    if (!playerId) {
+      res.status(401).json({ error: 'Invalid token' });
+      return;
+    }
+
+    const state = await loadGame(id);
+    if (!state) {
+      res.status(404).json({ error: 'Game not found' });
+      return;
+    }
+
+    const player = state.players.find(p => p.id === playerId);
+    if (!player) {
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    const chatMessages = [
+      ...(state.chatMessages ?? []),
+      {
+        playerId: 'system',
+        playerName: 'System',
+        text: `${player.name} lämnade spelet`,
+        ts: Date.now(),
+        system: true,
+      },
+    ].slice(-50);
+
+    const newState: GameState = { ...state, chatMessages };
+    await saveGame(newState);
+    res.status(200).json({ ok: true });
   });
 }

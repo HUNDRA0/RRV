@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { ClientGameState, ClientPlayer } from './types';
 import { Board } from './Board';
 import { Sidebar } from './Sidebar';
@@ -16,14 +16,20 @@ interface GameProps {
   state: ClientGameState;
   sendAction: (action: object) => Promise<void>;
   onLeave: () => void;
+  gameId: string;
+  token: string;
 }
 
-export function Game({ state, sendAction, onLeave }: GameProps) {
+export function Game({ state, sendAction, onLeave, gameId, token }: GameProps) {
   const [buildMode, setBuildMode] = useState<string | null>(null);
   const [showTrade, setShowTrade] = useState(false);
   const [showDevCard, setShowDevCard] = useState(false);
   const [showRobber, setShowRobber] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [chatText, setChatText] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const chatInputRef = useRef<HTMLInputElement>(null);
 
   const myPlayer: ClientPlayer | undefined = state.players.find(p => p.id === state.myPlayerId);
   if (!myPlayer) {
@@ -105,7 +111,49 @@ export function Game({ state, sendAction, onLeave }: GameProps) {
     }
   };
 
+  const handleLeaveConfirmed = async () => {
+    try {
+      await fetch(`/api/catan/${gameId}/leave`, {
+        method: 'POST',
+        headers: { 'x-catan-token': token },
+      });
+    } catch {
+      // ignore errors — still leave
+    }
+    onLeave();
+  };
+
+  const handleSendChat = async () => {
+    const text = chatText.trim();
+    if (!text || chatSending) return;
+    setChatSending(true);
+    try {
+      await fetch(`/api/catan/${gameId}/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-catan-token': token,
+        },
+        body: JSON.stringify({ text }),
+      });
+      setChatText('');
+    } catch {
+      // silently ignore chat errors
+    } finally {
+      setChatSending(false);
+      chatInputRef.current?.focus();
+    }
+  };
+
+  const handleChatKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      void handleSendChat();
+    }
+  };
+
   const currentPlayer = state.players[state.currentPlayerIndex];
+  const recentMessages = (state.chatMessages ?? []).slice(-3);
 
   return (
     <div className="catan-game-wrap">
@@ -125,14 +173,51 @@ export function Game({ state, sendAction, onLeave }: GameProps) {
             </span>
           )}
         </div>
-        <button className="catan-btn catan-btn-ghost catan-btn-sm" onClick={onLeave}>
-          Lämna
-        </button>
       </div>
 
       {actionError && (
         <div className="catan-action-error">{actionError}</div>
       )}
+
+      {/* Chat panel above the board */}
+      <div className="catan-chat-wrap">
+        <div className="catan-chat-messages">
+          {recentMessages.length === 0 ? (
+            <p className="catan-chat-empty">Inga meddelanden än…</p>
+          ) : (
+            recentMessages.map((msg, i) => (
+              <div
+                key={`${msg.ts}-${i}`}
+                className={`catan-chat-msg${msg.system ? ' system' : ''}`}
+              >
+                {!msg.system && (
+                  <span className="catan-chat-name">{msg.playerName}: </span>
+                )}
+                {msg.text}
+              </div>
+            ))
+          )}
+        </div>
+        <div className="catan-chat-input-row">
+          <input
+            ref={chatInputRef}
+            className="catan-chat-input"
+            type="text"
+            placeholder="Skriv ett meddelande…"
+            value={chatText}
+            onChange={e => setChatText(e.target.value)}
+            onKeyDown={handleChatKeyDown}
+            maxLength={200}
+          />
+          <button
+            className="catan-chat-send"
+            onClick={() => void handleSendChat()}
+            disabled={chatSending || !chatText.trim()}
+          >
+            Skicka
+          </button>
+        </div>
+      </div>
 
       <div className="catan-game-layout">
         <Board
@@ -154,6 +239,16 @@ export function Game({ state, sendAction, onLeave }: GameProps) {
           buildMode={buildMode}
           setBuildMode={setBuildMode}
         />
+      </div>
+
+      {/* Leave button below the game layout */}
+      <div className="catan-leave-btn-wrap">
+        <button
+          className="catan-btn catan-btn-ghost catan-btn-sm catan-leave-btn"
+          onClick={() => setShowLeaveConfirm(true)}
+        >
+          Lämna spel
+        </button>
       </div>
 
       {/* Modals */}
@@ -182,6 +277,29 @@ export function Game({ state, sendAction, onLeave }: GameProps) {
           onAction={(action) => void dispatch(action)}
           onClose={() => setShowDevCard(false)}
         />
+      )}
+
+      {/* Leave confirmation modal */}
+      {showLeaveConfirm && (
+        <div className="catan-confirm-overlay" onClick={() => setShowLeaveConfirm(false)}>
+          <div className="catan-confirm-card" onClick={e => e.stopPropagation()}>
+            <p className="catan-confirm-text">Är du säker på att du vill lämna spelet?</p>
+            <div className="catan-confirm-actions">
+              <button
+                className="catan-btn catan-btn-secondary catan-btn-sm"
+                onClick={() => setShowLeaveConfirm(false)}
+              >
+                Avbryt
+              </button>
+              <button
+                className="catan-btn catan-btn-primary catan-btn-sm catan-confirm-leave-btn"
+                onClick={() => void handleLeaveConfirmed()}
+              >
+                Ja, lämna
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

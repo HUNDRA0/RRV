@@ -87,6 +87,7 @@ export interface ClientGameState {
   tradeOffer: TradeOffer | null;
   pendingAction: PendingAction | null;
   log: string[];
+  chatMessages: Array<{ playerId: string; playerName: string; text: string; ts: number; system?: boolean }>;
   winner: string | null;
   updatedAt: number;
 }

@@ -185,7 +185,7 @@ export function Board({ state, validVertices, validEdges, validHexes, onVertexCl
   const playerColorMap = new Map<string, PlayerColor>();
   state.players.forEach(p => playerColorMap.set(p.id, p.color));
 
-  const HEX_SIZE = 62;
+  const HEX_SIZE = 76;
 
   // Deduplicate harbor vertices — show one icon per harbor edge midpoint
   const harborPairs: Array<{ mx: number; my: number; harbor: string }> = [];

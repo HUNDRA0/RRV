@@ -95,6 +95,7 @@ export function createGame(gameId: string, hostId: string, hostName: string): Ga
     tradeOffer: null,
     pendingAction: null,
     log: [`${hostName} created the game.`],
+    chatMessages: [],
     winner: null,
     updatedAt: Date.now(),
   };

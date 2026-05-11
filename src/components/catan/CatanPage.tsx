@@ -60,7 +60,7 @@ export function CatanPage() {
       {error && <div className="catan-global-error">⚠️ {error}</div>}
 
       {isInGame ? (
-        <Game state={state} sendAction={sendAction} onLeave={handleLeave} />
+        <Game state={state} sendAction={sendAction} onLeave={handleLeave} gameId={gameId} token={token} />
       ) : (
         <Lobby onGameStart={handleGameStart} />
       )}
