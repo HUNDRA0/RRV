@@ -52,13 +52,9 @@ const TERRAIN_EMOJI: Record<string, string> = {
   desert: '🏜️',
 };
 
-const HARBOR_LABEL: Record<string, string> = {
-  any:    '3:1',
-  wood:   '2:1\n🌲',
-  grain:  '2:1\n🌾',
-  wool:   '2:1\n🐑',
-  ore:    '2:1\n🪨',
-  brick:  '2:1\n🧱',
+// Emoji for specific harbor types (shown inside the harbor icon)
+const HARBOR_EMOJI: Record<string, string> = {
+  wood: '🌲', grain: '🌾', wool: '🐑', ore: '🪨', brick: '🧱',
 };
 
 // Probability dots for number tokens
@@ -186,7 +182,7 @@ function HarborIcon({ x, y, harbor }: { x: number; y: number; harbor: string }) 
       </text>
       {isSpecific && (
         <text textAnchor="middle" dominantBaseline="central" y={7} fontSize={9}>
-          {HARBOR_LABEL[harbor]?.split('\n')[1] ?? ''}
+          {HARBOR_EMOJI[harbor] ?? ''}
         </text>
       )}
     </g>
@@ -287,10 +283,9 @@ export function Board({
         {/* Hex tiles */}
         {hexes.map(hex => {
           const { cx, cy } = hexCenter(hex, HEX_SIZE);
-          // Three rings: shadow / parchment border / inner terrain
-          const shadowPts  = hexCorners(cx, cy, HEX_SIZE - 1);
-          const borderPts  = hexCorners(cx, cy, HEX_SIZE - 1);
-          const terrainPts = hexCorners(cx, cy, HEX_SIZE - 11);
+          // Two polygon shapes: outer parchment border + inner terrain
+          const hexOuterPts = hexCorners(cx, cy, HEX_SIZE - 1);
+          const terrainPts  = hexCorners(cx, cy, HEX_SIZE - 11);
           const isValidRobber = validHexes.includes(hex.id);
           const col      = TERRAIN_COLORS[hex.terrain]      ?? '#ccc';
           const colLight = TERRAIN_COLORS_LIGHT[hex.terrain] ?? '#eee';
@@ -311,11 +306,11 @@ export function Board({
                 </radialGradient>
               </defs>
 
-              {/* Drop shadow */}
-              <polygon points={pointsStr(shadowPts)} fill="rgba(0,0,0,0.22)" transform="translate(2,4)" />
+              {/* Drop shadow (same geometry, offset) */}
+              <polygon points={pointsStr(hexOuterPts)} fill="rgba(0,0,0,0.22)" transform="translate(2,4)" />
 
               {/* Parchment/cardboard border — mimics real tile edge */}
-              <polygon points={pointsStr(borderPts)}
+              <polygon points={pointsStr(hexOuterPts)}
                 fill="#c8a44a"
                 stroke="#8a6820"
                 strokeWidth={1.5}
@@ -511,8 +506,8 @@ export function Board({
             const isCurrent = idx === state.currentPlayerIndex;
             const cardW = isMe ? 165 : 132;
             const cardH = isMe ? 62 : 44;
-            const cx = corner.anchorRight ? corner.x - cardW : corner.x;
-            const cy = corner.anchorBottom ? corner.y - cardH : corner.y;
+            const cardX = corner.anchorRight ? corner.x - cardW : corner.x;
+            const cardY = corner.anchorBottom ? corner.y - cardH : corner.y;
             const pc = PLAYER_COLORS[p.color] ?? '#888';
             const res = isMe ? (p.resources as Record<string, number>) : null;
 
@@ -520,17 +515,17 @@ export function Board({
               <g key={p.id}>
                 {/* Card background */}
                 <rect
-                  x={cx} y={cy} width={cardW} height={cardH}
+                  x={cardX} y={cardY} width={cardW} height={cardH}
                   rx={10}
                   fill="rgba(15,10,30,0.62)"
                   stroke={isCurrent ? 'rgba(139,92,246,0.8)' : 'rgba(255,255,255,0.12)'}
                   strokeWidth={isCurrent ? 2 : 1}
                 />
                 {/* Color dot */}
-                <circle cx={cx + 14} cy={cy + 16} r={6} fill={pc} />
+                <circle cx={cardX + 14} cy={cardY + 16} r={6} fill={pc} />
                 {/* Current player indicator */}
                 {isCurrent && (
-                  <text x={cx + 24} y={cy + 21} fontSize={9} fill="#a78bfa"
+                  <text x={cardX + 24} y={cardY + 21} fontSize={9} fill="#a78bfa"
                     fontFamily="var(--font-body)"
                     style={{ userSelect: 'none', pointerEvents: 'none' }}>
                     ▶
@@ -538,7 +533,7 @@ export function Board({
                 )}
                 {/* Player name */}
                 <text
-                  x={cx + 34} y={cy + 21}
+                  x={cardX + 34} y={cardY + 21}
                   fontSize={13} fontWeight="700" fill="white"
                   fontFamily="var(--font-body)"
                   style={{ userSelect: 'none', pointerEvents: 'none' }}
@@ -547,7 +542,7 @@ export function Board({
                 </text>
                 {/* VP */}
                 <text
-                  x={cx + cardW - 8} y={cy + 21}
+                  x={cardX + cardW - 8} y={cardY + 21}
                   textAnchor="end" fontSize={11} fill="rgba(255,255,255,0.65)"
                   fontFamily="var(--font-body)"
                   style={{ userSelect: 'none', pointerEvents: 'none' }}
@@ -557,7 +552,7 @@ export function Board({
                 {/* Resource row (only for myself) */}
                 {isMe && res && (
                   <text
-                    x={cx + 8} y={cy + 51}
+                    x={cardX + 8} y={cardY + 51}
                     fontSize={10} fill="rgba(255,255,255,0.82)"
                     fontFamily="var(--font-body)"
                     style={{ userSelect: 'none', pointerEvents: 'none' }}
@@ -617,9 +612,7 @@ export function Board({
             const sum = d1 + d2;
             const isSeven = sum === 7;
             const sumX = diceAreaX + DIE_SIZE * 2 + gap * 2 + 8;
-            // Center of the board (axial origin = pixel 0,0)
-            const cardCX = 0;
-            const cardCY = 0;
+            // Board center = axial origin = SVG coordinate (0, 0)
 
             return (
               <g>
@@ -639,20 +632,20 @@ export function Board({
                   </text>
                 </g>
 
-                {/* Central result card */}
+                {/* Central result card (centered at board origin 0,0) */}
                 <g className="catan-result-card">
                   {/* Shadow */}
-                  <rect x={cardCX - 72} y={cardCY - 40} width={144} height={86}
+                  <rect x={-72} y={-40} width={144} height={86}
                     rx={18} fill="rgba(0,0,0,0.35)" transform="translate(3,4)" />
                   {/* Card */}
-                  <rect x={cardCX - 72} y={cardCY - 40} width={144} height={86}
+                  <rect x={-72} y={-40} width={144} height={86}
                     rx={18}
                     fill="rgba(14,8,32,0.90)"
                     stroke={isSeven ? '#f59e0b' : '#7c3aed'}
                     strokeWidth={2.5}
                   />
                   {/* Big number */}
-                  <text x={cardCX} y={cardCY + 6} textAnchor="middle"
+                  <text x={0} y={6} textAnchor="middle"
                     fontSize={40} fontWeight="900"
                     fill={isSeven ? '#fbbf24' : 'white'}
                     fontFamily="var(--font-body)"
@@ -660,7 +653,7 @@ export function Board({
                     {isSeven ? '⚔️' : sum}
                   </text>
                   {/* Sub-text */}
-                  <text x={cardCX} y={cardCY + 35} textAnchor="middle"
+                  <text x={0} y={35} textAnchor="middle"
                     fontSize={13} fill="rgba(255,255,255,0.55)"
                     fontFamily="var(--font-body)"
                     style={{ userSelect: 'none', pointerEvents: 'none' }}>

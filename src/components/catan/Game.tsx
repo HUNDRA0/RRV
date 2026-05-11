@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import type { ClientGameState, ClientPlayer, Resource, Resources } from './types';
+import type { ClientGameState, ClientPlayer, Resources } from './types';
 import { Board } from './Board';
 import type { DiceAnimPhase } from './Board';
 import { Sidebar } from './Sidebar';
@@ -7,25 +7,20 @@ import { TradeModal } from './TradeModal';
 import { RobberModal } from './RobberModal';
 import { DevCardModal } from './DevCardModal';
 import {
+  canAfford,
   getValidSettlementPlacements,
   getValidRoadPlacements,
   getValidCityPlacements,
   getValidRobberHexes,
 } from './gameHelpers';
 
-// ---- Constants (shared with action bar) ----
-const RESOURCES: Resource[] = ['wood', 'brick', 'grain', 'ore', 'wool'];
-
+// Building costs used by the action bar
 const BUILDING_COSTS: Record<string, Resources> = {
   settlement: { wood: 1, brick: 1, grain: 1, wool: 1, ore: 0 },
-  road: { wood: 1, brick: 1, grain: 0, wool: 0, ore: 0 },
-  city: { wood: 0, brick: 0, grain: 2, wool: 0, ore: 3 },
-  devCard: { wood: 0, brick: 0, grain: 1, wool: 1, ore: 1 },
+  road:       { wood: 1, brick: 1, grain: 0, wool: 0, ore: 0 },
+  city:       { wood: 0, brick: 0, grain: 2, wool: 0, ore: 3 },
+  devCard:    { wood: 0, brick: 0, grain: 1, wool: 1, ore: 1 },
 };
-
-function canAfford(resources: Resources, cost: Resources): boolean {
-  return RESOURCES.every(r => resources[r] >= cost[r]);
-}
 
 // ---- Action bar component ----
 interface ActionBarProps {
@@ -198,7 +193,6 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
   const [buildMode, setBuildMode] = useState<string | null>(null);
   const [showTrade, setShowTrade] = useState(false);
   const [showDevCard, setShowDevCard] = useState(false);
-  const [showRobber, setShowRobber] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [chatText, setChatText] = useState('');
@@ -438,10 +432,6 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
           state={state}
           myPlayer={myPlayer}
           onAction={(action) => void dispatch(action)}
-          onOpenTrade={() => setShowTrade(true)}
-          onOpenDevCard={() => setShowDevCard(true)}
-          buildMode={buildMode}
-          setBuildMode={setBuildMode}
         />
       </div>
 
@@ -476,11 +466,11 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
         />
       )}
 
-      {(showRobber || (isMyTurn && pendingType === 'moveRobber')) && (
+      {isMyTurn && pendingType === 'moveRobber' && (
         <RobberModal
           state={state}
           onAction={(action) => void dispatch(action)}
-          onClose={() => setShowRobber(false)}
+          onClose={() => {/* closes automatically when pendingAction clears */}}
         />
       )}
 

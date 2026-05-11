@@ -10,27 +10,6 @@ const RESOURCE_EMOJI: Record<Resource, string> = {
 
 const RESOURCES: Resource[] = ['wood', 'brick', 'grain', 'ore', 'wool'];
 
-export function DieFace({ value }: { value: number }) {
-  const DIE_DOTS: Record<number, [number, number][]> = {
-    1: [[50, 50]],
-    2: [[25, 25], [75, 75]],
-    3: [[25, 25], [50, 50], [75, 75]],
-    4: [[25, 25], [75, 25], [25, 75], [75, 75]],
-    5: [[25, 25], [75, 25], [50, 50], [25, 75], [75, 75]],
-    6: [[25, 22], [75, 22], [25, 50], [75, 50], [25, 78], [75, 78]],
-  };
-  const dots: [number, number][] = DIE_DOTS[value] ?? [[50, 50]];
-
-  return (
-    <svg width={40} height={40} viewBox="0 0 100 100">
-      <rect x={5} y={5} width={90} height={90} rx={16} fill="var(--paper)" stroke="var(--line-strong)" strokeWidth={5} />
-      {dots.map(([cx, cy], i) => (
-        <circle key={i} cx={cx} cy={cy} r={10} fill="var(--ink)" />
-      ))}
-    </svg>
-  );
-}
-
 function totalResources(r: Resources): number {
   return RESOURCES.reduce((s, k) => s + r[k], 0);
 }
@@ -39,10 +18,6 @@ interface SidebarProps {
   state: ClientGameState;
   myPlayer: ClientPlayer;
   onAction: (action: object) => void;
-  onOpenTrade: () => void;
-  onOpenDevCard: () => void;
-  buildMode: string | null;
-  setBuildMode: (mode: string | null) => void;
 }
 
 export function Sidebar({ state, myPlayer, onAction }: SidebarProps) {
