@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { ClientGameState, ClientPlayer, Resource, Resources } from './types';
 
 const RESOURCE_EMOJI: Record<Resource, string> = {
-  wood: '🌲',
+  wood: '🪵',
   brick: '🧱',
   grain: '🌾',
   ore: '⛏️',

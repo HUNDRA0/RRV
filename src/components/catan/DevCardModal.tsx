@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { DevCardType, Resource } from './types';
 
 const RESOURCE_EMOJI: Record<Resource, string> = {
-  wood: '🌲',
+  wood: '🪵',
   brick: '🧱',
   grain: '🌾',
   ore: '⛏️',
