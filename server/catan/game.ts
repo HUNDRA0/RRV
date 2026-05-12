@@ -253,6 +253,7 @@ function handleSetupSettlement(state: GameState, player: Player, vertexId: strin
     players: updatedPlayers,
     board: { ...state.board, vertices: updatedVertices },
     setupStep: 'road',
+    diceOffWinnerId: null, // first placement clears the diceOff announcement
     log: [...state.log, `${player.name} placed a settlement.`],
     updatedAt: Date.now(),
   };
@@ -838,6 +839,7 @@ function handleDiceOffRoll(state: GameState, playerId: string): GameState {
       currentPlayerIndex: winnerIdx,
       diceOffRolls: undefined,
       diceOffActive: undefined,
+      diceOffWinnerId: winners[0].pid,
       setupRound: 1,
       setupDirection: 'forward',
       setupStep: 'settlement',

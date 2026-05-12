@@ -88,6 +88,7 @@ export interface ClientGameState {
   pendingAction: PendingAction | null;
   diceOffRolls?: Record<string, [number, number] | null>;
   diceOffActive?: string[];
+  diceOffWinnerId?: string | null;
   turnDeadline: number | null;
   log: string[];
   chatMessages: Array<{ playerId: string; playerName: string; text: string; ts: number; system?: boolean }>;
