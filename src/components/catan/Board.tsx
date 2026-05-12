@@ -222,8 +222,8 @@ export function Board({
 
   const xs = vertices.map(v => v.x);
   const ys = vertices.map(v => v.y);
-  const padTop = 44;
-  const padSide = 44;
+  const padTop = 100;
+  const padSide = 100;
   const padBottom = 80;
   const minX = Math.min(...xs) - padSide;
   const minY = Math.min(...ys) - padTop;
@@ -541,8 +541,8 @@ export function Board({
             const isMe = p.id === myPlayerId;
             const isCurrent = idx === state.currentPlayerIndex;
             // Current player card is a bit wider to fit the timer next to VP
-            const cardW = (isMe ? 230 : 180) + (isCurrent ? 42 : 0);
-            const cardH = isMe ? 72 : 58;
+            const cardW = (isMe ? 185 : 150) + (isCurrent ? 30 : 0);
+            const cardH = isMe ? 68 : 54;
             const cardX = corner.anchorRight ? corner.x - cardW : corner.x;
             const cardY = corner.anchorBottom ? corner.y - cardH : corner.y;
             const pc = PLAYER_COLORS[p.color] ?? '#888';
@@ -612,14 +612,14 @@ export function Board({
                 {isMe && res && (
                   <text
                     x={cardX + 10} y={cardY + cardH - 10}
-                    fontSize={21} fill="rgba(255,255,255,0.96)"
+                    fontSize={18} fill="rgba(255,255,255,0.96)"
                     fontFamily="var(--font-body)"
                     style={{ userSelect: 'none', pointerEvents: 'none' }}
                   >
                     {RESOURCES_ORDER.map((r, i) => (
-                      <tspan key={r} dx={i === 0 ? 0 : 6}>
+                      <tspan key={r} dx={i === 0 ? 0 : 5}>
                         {RESOURCE_EMOJI_BOARD[r]}
-                        <tspan fontSize={15} fontWeight={800} dx={1}>{res[r] ?? 0}</tspan>
+                        <tspan fontSize={13} fontWeight={800} dx={1}>{res[r] ?? 0}</tspan>
                       </tspan>
                     ))}
                   </text>
