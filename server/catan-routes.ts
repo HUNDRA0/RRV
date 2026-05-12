@@ -10,6 +10,7 @@ import {
   type GameAction,
 } from './catan/game.js';
 import type { GameState, Player } from './catan/types.js';
+import { emitGameUpdate, subscribeGameUpdate } from './catan/events.js';
 
 // ── Persistence helpers ───────────────────────────────────────────────────────
 
@@ -24,6 +25,7 @@ async function saveGame(state: GameState): Promise<void> {
     'INSERT OR REPLACE INTO catan_games (id, state, updated_at) VALUES (?, ?, unixepoch())',
     [state.id, JSON.stringify(state)],
   );
+  emitGameUpdate(state.id);
 }
 
 async function getPlayerId(gameId: string, token: string): Promise<string | null> {
@@ -191,16 +193,23 @@ export function addCatanRoutes(router: Router): void {
       return;
     }
 
-    // Long poll: if client already has this version, hold up to 7 s for a change.
-    // Uses a single sleep + one re-read (2 DB reads total per cycle).
-    // Vercel hobby limit is 10 s per function; 7 s keeps us safely under.
+    // Long poll: if client already has this version, hold up to 7 s OR until
+    // an event-emitter signals a state change for this game (typically within
+    // ~50 ms after the other player's action). Vercel hobby 10 s timeout cap.
     if (sinceParam !== undefined && state.updatedAt === Number(sinceParam) && !state.winner) {
+      // Prevent buffering proxies from breaking the hold
+      res.setHeader('Cache-Control', 'no-store');
       await new Promise<void>(resolve => {
-        const t = setTimeout(resolve, 7000);
-        req.on('close', () => { clearTimeout(t); resolve(); });
+        let done = false;
+        const finish = () => { if (done) return; done = true; clearTimeout(t); unsubscribe(); resolve(); };
+        const t = setTimeout(finish, 7000);
+        const unsubscribe = subscribeGameUpdate(id, finish);
+        req.on('close', finish);
       });
       const fresh = await loadGame(id);
       if (fresh) state = fresh;
+    } else {
+      res.setHeader('Cache-Control', 'no-store');
     }
 
     let requestingPlayerId: string | null = null;

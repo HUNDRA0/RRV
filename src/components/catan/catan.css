@@ -275,9 +275,72 @@
 
 /* ----- Game layout ----- */
 .catan-game-wrap {
-  max-width: 1280px;
+  max-width: 1480px;
   margin: 0 auto;
   padding: 0 16px;
+}
+
+/* Desktop: side column (chat, trade card, diceoff) left, board right.
+   Action bar spans both, leave button below. Board height capped so the map
+   never dominates the viewport. */
+@media (min-width: 1100px) {
+  .catan-game-wrap {
+    display: grid;
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    column-gap: 20px;
+    row-gap: 12px;
+    align-items: start;
+    grid-auto-rows: min-content;
+  }
+  /* Header + action bar + leave btn span both columns */
+  .catan-game-header,
+  .catan-action-bar,
+  .catan-leave-btn-wrap {
+    grid-column: 1 / -1;
+  }
+  .catan-game-header { margin-bottom: 0; }
+  .catan-action-bar  { margin-top: 0; }
+  .catan-leave-btn-wrap { margin-top: 4px; }
+
+  /* Board lives in the right column, vertically anchored to its row top */
+  .catan-board-wrap {
+    grid-column: 2;
+    grid-row: 2 / span 20;
+    align-self: start;
+    position: sticky;
+    top: 80px;
+  }
+  .catan-board-svg {
+    max-height: calc(100vh - 220px);
+    width: auto;
+    max-width: 100%;
+  }
+
+  /* Side-column items stack in column 1 */
+  .catan-diceoff-panel,
+  .catan-trade-card,
+  .catan-chat-wrap {
+    grid-column: 1;
+  }
+  .catan-chat-wrap {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 320px);
+    margin-bottom: 0;
+  }
+  .catan-chat-wrap .catan-chat-messages {
+    flex: 1;
+    max-height: none;
+    min-height: 180px;
+  }
+}
+
+/* Very wide screens (24"+) — cap the board so it doesn't dominate */
+@media (min-width: 1500px) {
+  .catan-game-wrap {
+    grid-template-columns: minmax(340px, 400px) minmax(0, 1fr);
+  }
+  .catan-board-svg { max-height: calc(100vh - 200px); }
 }
 
 .catan-game-header {
@@ -1006,6 +1069,35 @@
   font-size: 14px;
   color: var(--ink-soft);
   font-weight: 500;
+}
+
+/* ----- Turn timer (hourglass + seconds) ----- */
+.catan-turn-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: var(--bg);
+  border: 1.5px solid var(--line-strong);
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.catan-turn-timer-icon { font-size: 16px; line-height: 1; }
+.catan-turn-timer-secs { line-height: 1; }
+.catan-turn-timer.warning {
+  color: #dc2626;
+  border-color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+  animation: catanTimerPulse 0.8s ease-in-out infinite;
+}
+@keyframes catanTimerPulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.06); }
 }
 
 /* ============================================================

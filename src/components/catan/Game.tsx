@@ -76,6 +76,8 @@ const ERROR_TRANSLATIONS: Record<string, string> = {
   'No current player':                        'Ingen aktiv spelare',
   'Player not found':                         'Spelaren hittades inte',
   'Unknown action type':                      'Okänd åtgärd',
+  'No active timer':                          'Ingen aktiv timer',
+  'Turn not yet expired':                     'Turen är inte slut än',
 };
 
 function translateError(msg: string): string {
@@ -230,6 +232,26 @@ const BUILDING_INFO: Record<string, { name: string; emoji: string; cost: Resourc
   devCard:    { name: 'Utvecklingskort', emoji: '🂠', cost: BUILDING_COSTS.devCard },
 };
 
+// ── Turn timer (hourglass + countdown) ─────────────────────────────────────
+function TurnTimer({ deadline }: { deadline: number | null }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (deadline === null) return;
+    const id = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(id);
+  }, [deadline]);
+  if (deadline === null) return null;
+  const remainingMs = Math.max(0, deadline - now);
+  const secs = Math.ceil(remainingMs / 1000);
+  const isWarning = secs <= 10;
+  return (
+    <span className={`catan-turn-timer${isWarning ? ' warning' : ''}`} title="Tid kvar på turen">
+      <span className="catan-turn-timer-icon">⏳</span>
+      <span className="catan-turn-timer-secs">{secs}s</span>
+    </span>
+  );
+}
+
 function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenTrade, onOpenDevCard }: ActionBarProps) {
   const isMyTurn = state.players[state.currentPlayerIndex]?.id === myPlayer.id;
   const isPlaying = state.phase === 'playing';
@@ -278,6 +300,7 @@ function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenT
 
   return (
     <div className="catan-action-bar">
+      <TurnTimer deadline={state.turnDeadline} />
       {/* Cost tooltip — floats above the action bar */}
       {tooltipInfo && (
         <div className="catan-cost-tooltip">
@@ -480,6 +503,30 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
     const el = chatMessagesRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [state.chatMessages?.length]);
+
+  // Auto-trigger forceEndTurn when the deadline has been past for 2 s.
+  // Only one client needs to send it (server is idempotent on second attempt).
+  // We pick the player whose ID sorts lowest to avoid duplicate calls.
+  const deadline = state.turnDeadline;
+  useEffect(() => {
+    if (deadline === null) return;
+    if (state.winner) return;
+    const activeIds = state.diceOffActive ?? state.players.map(p => p.id);
+    const sortedFirst = [...activeIds].sort()[0];
+    if (state.myPlayerId !== sortedFirst) return; // only the "leader" client triggers
+    const fireAt = deadline + 2000; // 2 s grace
+    const ms = fireAt - Date.now();
+    const trigger = () => {
+      sendAction({ type: 'forceEndTurn' }).catch(() => { /* ignore — likely already advanced */ });
+    };
+    if (ms <= 0) {
+      trigger();
+      return;
+    }
+    const t = setTimeout(trigger, ms);
+    return () => clearTimeout(t);
+  }, [deadline, state.winner, state.myPlayerId, state.diceOffActive, state.players, sendAction]);
+
 
   const myPlayer: ClientPlayer | undefined = state.players.find(p => p.id === state.myPlayerId);
   if (!myPlayer) {
