@@ -189,7 +189,7 @@ export function Lobby({ onGameStart }: LobbyProps) {
               value={playerName}
               onChange={e => setPlayerName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') void handleJoin(); }}
-              maxLength={20}
+              maxLength={8}
               autoFocus
             />
           </div>
@@ -298,7 +298,7 @@ export function Lobby({ onGameStart }: LobbyProps) {
             placeholder="Ange namn…"
             value={playerName}
             onChange={e => setPlayerName(e.target.value)}
-            maxLength={20}
+            maxLength={8}
           />
         </div>
 
