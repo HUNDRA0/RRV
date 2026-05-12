@@ -96,6 +96,110 @@ function formatResources(r: Resources): string {
     .join(' ') || '—';
 }
 
+// ── Catan-style SVG icons ────────────────────────────────────────────────────
+function IconSettlement({ size = 36 }: { size?: number }) {
+  // Classic Catan settlement: square base + triangular peaked roof
+  return (
+    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* roof */}
+      <polygon points="18,4 32,20 4,20" fill="#c8783a" stroke="#7a3d10" strokeWidth="1.5" strokeLinejoin="round"/>
+      {/* walls */}
+      <rect x="7" y="19" width="22" height="13" rx="1" fill="#e8a060" stroke="#7a3d10" strokeWidth="1.5"/>
+      {/* door */}
+      <rect x="14" y="25" width="8" height="7" rx="1" fill="#7a3d10"/>
+      {/* roof ridge */}
+      <line x1="18" y1="4" x2="18" y2="19" stroke="#7a3d10" strokeWidth="1" strokeDasharray="2,2" opacity="0.4"/>
+    </svg>
+  );
+}
+
+function IconCity({ size = 36 }: { size?: number }) {
+  // Catan city: a tall tower (left) + wider hall (right)
+  return (
+    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* wide hall */}
+      <rect x="16" y="20" width="17" height="12" rx="1" fill="#a08cd0" stroke="#5b3fa0" strokeWidth="1.5"/>
+      {/* hall roof */}
+      <polygon points="16,20 33,20 33,15 16,15" fill="#8870c0" stroke="#5b3fa0" strokeWidth="1.5"/>
+      {/* tall tower */}
+      <rect x="4" y="11" width="15" height="21" rx="1" fill="#c0a8e8" stroke="#5b3fa0" strokeWidth="1.5"/>
+      {/* tower roof */}
+      <polygon points="4,11 19,11 11.5,4" fill="#a080d0" stroke="#5b3fa0" strokeWidth="1.5" strokeLinejoin="round"/>
+      {/* tower door */}
+      <rect x="8" y="25" width="7" height="7" rx="1" fill="#5b3fa0"/>
+      {/* tower window */}
+      <rect x="9" y="16" width="5" height="5" rx="0.5" fill="#fbbf24" opacity="0.8"/>
+    </svg>
+  );
+}
+
+function IconRoad({ size = 36 }: { size?: number }) {
+  // Catan road: a plank/log bridge at an angle
+  return (
+    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* main road plank (rotated rectangle) */}
+      <rect x="4" y="13" width="28" height="10" rx="3" fill="#c8783a" stroke="#7a3d10" strokeWidth="1.5"
+        transform="rotate(-18 18 18)"/>
+      {/* wood grain lines */}
+      <line x1="10" y1="10" x2="8" y2="26" stroke="#7a3d10" strokeWidth="1" opacity="0.35"
+        transform="rotate(-18 18 18)"/>
+      <line x1="18" y1="8" x2="16" y2="28" stroke="#7a3d10" strokeWidth="1" opacity="0.35"
+        transform="rotate(-18 18 18)"/>
+      <line x1="26" y1="10" x2="24" y2="26" stroke="#7a3d10" strokeWidth="1" opacity="0.35"
+        transform="rotate(-18 18 18)"/>
+    </svg>
+  );
+}
+
+function IconDevCard({ size = 36 }: { size?: number }) {
+  // Ornate development card: purple card with gold shield / star
+  return (
+    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* card body */}
+      <rect x="5" y="2" width="26" height="32" rx="3" fill="#4c1d95" stroke="#fbbf24" strokeWidth="1.8"/>
+      {/* inner border */}
+      <rect x="8" y="5" width="20" height="26" rx="2" fill="none" stroke="#fbbf24" strokeWidth="0.8" opacity="0.5"/>
+      {/* gold star / knight symbol */}
+      <text x="18" y="23" textAnchor="middle" fontSize="18" fill="#fbbf24">★</text>
+      {/* card top pip */}
+      <circle cx="18" cy="8" r="2" fill="#fbbf24" opacity="0.8"/>
+    </svg>
+  );
+}
+
+function IconTrade({ size = 36 }: { size?: number }) {
+  // Two arrows crossing = trade
+  return (
+    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* top-left to bottom-right arrow */}
+      <path d="M6 10 L26 10 L26 16" stroke="#e8a060" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <polygon points="22,7 30,10 22,13" fill="#e8a060"/>
+      {/* bottom-right to top-left arrow */}
+      <path d="M30 26 L10 26 L10 20" stroke="#a080d0" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      <polygon points="14,29 6,26 14,23" fill="#a080d0"/>
+    </svg>
+  );
+}
+
+function IconPlayCard({ size = 36 }: { size?: number }) {
+  // Sword — use dev card
+  return (
+    <svg width={size} height={size} viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* blade */}
+      <path d="M20 6 L30 4 L28 14 L10 30 L6 26 Z" fill="#d0d8e8" stroke="#5b7090" strokeWidth="1.5" strokeLinejoin="round"/>
+      {/* guard */}
+      <rect x="12" y="20" width="12" height="3.5" rx="1.5" fill="#fbbf24" stroke="#a07800" strokeWidth="1"
+        transform="rotate(-45 18 21.75)"/>
+      {/* grip */}
+      <rect x="5" y="27" width="10" height="3" rx="1.5" fill="#7a3d10" stroke="#4a1d00" strokeWidth="1"
+        transform="rotate(-45 10 28.5)"/>
+      {/* blade shine */}
+      <line x1="12" y1="24" x2="25" y2="9" stroke="white" strokeWidth="1" opacity="0.5"
+        strokeLinecap="round"/>
+    </svg>
+  );
+}
+
 // Building costs used by the action bar
 const BUILDING_COSTS: Record<string, Resources> = {
   settlement: { wood: 1, brick: 1, grain: 1, wool: 1, ore: 0 },
@@ -220,33 +324,37 @@ function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenT
             <button
               className={`catan-bar-icon-btn${buildMode === 'settlement' ? ' active' : ''}${!canBuildSettlement ? ' cant-afford' : ''}`}
               onClick={() => handleBuildClick('settlement', canBuildSettlement)}
+              title="Bosättning"
             >
-              🏠
+              <IconSettlement />
             </button>
             <button
               className={`catan-bar-icon-btn${buildMode === 'road' ? ' active' : ''}${!canBuildRoad ? ' cant-afford' : ''}`}
               onClick={() => handleBuildClick('road', canBuildRoad)}
+              title="Väg"
             >
-              🛤️
+              <IconRoad />
             </button>
             <button
               className={`catan-bar-icon-btn${buildMode === 'city' ? ' active' : ''}${!canBuildCity ? ' cant-afford' : ''}`}
               onClick={() => handleBuildClick('city', canBuildCity)}
+              title="Stad"
             >
-              🏙️
+              <IconCity />
             </button>
             <button
               className={`catan-bar-icon-btn${!canBuyDev ? ' cant-afford' : ''}`}
               onClick={handleDevCardClick}
+              title="Köp utvecklingskort"
             >
-              🂠
+              <IconDevCard />
             </button>
             <button
               className="catan-bar-icon-btn"
               onClick={() => { setCostTooltip(null); onOpenTrade(); }}
               title="Handla"
             >
-              🔄
+              <IconTrade />
             </button>
             {myDevCards.length > 0 && !myPlayer.devCardPlayedThisTurn && (
               <button
@@ -254,7 +362,7 @@ function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenT
                 onClick={onOpenDevCard}
                 title="Spela utvecklingskort"
               >
-                ⚔️
+                <IconPlayCard />
               </button>
             )}
             <button className="catan-bar-primary" onClick={handleEndTurn}>
