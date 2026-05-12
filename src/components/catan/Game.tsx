@@ -13,7 +13,7 @@ import {
 } from './gameHelpers';
 
 const RESOURCE_EMOJI: Record<string, string> = {
-  wood: '🌲', brick: '🧱', grain: '🌾', ore: '🪨', wool: '🐑',
+  wood: '🪵', brick: '🧱', grain: '🌾', ore: '🪨', wool: '🐑',
 };
 
 // ── Swedish error translations ──────────────────────────────────────────────
@@ -222,7 +222,7 @@ interface ActionBarProps {
 }
 
 const RESOURCE_EMOJI_BAR: Record<string, string> = {
-  wood: '🌲', brick: '🧱', grain: '🌾', ore: '🪨', wool: '🐑',
+  wood: '🪵', brick: '🧱', grain: '🌾', ore: '🪨', wool: '🐑',
 };
 
 const BUILDING_INFO: Record<string, { name: string; emoji: string; cost: Resources }> = {

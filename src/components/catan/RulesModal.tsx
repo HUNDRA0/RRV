@@ -42,9 +42,9 @@ export function RulesModal({ onClose }: RulesModalProps) {
           </section>
 
           <section className="catan-rules-section">
-            <h3>🌲 Resurser</h3>
+            <h3>🪵 Resurser</h3>
             <ul className="catan-rules-resources">
-              <li>🌲 <strong>Virke</strong> – skog</li>
+              <li>🪵 <strong>Virke</strong> – skog</li>
               <li>🧱 <strong>Tegel</strong> – lerhögar</li>
               <li>🐑 <strong>Får (Ull)</strong> – betesmark</li>
               <li>🌾 <strong>Vete</strong> – åkrar</li>
@@ -58,7 +58,7 @@ export function RulesModal({ onClose }: RulesModalProps) {
               <tbody>
                 <tr>
                   <td>🏠 <strong>Bosättning</strong></td>
-                  <td>🌲 + 🧱 + 🐑 + 🌾</td>
+                  <td>🪵 + 🧱 + 🐑 + 🌾</td>
                   <td>= <strong>1p</strong></td>
                 </tr>
                 <tr>
@@ -68,7 +68,7 @@ export function RulesModal({ onClose }: RulesModalProps) {
                 </tr>
                 <tr>
                   <td>🛤️ <strong>Väg</strong></td>
-                  <td>🌲 + 🧱</td>
+                  <td>🪵 + 🧱</td>
                   <td>= <strong>0p</strong></td>
                 </tr>
                 <tr>

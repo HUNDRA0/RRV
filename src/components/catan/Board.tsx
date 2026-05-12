@@ -1,7 +1,7 @@
 import type { ClientGameState, HexTile, Vertex, PlayerColor, Resource } from './types';
 
 const RESOURCE_EMOJI_BOARD: Record<Resource, string> = {
-  wood: '🌲',
+  wood: '🪵',
   brick: '🧱',
   grain: '🌾',
   ore: '🪨',
@@ -45,7 +45,7 @@ const PLAYER_STROKE: Record<PlayerColor, string> = {
 };
 
 const TERRAIN_EMOJI: Record<string, string> = {
-  wood:   '🌲',
+  wood:   '🪵',
   grain:  '🌾',
   wool:   '🐑',
   ore:    '🪨',
@@ -55,7 +55,7 @@ const TERRAIN_EMOJI: Record<string, string> = {
 
 // Emoji for specific harbor types (shown inside the harbor icon)
 const HARBOR_EMOJI: Record<string, string> = {
-  wood: '🌲', grain: '🌾', wool: '🐑', ore: '🪨', brick: '🧱',
+  wood: '🪵', grain: '🌾', wool: '🐑', ore: '🪨', brick: '🧱',
 };
 
 // Probability dots for number tokens
