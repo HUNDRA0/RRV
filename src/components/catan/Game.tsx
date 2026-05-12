@@ -679,16 +679,13 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
 
   return (
     <div className="catan-game-wrap">
-      <div className="catan-game-header">
-        <div className="catan-game-info">
-          <span className="catan-room-code-sm">#{state.code}</span>
-          {state.phase === 'ended' && state.winner && (
-            <span className="catan-winner-badge">
-              🏆 {state.players.find(p => p.id === state.winner)?.name ?? 'Okänd'} vann!
-            </span>
-          )}
+      {state.phase === 'ended' && state.winner && (
+        <div className="catan-game-header">
+          <span className="catan-winner-badge">
+            🏆 {state.players.find(p => p.id === state.winner)?.name ?? 'Okänd'} vann!
+          </span>
         </div>
-      </div>
+      )}
 
       {/* ── Dice-off winner announcement ── */}
       {state.diceOffWinnerId && state.diceOffWinnerId !== dismissedWinnerId && (() => {
@@ -729,44 +726,45 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
         </div>
       )}
 
-      {/* ── Dice-off panel ── */}
+      {/* ── Dice-off overlay popup ── */}
       {state.phase === 'diceOff' && state.diceOffRolls && (
-        <div className="catan-diceoff-panel">
-          <div className="catan-diceoff-header">
-            <span className="catan-diceoff-title">🎲 Vem börjar?</span>
+        <div className="catan-error-overlay">
+          <div className="catan-diceoff-modal" onClick={e => e.stopPropagation()}>
+            <div className="catan-diceoff-modal-icon">🎲</div>
+            <h2 className="catan-diceoff-modal-title">Vem börjar?</h2>
             {state.diceOffActive && state.diceOffActive.length < state.players.length && (
-              <span className="catan-diceoff-tiebreak">Oavgjort — kasta om!</span>
+              <p className="catan-diceoff-modal-tiebreak">Oavgjort — kasta om!</p>
+            )}
+            <div className="catan-diceoff-rows">
+              {state.players.map(p => {
+                const roll = state.diceOffRolls![p.id];
+                const isActive = state.diceOffActive?.includes(p.id);
+                return (
+                  <div key={p.id} className={`catan-diceoff-row${isActive ? ' active' : ''}`}>
+                    <span className={`catan-player-dot player-${p.color}`} style={{ width: 12, height: 12, borderRadius: '50%', display: 'inline-block', background: 'var(--pc)' }} />
+                    <span className="catan-diceoff-name">{p.id === myPlayer.id ? 'Du' : p.name}</span>
+                    <span className="catan-diceoff-result">
+                      {roll
+                        ? `🎲 ${roll[0]} + ${roll[1]} = ${roll[0] + roll[1]}`
+                        : isActive ? '⏳' : '—'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            {state.diceOffActive?.includes(myPlayer.id) && !state.diceOffRolls[myPlayer.id] && (
+              <button
+                className="catan-btn catan-btn-primary"
+                style={{ marginTop: 14, width: '100%' }}
+                onClick={() => void dispatch({ type: 'diceOffRoll' })}
+              >
+                🎲 Kasta tärning
+              </button>
+            )}
+            {state.diceOffActive?.includes(myPlayer.id) && state.diceOffRolls[myPlayer.id] && (
+              <p className="catan-muted" style={{ marginTop: 10, fontSize: 13 }}>Väntar på de andra…</p>
             )}
           </div>
-          <div className="catan-diceoff-rows">
-            {state.players.map(p => {
-              const roll = state.diceOffRolls![p.id];
-              const isActive = state.diceOffActive?.includes(p.id);
-              return (
-                <div key={p.id} className={`catan-diceoff-row${isActive ? ' active' : ''}`}>
-                  <span className={`catan-player-dot player-${p.color}`} style={{ width: 10, height: 10, borderRadius: '50%', display: 'inline-block', background: 'var(--pc)' }} />
-                  <span className="catan-diceoff-name">{p.name}</span>
-                  <span className="catan-diceoff-result">
-                    {roll
-                      ? `🎲 ${roll[0]} + ${roll[1]} = ${roll[0] + roll[1]}`
-                      : isActive ? '⏳' : '—'}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-          {state.diceOffActive?.includes(myPlayer.id) && !state.diceOffRolls[myPlayer.id] && (
-            <button
-              className="catan-btn catan-btn-primary"
-              style={{ marginTop: 10, width: '100%' }}
-              onClick={() => void dispatch({ type: 'diceOffRoll' })}
-            >
-              🎲 Kasta tärning
-            </button>
-          )}
-          {state.diceOffActive?.includes(myPlayer.id) && state.diceOffRolls[myPlayer.id] && (
-            <p className="catan-muted" style={{ marginTop: 8, fontSize: 13 }}>Väntar på de andra…</p>
-          )}
         </div>
       )}
 
@@ -858,6 +856,7 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
 
       {/* Chat panel */}
       <div className="catan-chat-wrap">
+        <div className="catan-chat-room-line">Rum <span className="catan-chat-room-code">#{state.code}</span></div>
         <div className="catan-chat-messages" ref={chatMessagesRef}>
           {recentMessages.length === 0 ? (
             <p className="catan-chat-empty">Inga meddelanden än…</p>
