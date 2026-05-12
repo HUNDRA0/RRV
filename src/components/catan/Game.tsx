@@ -873,7 +873,7 @@ export function Game({ state, sendAction, sendChat, onLeave, onShowRules, gameId
             onClick={onShowRules}
             aria-label="Visa spelregler"
           >
-            ? Regler
+            Regler
           </button>
         </div>
         <div className="catan-chat-messages" ref={chatMessagesRef}>
