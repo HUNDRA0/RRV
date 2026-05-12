@@ -82,7 +82,7 @@ export function addCatanRoutes(router: Router): void {
   // POST /api/catan/create
   router.post('/catan/create', async (req, res) => {
     const body = req.body as { name?: unknown };
-    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const name = typeof body.name === 'string' ? body.name.trim().slice(0, 8) : '';
     if (!name) {
       res.status(400).json({ error: 'name is required' });
       return;
@@ -115,7 +115,7 @@ export function addCatanRoutes(router: Router): void {
   router.post('/catan/:id/join', async (req, res) => {
     const { id } = req.params as { id: string };
     const body = req.body as { name?: unknown };
-    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const name = typeof body.name === 'string' ? body.name.trim().slice(0, 8) : '';
     if (!name) {
       res.status(400).json({ error: 'name is required' });
       return;

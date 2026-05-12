@@ -541,8 +541,8 @@ export function Board({
             const isMe = p.id === myPlayerId;
             const isCurrent = idx === state.currentPlayerIndex;
             // Current player card is a bit wider to fit the timer next to VP
-            const cardW = (isMe ? 185 : 156) + (isCurrent ? 36 : 0);
-            const cardH = isMe ? 66 : 50;
+            const cardW = (isMe ? 230 : 180) + (isCurrent ? 42 : 0);
+            const cardH = isMe ? 72 : 58;
             const cardX = corner.anchorRight ? corner.x - cardW : corner.x;
             const cardY = corner.anchorBottom ? corner.y - cardH : corner.y;
             const pc = PLAYER_COLORS[p.color] ?? '#888';
@@ -574,24 +574,24 @@ export function Board({
                   />
                 )}
                 {/* Color dot */}
-                <circle cx={cardX + 16} cy={cardY + 18} r={7} fill={pc} />
-                {/* Player name */}
+                <circle cx={cardX + 18} cy={cardY + 22} r={8} fill={pc} />
+                {/* Player name (max 8 chars enforced by lobby + server) */}
                 <text
-                  x={cardX + 32} y={cardY + 24}
-                  fontSize={14} fontWeight="700" fill="white"
+                  x={cardX + 36} y={cardY + 28}
+                  fontSize={16} fontWeight="700" fill="white"
                   fontFamily="var(--font-body)"
                   style={{ userSelect: 'none', pointerEvents: 'none' }}
                 >
-                  {p.name.length > 11 ? p.name.slice(0, 10) + '…' : p.name}
+                  {p.name}
                 </text>
                 {/* Turn timer — only on the active player's card */}
                 {isCurrent && state.turnDeadline !== null && (
-                  <CornerTimer x={cardX + cardW - 44} y={cardY + 24} deadline={state.turnDeadline} />
+                  <CornerTimer x={cardX + cardW - 50} y={cardY + 28} deadline={state.turnDeadline} />
                 )}
                 {/* VP */}
                 <text
-                  x={cardX + cardW - 8} y={cardY + 24}
-                  textAnchor="end" fontSize={12} fill="rgba(255,255,255,0.70)"
+                  x={cardX + cardW - 10} y={cardY + 28}
+                  textAnchor="end" fontSize={14} fill="rgba(255,255,255,0.75)"
                   fontFamily="var(--font-body)"
                   style={{ userSelect: 'none', pointerEvents: 'none' }}
                 >
@@ -600,23 +600,28 @@ export function Board({
                 {/* Hand count for other players */}
                 {!isMe && (
                   <text
-                    x={cardX + 10} y={cardY + cardH - 8}
-                    fontSize={12} fill="rgba(255,255,255,0.65)"
+                    x={cardX + 12} y={cardY + cardH - 10}
+                    fontSize={14} fill="rgba(255,255,255,0.70)"
                     fontFamily="var(--font-body)"
                     style={{ userSelect: 'none', pointerEvents: 'none' }}
                   >
                     🃏 {(p as {handSize?: number}).handSize ?? '?'}
                   </text>
                 )}
-                {/* Resource row (only for myself) */}
+                {/* Resource row (only for myself) — emoji + bold count, snug spacing */}
                 {isMe && res && (
                   <text
-                    x={cardX + 8} y={cardY + cardH - 8}
-                    fontSize={15} fill="rgba(255,255,255,0.95)"
+                    x={cardX + 10} y={cardY + cardH - 10}
+                    fontSize={21} fill="rgba(255,255,255,0.96)"
                     fontFamily="var(--font-body)"
                     style={{ userSelect: 'none', pointerEvents: 'none' }}
                   >
-                    {RESOURCES_ORDER.map(r => `${RESOURCE_EMOJI_BOARD[r]}${res[r] ?? 0}`).join(' ')}
+                    {RESOURCES_ORDER.map((r, i) => (
+                      <tspan key={r} dx={i === 0 ? 0 : 6}>
+                        {RESOURCE_EMOJI_BOARD[r]}
+                        <tspan fontSize={15} fontWeight={800} dx={1}>{res[r] ?? 0}</tspan>
+                      </tspan>
+                    ))}
                   </text>
                 )}
                 {/* Directional arrow for current player */}
