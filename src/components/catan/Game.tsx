@@ -451,11 +451,12 @@ interface GameProps {
   sendAction: (action: object) => Promise<void>;
   sendChat: (text: string) => Promise<void>;
   onLeave: () => void;
+  onShowRules: () => void;
   gameId: string;
   token: string;
 }
 
-export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: GameProps) {
+export function Game({ state, sendAction, sendChat, onLeave, onShowRules, gameId, token }: GameProps) {
   const [buildMode, setBuildMode] = useState<string | null>(null);
   const [showTrade, setShowTrade] = useState(false);
   const [showDevCard, setShowDevCard] = useState(false);
@@ -854,9 +855,27 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
         );
       })()}
 
+      {/* Floating top-right Lämna-button (replaces the previous rules button slot) */}
+      <button
+        className="catan-leave-top-btn"
+        onClick={() => setShowLeaveConfirm(true)}
+        aria-label="Lämna spel"
+      >
+        Lämna spel
+      </button>
+
       {/* Chat panel */}
       <div className="catan-chat-wrap">
-        <div className="catan-chat-room-line">Rum <span className="catan-chat-room-code">#{state.code}</span></div>
+        <div className="catan-chat-room-line">
+          <span>Rum <span className="catan-chat-room-code">#{state.code}</span></span>
+          <button
+            className="catan-chat-rules-btn"
+            onClick={onShowRules}
+            aria-label="Visa spelregler"
+          >
+            ? Regler
+          </button>
+        </div>
         <div className="catan-chat-messages" ref={chatMessagesRef}>
           {recentMessages.length === 0 ? (
             <p className="catan-chat-empty">Inga meddelanden än…</p>
@@ -922,16 +941,6 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
         onOpenTrade={() => setShowTrade(true)}
         onOpenDevCard={() => setShowDevCard(true)}
       />
-
-      {/* Leave button below the action bar */}
-      <div className="catan-leave-btn-wrap">
-        <button
-          className="catan-btn catan-btn-ghost catan-btn-sm catan-leave-btn"
-          onClick={() => setShowLeaveConfirm(true)}
-        >
-          Lämna spel
-        </button>
-      </div>
 
       {/* Modals */}
       {showTrade && (

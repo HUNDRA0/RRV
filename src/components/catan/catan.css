@@ -95,7 +95,7 @@
 /* ----- Page ----- */
 .catan-page {
   min-height: 100vh;
-  padding: 80px 0 60px;
+  padding: 56px 0 40px;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-body);
@@ -811,6 +811,10 @@
 }
 
 .catan-chat-room-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   font-size: 11px;
   color: var(--mute);
   font-weight: 600;
@@ -827,6 +831,41 @@
   font-weight: 700;
   margin-left: 4px;
 }
+.catan-chat-rules-btn {
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.catan-chat-rules-btn:hover { background: var(--bg-2); color: var(--ink); }
+
+/* ----- Floating top-right Lämna spel button (in-game) ----- */
+.catan-leave-top-btn {
+  position: fixed;
+  top: 14px;
+  right: 16px;
+  z-index: 60;
+  background: var(--paper);
+  border: 1px solid var(--rose);
+  color: var(--rose);
+  border-radius: 99px;
+  padding: 7px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  transition: background 0.15s, color 0.15s;
+}
+.catan-leave-top-btn:hover { background: var(--rose); color: #fff; }
 
 .catan-chat-messages {
   display: flex;

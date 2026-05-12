@@ -40,27 +40,33 @@ export function CatanPage() {
 
   return (
     <div className="catan-page">
-      <div className="catan-page-header">
-        <button
-          className="catan-back-btn"
-          onClick={() => { window.location.hash = ''; }}
-          aria-label="Tillbaka till huvudsidan"
-        >
-          ← Viber Rankings
-        </button>
-        <button
-          className="catan-rules-btn"
-          onClick={() => setShowRules(true)}
-          aria-label="Visa spelregler"
-        >
-          ? Regler
-        </button>
-      </div>
+      {/* In lobby, surface the rules button top-right. In game, Game.tsx
+          renders its own Lämna-button and inline Regler button next to the room code. */}
+      {!isInGame && (
+        <div className="catan-page-header">
+          <span />
+          <button
+            className="catan-rules-btn"
+            onClick={() => setShowRules(true)}
+            aria-label="Visa spelregler"
+          >
+            ? Regler
+          </button>
+        </div>
+      )}
 
       {error && <div className="catan-global-error">⚠️ {error}</div>}
 
       {isInGame ? (
-        <Game state={state} sendAction={sendAction} sendChat={sendChat} onLeave={handleLeave} gameId={gameId} token={token} />
+        <Game
+          state={state}
+          sendAction={sendAction}
+          sendChat={sendChat}
+          onLeave={handleLeave}
+          onShowRules={() => setShowRules(true)}
+          gameId={gameId}
+          token={token}
+        />
       ) : (
         <Lobby onGameStart={handleGameStart} />
       )}
