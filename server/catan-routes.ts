@@ -127,25 +127,24 @@ export function addCatanRoutes(router: Router): void {
       return;
     }
 
-    // Check if a player with this name already exists and has a token (rejoin)
-    const existingPlayer = state.players.find(p => p.name.toLowerCase() === name.toLowerCase());
-    if (existingPlayer) {
-      const existingToken = await queryOne<{ token: string }>(
-        'SELECT token FROM catan_players WHERE game_id = ? AND player_id = ?',
-        [id, existingPlayer.id],
-      );
-      if (existingToken) {
-        res.json({ playerId: existingPlayer.id, token: existingToken.token });
-        return;
-      }
+    // Name collisions: append " 2", " 3", … until unique. (Case-insensitive
+    // match.) Rejoin after refresh still works via the saved token in
+    // sessionStorage — name-based rejoin was unsafe (anyone with the room
+    // code could take over a slot just by guessing the name).
+    const takenLower = new Set(state.players.map(p => p.name.toLowerCase()));
+    let finalName = name;
+    if (takenLower.has(name.toLowerCase())) {
+      let n = 2;
+      while (takenLower.has(`${name} ${n}`.toLowerCase())) n++;
+      finalName = `${name} ${n}`;
     }
 
     try {
       const playerId = randomUUID();
-      const newState = addPlayer(state, playerId, name);
+      const newState = addPlayer(state, playerId, finalName);
       await saveGame(newState);
       const token = await createPlayerToken(id, playerId);
-      res.status(201).json({ playerId, token });
+      res.status(201).json({ playerId, token, name: finalName });
     } catch (err) {
       res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
     }
