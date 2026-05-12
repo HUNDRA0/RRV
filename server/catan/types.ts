@@ -86,7 +86,8 @@ export interface GameState {
   diceOffRolls?: Record<string, [number, number] | null>; // playerId → dice or null = not yet rolled
   diceOffActive?: string[]; // player IDs still competing (shrinks during tie-breaks)
   diceOffWinnerId?: string | null; // shown as an announcement after diceOff resolves; cleared on first setup placement
-  turnDeadline: number | null; // ms timestamp; null = no active timer (lobby/diceOff/ended)
+  turnDeadline: number | null;
+  timeoutBanner?: { expiredName: string; nextName: string; phase: GamePhase; ts: number } | null; // ms timestamp; null = no active timer (lobby/diceOff/ended)
   log: string[];
   chatMessages: Array<{ playerId: string; playerName: string; text: string; ts: number; system?: boolean }>;
   winner: string | null;

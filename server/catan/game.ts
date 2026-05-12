@@ -181,6 +181,10 @@ export type GameAction =
 
 export function applyAction(state: GameState, playerId: string, action: GameAction): GameState {
   if (state.winner) throw new Error('Game is over');
+  // Auto-clear the "timer expired" banner the moment a real action lands.
+  if (state.timeoutBanner && action.type !== 'forceEndTurn') {
+    state = { ...state, timeoutBanner: null };
+  }
 
   // diceOffRoll is allowed by any active player regardless of currentPlayerIndex
   if (action.type === 'diceOffRoll') return handleDiceOffRoll(state, playerId);
@@ -889,7 +893,6 @@ function handleForceEndTurn(state: GameState): GameState {
   }
 
   // Setup: skip the AFK player's setup turn (no settlement/road placed).
-  // Round 1 missed → no starting resources; round 2 missed → same. They lose pieces? No, just skip.
   if (state.phase === 'setup') {
     const skippedName = state.players[state.currentPlayerIndex]?.name ?? 'Spelaren';
     const skipped: GameState = {
@@ -897,13 +900,18 @@ function handleForceEndTurn(state: GameState): GameState {
       setupStep: state.setupStep === 'settlement' ? 'road' : state.setupStep,
       log: [...state.log, `${skippedName} hann inte placera — turen hoppas över.`],
     };
-    // advanceSetupTurn assumes road just placed; we mimic that by calling it directly
-    return advanceSetupTurn(skipped);
+    const advanced = advanceSetupTurn(skipped);
+    const nextName = advanced.players[advanced.currentPlayerIndex]?.name ?? 'nästa spelare';
+    return {
+      ...advanced,
+      timeoutBanner: { expiredName: skippedName, nextName, phase: advanced.phase, ts: Date.now() },
+    };
   }
 
   // Playing: skip to next player
   const currentName = state.players[state.currentPlayerIndex]?.name ?? 'Spelaren';
   const next = (state.currentPlayerIndex + 1) % state.players.length;
+  const nextName = state.players[next]?.name ?? 'nästa spelare';
   return {
     ...state,
     currentPlayerIndex: next,
@@ -912,10 +920,11 @@ function handleForceEndTurn(state: GameState): GameState {
     pendingAction: null,
     tradeOffer: null,
     turnDeadline: nextDeadline(),
+    timeoutBanner: { expiredName: currentName, nextName, phase: 'playing', ts: Date.now() },
     players: state.players.map(p => p.id === state.players[state.currentPlayerIndex].id
       ? { ...p, devCardPlayedThisTurn: false, justBoughtDevCard: null }
       : p),
-    log: [...state.log, `${currentName}s tid gick ut — turen går vidare.`],
+    log: [...state.log, `${currentName}s tid gick ut — ${nextName}s tur.`],
     updatedAt: Date.now(),
   };
 }

@@ -442,6 +442,7 @@ export function Game({ state, sendAction, sendChat, onLeave, onShowRules, gameId
   const [actionError, setActionError] = useState<string | null>(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [dismissedWinnerId, setDismissedWinnerId] = useState<string | null>(null);
+  const [dismissedTimeoutTs, setDismissedTimeoutTs] = useState<number | null>(null);
   const [chatText, setChatText] = useState('');
   const [chatSending, setChatSending] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -478,6 +479,14 @@ export function Game({ state, sendAction, sendChat, onLeave, onShowRules, gameId
       }
     }
   }, [state.dice]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-dismiss the timeout banner after 4 s so it doesn't linger
+  const timeoutBannerTs = state.timeoutBanner?.ts ?? null;
+  useEffect(() => {
+    if (timeoutBannerTs === null) return;
+    const t = setTimeout(() => setDismissedTimeoutTs(timeoutBannerTs), 4000);
+    return () => clearTimeout(t);
+  }, [timeoutBannerTs]);
 
   // Auto-scroll chat to bottom when new messages arrive
   useEffect(() => {
@@ -666,6 +675,31 @@ export function Game({ state, sendAction, sendChat, onLeave, onShowRules, gameId
           </span>
         </div>
       )}
+
+      {/* ── Turn timeout banner ── */}
+      {state.timeoutBanner && state.timeoutBanner.ts !== dismissedTimeoutTs && (() => {
+        const banner = state.timeoutBanner;
+        if (!banner) return null;
+        return (
+          <div className="catan-error-overlay" onClick={() => setDismissedTimeoutTs(banner.ts)}>
+            <div className="catan-timeout-modal" onClick={e => e.stopPropagation()}>
+              <div className="catan-timeout-modal-icon">⏰</div>
+              <h2 className="catan-timeout-modal-title">Tiden rann ut!</h2>
+              <p className="catan-timeout-modal-msg">
+                {banner.expiredName === myPlayer.name ? 'Du' : banner.expiredName} hann inte agera.
+                <br />
+                Nu är det <strong>{banner.nextName === myPlayer.name ? 'din' : `${banner.nextName}s`}</strong> tur.
+              </p>
+              <button
+                className="catan-btn catan-btn-primary catan-btn-sm"
+                onClick={() => setDismissedTimeoutTs(banner.ts)}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Dice-off winner announcement ── */}
       {state.diceOffWinnerId && state.diceOffWinnerId !== dismissedWinnerId && (() => {

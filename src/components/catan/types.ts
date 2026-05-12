@@ -90,6 +90,7 @@ export interface ClientGameState {
   diceOffActive?: string[];
   diceOffWinnerId?: string | null;
   turnDeadline: number | null;
+  timeoutBanner?: { expiredName: string; nextName: string; phase: GamePhase; ts: number } | null;
   log: string[];
   chatMessages: Array<{ playerId: string; playerName: string; text: string; ts: number; system?: boolean }>;
   winner: string | null;
