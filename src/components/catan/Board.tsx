@@ -10,23 +10,24 @@ const RESOURCE_EMOJI_BOARD: Record<Resource, string> = {
 const RESOURCES_ORDER: Resource[] = ['wood', 'brick', 'grain', 'wool', 'ore'];
 
 // Dark base colour (radial gradient edge)
+// Catan-board palette — muted natural tones, closer to the printed boardgame
 const TERRAIN_COLORS: Record<string, string> = {
-  wood:   '#1a4a18',
-  grain:  '#b88010',
-  wool:   '#4a8c18',
-  ore:    '#404e58',
-  brick:  '#7a2808',
-  desert: '#b89848',
+  wood:   '#2f4a2a', // forest: muted dark green
+  grain:  '#caa54a', // fields: wheat / mustard
+  wool:   '#8aa55c', // pasture: sage green
+  ore:    '#5a6068', // mountains: slate grey
+  brick:  '#a04a2a', // hills: terracotta
+  desert: '#d4b87a', // sandy beige
 };
 
 // Light centre colour (radial gradient highlight)
 const TERRAIN_COLORS_LIGHT: Record<string, string> = {
-  wood:   '#2e7028',
-  grain:  '#dca818',
-  wool:   '#6ab028',
-  ore:    '#6a848e',
-  brick:  '#b03818',
-  desert: '#d8b868',
+  wood:   '#456a3e',
+  grain:  '#e0bc62',
+  wool:   '#a8c279',
+  ore:    '#7c828a',
+  brick:  '#bd6240',
+  desert: '#e8d49a',
 };
 
 const PLAYER_COLORS: Record<PlayerColor, string> = {
@@ -258,9 +259,10 @@ export function Board({
             <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.3" />
           </filter>
           <radialGradient id="ocean-grad" cx="50%" cy="45%" r="70%">
-            <stop offset="0%" stopColor="#64b5f6" />
-            <stop offset="60%" stopColor="#1e88e5" />
-            <stop offset="100%" stopColor="#0d47a1" />
+            {/* Muted board-game ocean — desaturated steel blue rather than vivid sky */}
+            <stop offset="0%" stopColor="#6f93a8" />
+            <stop offset="60%" stopColor="#3f6a85" />
+            <stop offset="100%" stopColor="#2a4a60" />
           </radialGradient>
         </defs>
 
