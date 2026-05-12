@@ -50,7 +50,7 @@ export function CatanPage() {
             onClick={() => setShowRules(true)}
             aria-label="Visa spelregler"
           >
-            ? Regler
+            Regler
           </button>
         </div>
       )}
