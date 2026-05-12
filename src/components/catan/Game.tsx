@@ -232,26 +232,6 @@ const BUILDING_INFO: Record<string, { name: string; emoji: string; cost: Resourc
   devCard:    { name: 'Utvecklingskort', emoji: '🂠', cost: BUILDING_COSTS.devCard },
 };
 
-// ── Turn timer (hourglass + countdown) ─────────────────────────────────────
-function TurnTimer({ deadline }: { deadline: number | null }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (deadline === null) return;
-    const id = setInterval(() => setNow(Date.now()), 500);
-    return () => clearInterval(id);
-  }, [deadline]);
-  if (deadline === null) return null;
-  const remainingMs = Math.max(0, deadline - now);
-  const secs = Math.ceil(remainingMs / 1000);
-  const isWarning = secs <= 10;
-  return (
-    <span className={`catan-turn-timer${isWarning ? ' warning' : ''}`} title="Tid kvar på turen">
-      <span className="catan-turn-timer-icon">⏳</span>
-      <span className="catan-turn-timer-secs">{secs}s</span>
-    </span>
-  );
-}
-
 function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenTrade, onOpenDevCard }: ActionBarProps) {
   const isMyTurn = state.players[state.currentPlayerIndex]?.id === myPlayer.id;
   const isPlaying = state.phase === 'playing';
@@ -300,7 +280,6 @@ function ActionBar({ state, myPlayer, buildMode, setBuildMode, onAction, onOpenT
 
   return (
     <div className="catan-action-bar">
-      <TurnTimer deadline={state.turnDeadline} />
       {/* Cost tooltip — floats above the action bar */}
       {tooltipInfo && (
         <div className="catan-cost-tooltip">
@@ -855,26 +834,26 @@ export function Game({ state, sendAction, sendChat, onLeave, onShowRules, gameId
         );
       })()}
 
-      {/* Floating top-right Lämna-button (replaces the previous rules button slot) */}
-      <button
-        className="catan-leave-top-btn"
-        onClick={() => setShowLeaveConfirm(true)}
-        aria-label="Lämna spel"
-      >
-        Lämna spel
-      </button>
-
       {/* Chat panel */}
       <div className="catan-chat-wrap">
         <div className="catan-chat-room-line">
           <span>Rum <span className="catan-chat-room-code">#{state.code}</span></span>
-          <button
-            className="catan-chat-rules-btn"
-            onClick={onShowRules}
-            aria-label="Visa spelregler"
-          >
-            Regler
-          </button>
+          <div className="catan-chat-room-actions">
+            <button
+              className="catan-chat-rules-btn"
+              onClick={onShowRules}
+              aria-label="Visa spelregler"
+            >
+              Regler
+            </button>
+            <button
+              className="catan-chat-rules-btn catan-chat-leave-btn"
+              onClick={() => setShowLeaveConfirm(true)}
+              aria-label="Lämna spel"
+            >
+              Lämna
+            </button>
+          </div>
         </div>
         <div className="catan-chat-messages" ref={chatMessagesRef}>
           {recentMessages.length === 0 ? (

@@ -1,4 +1,30 @@
+import { useEffect, useState } from 'react';
 import type { ClientGameState, HexTile, Vertex, PlayerColor, Resource } from './types';
+
+// Ticking SVG-text countdown that lives inside a corner card.
+// Self-contained: re-renders every 500 ms while a deadline is active.
+function CornerTimer({ x, y, deadline }: { x: number; y: number; deadline: number | null }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (deadline === null) return;
+    const id = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(id);
+  }, [deadline]);
+  if (deadline === null) return null;
+  const secs = Math.max(0, Math.ceil((deadline - now) / 1000));
+  const warn = secs <= 10;
+  return (
+    <text x={x} y={y}
+      textAnchor="end"
+      fontSize={12} fontWeight={700}
+      fill={warn ? '#ff7575' : 'rgba(255,255,255,0.88)'}
+      fontFamily="var(--font-body)"
+      style={{ userSelect: 'none', pointerEvents: 'none' }}
+    >
+      ⏳{secs}s
+    </text>
+  );
+}
 
 const RESOURCE_EMOJI_BOARD: Record<Resource, string> = {
   wood: '🪵',
@@ -514,7 +540,8 @@ export function Board({
             if (!corner) return null;
             const isMe = p.id === myPlayerId;
             const isCurrent = idx === state.currentPlayerIndex;
-            const cardW = isMe ? 185 : 156;
+            // Current player card is a bit wider to fit the timer next to VP
+            const cardW = (isMe ? 185 : 156) + (isCurrent ? 36 : 0);
             const cardH = isMe ? 66 : 50;
             const cardX = corner.anchorRight ? corner.x - cardW : corner.x;
             const cardY = corner.anchorBottom ? corner.y - cardH : corner.y;
@@ -557,6 +584,10 @@ export function Board({
                 >
                   {p.name.length > 11 ? p.name.slice(0, 10) + '…' : p.name}
                 </text>
+                {/* Turn timer — only on the active player's card */}
+                {isCurrent && state.turnDeadline !== null && (
+                  <CornerTimer x={cardX + cardW - 44} y={cardY + 24} deadline={state.turnDeadline} />
+                )}
                 {/* VP */}
                 <text
                   x={cardX + cardW - 8} y={cardY + 24}
