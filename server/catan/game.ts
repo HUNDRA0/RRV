@@ -23,6 +23,10 @@ const DEV_CARD_COST: Resources = { wood: 0, brick: 0, grain: 1, ore: 1, wool: 1 
 
 const PIECE_LIMITS = { settlements: 5, cities: 4, roads: 15 };
 
+// Per-turn time budget. Each turn change (incl. setup steps) resets to now + TURN_MS.
+const TURN_MS = 60_000;
+function nextDeadline(): number { return Date.now() + TURN_MS; }
+
 // Standard 25-card dev deck
 function buildDevDeck(): DevCardType[] {
   const deck: DevCardType[] = [
@@ -96,6 +100,7 @@ export function createGame(gameId: string, hostId: string, hostName: string): Ga
     pendingAction: null,
     log: [`${hostName} created the game.`],
     chatMessages: [],
+    turnDeadline: null,
     winner: null,
     updatedAt: Date.now(),
   };
@@ -139,6 +144,7 @@ export function startGame(state: GameState, playerId: string): GameState {
     phase: 'diceOff',
     diceOffRolls,
     diceOffActive: state.players.map(p => p.id),
+    turnDeadline: nextDeadline(),
     log: [...state.log, 'Spelet börjar! Varje spelare kastar tärning — högst summa börjar.'],
     updatedAt: Date.now(),
   };
@@ -168,7 +174,8 @@ export type GameAction =
   | { type: 'tradeComplete'; acceptingPlayerId: string }
   | { type: 'tradeCancel' }
   | { type: 'endTurn' }
-  | { type: 'diceOffRoll' };
+  | { type: 'diceOffRoll' }
+  | { type: 'forceEndTurn' };
 
 // ── Main dispatch ─────────────────────────────────────────────────────────────
 
@@ -177,6 +184,9 @@ export function applyAction(state: GameState, playerId: string, action: GameActi
 
   // diceOffRoll is allowed by any active player regardless of currentPlayerIndex
   if (action.type === 'diceOffRoll') return handleDiceOffRoll(state, playerId);
+
+  // forceEndTurn — any player may invoke once the deadline is past
+  if (action.type === 'forceEndTurn') return handleForceEndTurn(state);
 
   // Trade respond is allowed for non-current players
   if (action.type === 'tradeRespond') return handleTradeRespond(state, playerId, action.accept);
@@ -358,6 +368,7 @@ function advanceSetupTurn(state: GameState): GameState {
     setupRound: round,
     setupDirection: direction,
     setupStep: 'settlement',
+    turnDeadline: nextDeadline(),
     log: phase === 'playing'
       ? [...state.log, 'Setup complete! Game begins.']
       : state.log,
@@ -830,6 +841,7 @@ function handleDiceOffRoll(state: GameState, playerId: string): GameState {
       setupRound: 1,
       setupDirection: 'forward',
       setupStep: 'settlement',
+      turnDeadline: nextDeadline(),
       log: [...state.log,
         `${player.name} kastade ${d1 + d2} (${d1}+${d2}). Resultat: ${resultLine}. ${winnerName} börjar!`,
       ],
@@ -846,9 +858,62 @@ function handleDiceOffRoll(state: GameState, playerId: string): GameState {
     ...state,
     diceOffRolls: tieRolls,
     diceOffActive: tiedIds,
+    turnDeadline: nextDeadline(),
     log: [...state.log,
       `${player.name} kastade ${d1 + d2} (${d1}+${d2}). Resultat: ${resultLine}. Oavgjort mellan ${tiedNames} — kasta om!`,
     ],
+    updatedAt: Date.now(),
+  };
+}
+
+// ── Force end turn (timer expiry) ─────────────────────────────────────────────
+
+function handleForceEndTurn(state: GameState): GameState {
+  if (state.winner) throw new Error('Game is over');
+  if (state.turnDeadline === null) throw new Error('No active timer');
+  if (Date.now() <= state.turnDeadline) throw new Error('Turn not yet expired');
+
+  // diceOff: auto-roll for any still-active players who haven't rolled
+  if (state.phase === 'diceOff') {
+    let s = state;
+    const active = s.diceOffActive ?? [];
+    for (const pid of active) {
+      const rolls = s.diceOffRolls ?? {};
+      if (rolls[pid] === null || rolls[pid] === undefined) {
+        s = handleDiceOffRoll(s, pid);
+      }
+    }
+    return s;
+  }
+
+  // Setup: skip the AFK player's setup turn (no settlement/road placed).
+  // Round 1 missed → no starting resources; round 2 missed → same. They lose pieces? No, just skip.
+  if (state.phase === 'setup') {
+    const skippedName = state.players[state.currentPlayerIndex]?.name ?? 'Spelaren';
+    const skipped: GameState = {
+      ...state,
+      setupStep: state.setupStep === 'settlement' ? 'road' : state.setupStep,
+      log: [...state.log, `${skippedName} hann inte placera — turen hoppas över.`],
+    };
+    // advanceSetupTurn assumes road just placed; we mimic that by calling it directly
+    return advanceSetupTurn(skipped);
+  }
+
+  // Playing: skip to next player
+  const currentName = state.players[state.currentPlayerIndex]?.name ?? 'Spelaren';
+  const next = (state.currentPlayerIndex + 1) % state.players.length;
+  return {
+    ...state,
+    currentPlayerIndex: next,
+    diceRolled: false,
+    dice: null,
+    pendingAction: null,
+    tradeOffer: null,
+    turnDeadline: nextDeadline(),
+    players: state.players.map(p => p.id === state.players[state.currentPlayerIndex].id
+      ? { ...p, devCardPlayedThisTurn: false, justBoughtDevCard: null }
+      : p),
+    log: [...state.log, `${currentName}s tid gick ut — turen går vidare.`],
     updatedAt: Date.now(),
   };
 }
@@ -936,6 +1001,7 @@ function handleEndTurn(state: GameState, player: Player): GameState {
     currentPlayerIndex: next,
     diceRolled: false,
     dice: null,
+    turnDeadline: nextDeadline(),
     players: updatePlayer(state.players, player.id, p => ({
       ...p,
       devCardPlayedThisTurn: false,
