@@ -461,6 +461,7 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
   const [showDevCard, setShowDevCard] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [dismissedWinnerId, setDismissedWinnerId] = useState<string | null>(null);
   const [chatText, setChatText] = useState('');
   const [chatSending, setChatSending] = useState(false);
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -688,6 +689,32 @@ export function Game({ state, sendAction, sendChat, onLeave, gameId, token }: Ga
           )}
         </div>
       </div>
+
+      {/* ── Dice-off winner announcement ── */}
+      {state.diceOffWinnerId && state.diceOffWinnerId !== dismissedWinnerId && (() => {
+        const winner = state.players.find(p => p.id === state.diceOffWinnerId);
+        if (!winner) return null;
+        const isMe = winner.id === myPlayer.id;
+        return (
+          <div className="catan-error-overlay" onClick={() => setDismissedWinnerId(state.diceOffWinnerId!)}>
+            <div className="catan-winner-modal" onClick={e => e.stopPropagation()}>
+              <div className="catan-winner-modal-icon">🎲</div>
+              <h2 className="catan-winner-modal-title">
+                {isMe ? 'Du vann!' : `${winner.name} vann!`}
+              </h2>
+              <p className="catan-winner-modal-msg">
+                {isMe ? 'Du får börja — placera din första bosättning.' : `${winner.name} får börja.`}
+              </p>
+              <button
+                className="catan-btn catan-btn-primary catan-btn-sm"
+                onClick={() => setDismissedWinnerId(state.diceOffWinnerId!)}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {actionError && (
         <div className="catan-error-overlay" onClick={() => setActionError(null)}>
