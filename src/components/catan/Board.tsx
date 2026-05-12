@@ -411,15 +411,20 @@ export function Board({
                   />
                 </>
               )}
-              {/* Valid edge highlight — outer glow + bright stripe + pulse */}
+              {/* Valid edge highlight — dark halo for contrast + outer glow + bright stripe + pulse.
+                  The dark halo keeps the yellow stripe legible on sandy desert tiles where it
+                  would otherwise blend in. */}
               {isValid && !roadColor && (
                 <>
                   <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y}
-                    stroke="rgba(255,220,0,0.22)" strokeWidth={22} strokeLinecap="round"
+                    stroke="rgba(0,0,0,0.55)" strokeWidth={16} strokeLinecap="round"
+                  />
+                  <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y}
+                    stroke="rgba(255,220,0,0.35)" strokeWidth={24} strokeLinecap="round"
                     className="catan-road-valid-glow"
                   />
                   <line x1={v1.x} y1={v1.y} x2={v2.x} y2={v2.y}
-                    stroke="#ffe033" strokeWidth={9} strokeLinecap="round"
+                    stroke="#ffe033" strokeWidth={11} strokeLinecap="round"
                     filter="url(#glow-valid)"
                     className="catan-road-valid-glow"
                   />
