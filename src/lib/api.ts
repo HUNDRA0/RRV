@@ -141,6 +141,13 @@ export const api = {
       auth: true,
     }),
 
+  swapFriends: (idA: string, idB: string) =>
+    request<{ ok: boolean }>('/api/admin/friends/swap', {
+      method: 'POST',
+      body: { idA, idB },
+      auth: true,
+    }),
+
   deletePhoto: (id: string, position: number) =>
     request<Friend>(`/api/friends/${encodeURIComponent(id)}/photos/${position}`, {
       method: 'DELETE',

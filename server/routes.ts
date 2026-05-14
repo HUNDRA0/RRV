@@ -576,3 +576,22 @@ router.patch<{ key: string }>('/content/:key', requireAdmin, async (req, res) =>
   );
   res.json({ key, value: body.value.trim() });
 });
+
+// POST /api/admin/friends/swap — swap rank+tier between two friends
+router.post('/admin/friends/swap', requireAdmin, async (req, res) => {
+  const body = req.body as { idA?: unknown; idB?: unknown };
+  if (typeof body.idA !== 'string' || typeof body.idB !== 'string') {
+    res.status(400).json({ error: 'idA and idB are required' });
+    return;
+  }
+  const [a, b] = await Promise.all([
+    queryOne<{ id: string; rank: number; tier: string }>('SELECT id, rank, tier FROM friends WHERE id = ?', [body.idA]),
+    queryOne<{ id: string; rank: number; tier: string }>('SELECT id, rank, tier FROM friends WHERE id = ?', [body.idB]),
+  ]);
+  if (!a || !b) { res.status(404).json({ error: 'one or both friends not found' }); return; }
+  await Promise.all([
+    exec(`UPDATE friends SET rank = ?, tier = ?, updated_at = datetime('now') WHERE id = ?`, [b.rank, b.tier, a.id]),
+    exec(`UPDATE friends SET rank = ?, tier = ?, updated_at = datetime('now') WHERE id = ?`, [a.rank, a.tier, b.id]),
+  ]);
+  res.json({ ok: true, swapped: [a.id, b.id] });
+});

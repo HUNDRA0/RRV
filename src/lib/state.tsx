@@ -51,6 +51,7 @@ interface FriendsListState {
 
   // Admin mutations against friends.
   updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number; tier?: string; rank?: number }) => Promise<void>;
+  swapFriends: (idA: string, idB: string) => Promise<void>;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
 }
@@ -178,12 +179,19 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateFriend = useCallback(
-    async (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number; tier?: string }) => {
+    async (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number; tier?: string; rank?: number }) => {
       const updated = await api.updateFriend(id, patch);
       setFriends(prev => prev.map(f => (f.id === id ? updated : f)));
     },
     [],
   );
+
+  const swapFriends = useCallback(async (idA: string, idB: string) => {
+    await api.swapFriends(idA, idB);
+    // Refresh full list so both friends get updated ranks/tiers
+    const fresh = await api.fetchFriends();
+    setFriends(fresh);
+  }, []);
 
   const uploadPhoto = useCallback(async (id: string, dataUrl: string) => {
     const updated = await api.uploadPhoto(id, dataUrl);
@@ -203,7 +211,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       gmap,
       siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
-      updateFriend, uploadPhoto, deletePhoto,
+      updateFriend, swapFriends, uploadPhoto, deletePhoto,
     }),
     [
       loading, loadError, refresh,
@@ -212,7 +220,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       gmap,
       siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
-      updateFriend, uploadPhoto, deletePhoto,
+      updateFriend, swapFriends, uploadPhoto, deletePhoto,
     ],
   );
 

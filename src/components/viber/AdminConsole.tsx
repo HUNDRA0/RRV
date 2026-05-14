@@ -28,7 +28,7 @@ interface AdminConsoleProps {
 export function AdminConsole({ onClose }: AdminConsoleProps) {
   const {
     friends, siteContent, updateContent,
-    updateFriend, uploadPhoto, deletePhoto,
+    updateFriend, swapFriends, uploadPhoto, deletePhoto,
     logout, gmap,
   } = useFriendsList();
   const [tab, setTab] = useState<Tab>('people');
@@ -114,6 +114,7 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
               notes={notes}
               setNote={(id, v) => setNotes({ ...notes, [id]: v })}
               updateFriend={updateFriend}
+              swapFriends={swapFriends}
               uploadPhoto={uploadPhoto}
               deletePhoto={deletePhoto}
             />
@@ -257,25 +258,22 @@ interface PeopleTabProps {
   notes: Record<string, string>;
   setNote: (id: string, v: string) => void;
   updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; tier?: string; rank?: number }) => Promise<void>;
+  swapFriends: (idA: string, idB: string) => Promise<void>;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
 }
 
-function PeopleTab({ friends, notes, setNote, updateFriend, uploadPhoto, deletePhoto }: PeopleTabProps) {
+function PeopleTab({ friends, notes, setNote, updateFriend, swapFriends, uploadPhoto, deletePhoto }: PeopleTabProps) {
   const sorted = useMemo(() => [...friends].sort((a, b) => a.rank - b.rank), [friends]);
   const [moving, setMoving] = useState<string | null>(null);
 
-  async function swapRanks(idxA: number, idxB: number) {
+  async function swapAdjacent(idxA: number, idxB: number) {
     const a = sorted[idxA];
     const b = sorted[idxB];
     if (!a || !b) return;
     setMoving(a.id);
     try {
-      // Swap rank and tier between the two friends
-      await Promise.all([
-        updateFriend(a.id, { rank: b.rank, tier: b.tier }),
-        updateFriend(b.id, { rank: a.rank, tier: a.tier }),
-      ]);
+      await swapFriends(a.id, b.id);
     } finally {
       setMoving(null);
     }
@@ -295,12 +293,12 @@ function PeopleTab({ friends, notes, setNote, updateFriend, uploadPhoto, deleteP
             <button
               className="lb-arrow"
               disabled={idx === 0 || moving !== null}
-              onClick={() => void swapRanks(idx, idx - 1)}
+              onClick={() => void swapAdjacent(idx, idx - 1)}
             >▲</button>
             <button
               className="lb-arrow"
               disabled={idx === sorted.length - 1 || moving !== null}
-              onClick={() => void swapRanks(idx, idx + 1)}
+              onClick={() => void swapAdjacent(idx, idx + 1)}
             >▼</button>
             {moving === f.id && <span style={{ fontSize: 11, opacity: 0.6 }}>…</span>}
           </div>
