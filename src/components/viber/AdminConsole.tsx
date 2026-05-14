@@ -265,58 +265,29 @@ interface PeopleTabProps {
 
 function PeopleTab({ friends, notes, setNote, updateFriend, swapFriends, uploadPhoto, deletePhoto }: PeopleTabProps) {
   const sorted = useMemo(() => [...friends].sort((a, b) => a.rank - b.rank), [friends]);
-  const [moving, setMoving] = useState<string | null>(null);
-
-  async function swapAdjacent(idxA: number, idxB: number) {
-    const a = sorted[idxA];
-    const b = sorted[idxB];
-    if (!a || !b) return;
-    setMoving(a.id);
-    try {
-      await swapFriends(a.id, b.id);
-    } finally {
-      setMoving(null);
-    }
-  }
 
   return (
-    <div>
-      <p className="card-meta" style={{ marginBottom: 12 }}>
-        Använd pilarna för att byta plats på personer (byter rank och tier).
-      </p>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
-        {sorted.map((f, idx) => (
-          <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '6px 10px' }}>
-            <span style={{ width: 24, textAlign: 'right', color: 'var(--purple-2)', fontWeight: 700 }}>#{f.rank}</span>
-            <span style={{ flex: 1, fontWeight: 600 }}>{f.name}</span>
-            <span style={{ fontSize: 11, opacity: 0.55, marginRight: 4 }}>{f.tier.toUpperCase()}</span>
-            <button
-              className="lb-arrow"
-              disabled={idx === 0 || moving !== null}
-              onClick={() => void swapAdjacent(idx, idx - 1)}
-            >▲</button>
-            <button
-              className="lb-arrow"
-              disabled={idx === sorted.length - 1 || moving !== null}
-              onClick={() => void swapAdjacent(idx, idx + 1)}
-            >▼</button>
-            {moving === f.id && <span style={{ fontSize: 11, opacity: 0.6 }}>…</span>}
-          </div>
-        ))}
-      </div>
-      <div className="admin-grid">
-        {sorted.map((f) => (
+    <div className="admin-grid">
+      {sorted.map((f) => {
+        const tierMates = sorted.filter(x => x.tier === f.tier);
+        const pos = tierMates.findIndex(x => x.id === f.id);
+        const prev = tierMates[pos - 1] ?? null;
+        const next = tierMates[pos + 1] ?? null;
+        return (
           <PersonEditor
             key={f.id}
             friend={f}
             note={notes[f.id] || ''}
             onNoteChange={(v) => setNote(f.id, v)}
             updateFriend={updateFriend}
+            swapFriends={swapFriends}
+            prevInTier={prev}
+            nextInTier={next}
             uploadPhoto={uploadPhoto}
             deletePhoto={deletePhoto}
           />
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
@@ -326,11 +297,14 @@ interface PersonEditorProps {
   note: string;
   onNoteChange: (v: string) => void;
   updateFriend: (id: string, patch: { name?: string; bio?: string; currentMove?: string; tier?: string }) => Promise<void>;
+  swapFriends: (idA: string, idB: string) => Promise<void>;
+  prevInTier: Friend | null;
+  nextInTier: Friend | null;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
 }
 
-function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, deletePhoto }: PersonEditorProps) {
+function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, prevInTier, nextInTier, uploadPhoto, deletePhoto }: PersonEditorProps) {
   const { siteContent: sc } = useFriendsList();
   const allTiers = useMemo(() => parseTierConfig(sc['tier_config']), [sc]);
   const [name, setName] = useState(friend.name);
@@ -401,6 +375,14 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, uploadPhoto, d
           ))}
         </select>
       </label>
+
+      <div className="admin-field">
+        <span>Plats i tier</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="lb-arrow" disabled={!prevInTier} onClick={() => prevInTier && void swapFriends(friend.id, prevInTier.id)}>◀ {prevInTier?.name ?? '–'}</button>
+          <button className="lb-arrow" disabled={!nextInTier} onClick={() => nextInTier && void swapFriends(friend.id, nextInTier.id)}>{nextInTier?.name ?? '–'} ▶</button>
+        </div>
+      </div>
 
       <label className="admin-field">
         <span>Bio</span>
