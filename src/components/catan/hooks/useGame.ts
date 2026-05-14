@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ClientGameState } from '../types';
 
 const BASE = '/api/catan';
-const POLL_INTERVAL = 2500; // ms between polls
+const POLL_INTERVAL = 5000; // ms between polls
 
 export function useGame(gameId: string | null, token: string | null) {
   const [state, setState] = useState<ClientGameState | null>(null);
