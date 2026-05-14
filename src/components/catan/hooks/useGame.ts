@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ClientGameState } from '../types';
 
 const BASE = '/api/catan';
+const POLL_INTERVAL = 2500; // ms between polls
 
 export function useGame(gameId: string | null, token: string | null) {
   const [state, setState] = useState<ClientGameState | null>(null);
@@ -11,26 +12,17 @@ export function useGame(gameId: string | null, token: string | null) {
   useEffect(() => {
     if (!gameId || !token) return;
     let cancelled = false;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
-    let inFlight = false;
 
-    // Long-poll loop: sends ?since=<updatedAt> so the server holds the connection
-    // for up to 7 s if nothing has changed (2 DB reads per cycle vs constant timer reads).
-    // Primary state updates still come instantly via sendAction/sendChat responses.
-    async function longPoll() {
-      if (cancelled || inFlight || document.visibilityState === 'hidden') return;
-      inFlight = true;
+    async function poll() {
+      if (cancelled) return;
       try {
-        const since = updatedAtRef.current;
-        const res = await fetch(`${BASE}/${gameId}?since=${since}`, {
+        const res = await fetch(`${BASE}/${gameId}`, {
           headers: { 'x-catan-token': token! },
         });
         if (cancelled) return;
         if (!res.ok) {
           const body = await res.json().catch(() => ({})) as { error?: string };
           if (!cancelled) setError(body.error ?? `HTTP ${res.status}`);
-          // Back off 5 s on error before retrying
-          if (!cancelled) retryTimer = setTimeout(() => { retryTimer = null; void longPoll(); }, 5000);
           return;
         }
         const data = await res.json() as ClientGameState;
@@ -40,33 +32,29 @@ export function useGame(gameId: string | null, token: string | null) {
           setState(data);
           setError(null);
         }
-        if (!data.winner) void longPoll(); // chain immediately — server will hold next request
       } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
-          retryTimer = setTimeout(() => { retryTimer = null; void longPoll(); }, 5000);
-        }
-      } finally {
-        inFlight = false;
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       }
     }
 
-    void longPoll();
+    // Fetch immediately on mount, then every POLL_INTERVAL ms
+    void poll();
+    const interval = setInterval(() => void poll(), POLL_INTERVAL);
 
-    // Resume immediately when tab becomes visible (server hold was skipped while hidden)
+    // Also re-poll immediately when tab becomes visible after being hidden
     const onVisible = () => {
-      if (document.visibilityState === 'visible' && !inFlight) void longPoll();
+      if (document.visibilityState === 'visible') void poll();
     };
     document.addEventListener('visibilitychange', onVisible);
 
     return () => {
       cancelled = true;
-      if (retryTimer) clearTimeout(retryTimer);
+      clearInterval(interval);
       document.removeEventListener('visibilitychange', onVisible);
     };
   }, [gameId, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // sendAction — returns new state immediately, no poll needed afterwards
+  // sendAction — returns new state immediately from the POST response
   async function sendAction(action: object): Promise<void> {
     if (!gameId || !token) throw new Error('No active game');
     const res = await fetch(`${BASE}/${gameId}/action`, {
@@ -83,7 +71,7 @@ export function useGame(gameId: string | null, token: string | null) {
     setState(data);
   }
 
-  // sendChat — returns new state immediately (chat messages visible at once)
+  // sendChat — returns new state immediately
   async function sendChat(text: string): Promise<void> {
     if (!gameId || !token) return;
     const res = await fetch(`${BASE}/${gameId}/chat`, {

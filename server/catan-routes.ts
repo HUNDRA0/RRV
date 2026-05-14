@@ -10,7 +10,7 @@ import {
   type GameAction,
 } from './catan/game.js';
 import type { GameState, Player } from './catan/types.js';
-import { emitGameUpdate, subscribeGameUpdate } from './catan/events.js';
+import { emitGameUpdate } from './catan/events.js';
 
 // ── Persistence helpers ───────────────────────────────────────────────────────
 
@@ -184,32 +184,14 @@ export function addCatanRoutes(router: Router): void {
   router.get('/catan/:id', async (req, res) => {
     const { id } = req.params as { id: string };
     const token = getToken(req);
-    const sinceParam = req.query.since as string | undefined;
 
-    let state = await loadGame(id);
+    const state = await loadGame(id);
     if (!state) {
       res.status(404).json({ error: 'Game not found' });
       return;
     }
 
-    // Long poll: if client already has this version, hold up to 7 s OR until
-    // an event-emitter signals a state change for this game (typically within
-    // ~50 ms after the other player's action). Vercel hobby 10 s timeout cap.
-    if (sinceParam !== undefined && state.updatedAt === Number(sinceParam) && !state.winner) {
-      // Prevent buffering proxies from breaking the hold
-      res.setHeader('Cache-Control', 'no-store');
-      await new Promise<void>(resolve => {
-        let done = false;
-        const finish = () => { if (done) return; done = true; clearTimeout(t); unsubscribe(); resolve(); };
-        const t = setTimeout(finish, 7000);
-        const unsubscribe = subscribeGameUpdate(id, finish);
-        req.on('close', finish);
-      });
-      const fresh = await loadGame(id);
-      if (fresh) state = fresh;
-    } else {
-      res.setHeader('Cache-Control', 'no-store');
-    }
+    res.setHeader('Cache-Control', 'no-store');
 
     let requestingPlayerId: string | null = null;
     if (token) {
