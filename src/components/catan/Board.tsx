@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
+import type React from 'react';
 import type { ClientGameState, HexTile, Vertex, PlayerColor, Resource } from './types';
 
-// Ticking SVG-text countdown that lives inside a corner card.
-// Self-contained: re-renders every 500 ms while a deadline is active.
-function CornerTimer({ x, y, deadline }: { x: number; y: number; deadline: number | null }) {
+// Ticking countdown shown in the HTML corner card.
+function CornerTimer({ deadline }: { deadline: number | null }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (deadline === null) return;
@@ -14,15 +14,7 @@ function CornerTimer({ x, y, deadline }: { x: number; y: number; deadline: numbe
   const secs = Math.max(0, Math.ceil((deadline - now) / 1000));
   const warn = secs <= 10;
   return (
-    <text x={x} y={y}
-      textAnchor="end"
-      fontSize={12} fontWeight={700}
-      fill={warn ? '#ff7575' : 'rgba(255,255,255,0.88)'}
-      fontFamily="var(--font-body)"
-      style={{ userSelect: 'none', pointerEvents: 'none' }}
-    >
-      ⏳{secs}s
-    </text>
+    <span className={`catan-corner-timer${warn ? ' warning' : ''}`}>⏳{secs}s</span>
   );
 }
 
@@ -527,120 +519,6 @@ export function Board({
           );
         })}
 
-        {/* ── Player corner cards ── */}
-        {(() => {
-          const CORNERS = [
-            { x: minX + 10, y: minY + 10, anchorRight: false, anchorBottom: false },
-            { x: maxX - 10, y: minY + 10, anchorRight: true,  anchorBottom: false },
-            { x: maxX - 10, y: maxY - padBottom - 10, anchorRight: true,  anchorBottom: true },
-            { x: minX + 10, y: maxY - padBottom - 10, anchorRight: false, anchorBottom: true },
-          ];
-          return state.players.slice(0, 4).map((p, idx) => {
-            const corner = CORNERS[idx];
-            if (!corner) return null;
-            const isMe = p.id === myPlayerId;
-            const isCurrent = idx === state.currentPlayerIndex;
-            // Current player card is a bit wider to fit the timer next to VP
-            const cardW = (isMe ? 230 : 180) + (isCurrent ? 42 : 0);
-            const cardH = isMe ? 72 : 58;
-            const cardX = corner.anchorRight ? corner.x - cardW : corner.x;
-            const cardY = corner.anchorBottom ? corner.y - cardH : corner.y;
-            const pc = PLAYER_COLORS[p.color] ?? '#888';
-            const res = isMe ? (p.resources as Record<string, number>) : null;
-            // Arrow sits just outside the card edge (below top cards, above bottom cards)
-            const arrowY = corner.anchorBottom ? cardY - 10 : cardY + cardH + 10;
-            const arrowChar = corner.anchorBottom ? '▲' : '▼';
-            const arrowX = cardX + cardW / 2;
-
-            return (
-              <g key={p.id}>
-                {/* Card background */}
-                <rect
-                  x={cardX} y={cardY} width={cardW} height={cardH}
-                  rx={10}
-                  fill="rgba(15,10,30,0.62)"
-                  stroke={isCurrent ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.12)'}
-                  strokeWidth={1}
-                />
-                {/* Pulsing gold border for current player */}
-                {isCurrent && (
-                  <rect
-                    x={cardX} y={cardY} width={cardW} height={cardH}
-                    rx={10}
-                    fill="none"
-                    stroke="#fbbf24"
-                    strokeWidth={2.5}
-                    className="catan-corner-pulse"
-                  />
-                )}
-                {/* Color dot */}
-                <circle cx={cardX + 18} cy={cardY + 22} r={8} fill={pc} />
-                {/* Player name (max 8 chars enforced by lobby + server) */}
-                <text
-                  x={cardX + 36} y={cardY + 28}
-                  fontSize={16} fontWeight="700" fill="white"
-                  fontFamily="var(--font-body)"
-                  style={{ userSelect: 'none', pointerEvents: 'none' }}
-                >
-                  {p.name}
-                </text>
-                {/* Turn timer — only on the active player's card */}
-                {isCurrent && state.turnDeadline !== null && (
-                  <CornerTimer x={cardX + cardW - 50} y={cardY + 28} deadline={state.turnDeadline} />
-                )}
-                {/* VP */}
-                <text
-                  x={cardX + cardW - 10} y={cardY + 28}
-                  textAnchor="end" fontSize={14} fill="rgba(255,255,255,0.75)"
-                  fontFamily="var(--font-body)"
-                  style={{ userSelect: 'none', pointerEvents: 'none' }}
-                >
-                  ⭐{p.vp}
-                </text>
-                {/* Hand count for other players */}
-                {!isMe && (
-                  <text
-                    x={cardX + 12} y={cardY + cardH - 10}
-                    fontSize={14} fill="rgba(255,255,255,0.70)"
-                    fontFamily="var(--font-body)"
-                    style={{ userSelect: 'none', pointerEvents: 'none' }}
-                  >
-                    🃏 {(p as {handSize?: number}).handSize ?? '?'}
-                  </text>
-                )}
-                {/* Resource row (only for myself) — emoji + bold count, snug spacing */}
-                {isMe && res && (
-                  <text
-                    x={cardX + 10} y={cardY + cardH - 10}
-                    fontSize={21} fill="rgba(255,255,255,0.96)"
-                    fontFamily="var(--font-body)"
-                    style={{ userSelect: 'none', pointerEvents: 'none' }}
-                  >
-                    {RESOURCES_ORDER.map((r, i) => (
-                      <tspan key={r} dx={i === 0 ? 0 : 6}>
-                        {RESOURCE_EMOJI_BOARD[r]}
-                        <tspan fontSize={15} fontWeight={800} dx={1}>{res[r] ?? 0}</tspan>
-                      </tspan>
-                    ))}
-                  </text>
-                )}
-                {/* Directional arrow for current player */}
-                {isCurrent && (
-                  <text
-                    x={arrowX} y={arrowY}
-                    textAnchor="middle" fontSize={14} fill="#fbbf24"
-                    fontFamily="var(--font-body)"
-                    style={{ userSelect: 'none', pointerEvents: 'none' }}
-                    className="catan-corner-pulse"
-                  >
-                    {arrowChar}
-                  </text>
-                )}
-              </g>
-            );
-          });
-        })()}
-
         {/* ── Dice area (bottom-center ocean) ── */}
         {(() => {
           const isMyTurn = state.players[state.currentPlayerIndex]?.id === myPlayerId;
@@ -843,6 +721,49 @@ export function Board({
           return null;
         })()}
       </svg>
+
+      {/* ── HTML player corner cards — absolutely positioned over the board ── */}
+      {state.players.slice(0, 4).map((p, idx) => {
+        const isMe = p.id === myPlayerId;
+        const isCurrent = idx === state.currentPlayerIndex;
+        const pc = PLAYER_COLORS[p.color] ?? '#888';
+        const res = isMe ? (p.resources as Record<string, number>) : null;
+        // Corner position: 0=top-left, 1=top-right, 2=bottom-right, 3=bottom-left
+        const posStyle: React.CSSProperties = idx === 0
+          ? { top: 8, left: 8 }
+          : idx === 1
+          ? { top: 8, right: 8 }
+          : idx === 2
+          ? { bottom: 90, right: 8 }
+          : { bottom: 90, left: 8 };
+        return (
+          <div
+            key={p.id}
+            className={`catan-player-card${isCurrent ? ' current' : ''}${isMe ? ' me' : ''}`}
+            style={{ ...posStyle, borderColor: isCurrent ? '#fbbf24' : 'rgba(255,255,255,0.12)' }}
+          >
+            <div className="catan-player-card-top">
+              <span className="catan-player-dot" style={{ background: pc }} />
+              <span className="catan-player-name">{p.name}</span>
+              {isCurrent && <CornerTimer deadline={state.turnDeadline} />}
+              <span className="catan-player-vp">⭐{p.vp}</span>
+            </div>
+            {isMe && res ? (
+              <div className="catan-player-resources">
+                {RESOURCES_ORDER.map(r => (
+                  <span key={r} className="catan-player-res-item">
+                    {RESOURCE_EMOJI_BOARD[r]}<b>{res[r] ?? 0}</b>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div className="catan-player-hand">
+                🃏 {(p as {handSize?: number}).handSize ?? '?'}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

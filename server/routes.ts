@@ -261,7 +261,7 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
     res.status(404).json({ error: 'friend not found' });
     return;
   }
-  const body = req.body as { name?: unknown; note?: unknown; bio?: unknown; currentMove?: unknown; lat?: unknown; lon?: unknown; tier?: unknown };
+  const body = req.body as { name?: unknown; note?: unknown; bio?: unknown; currentMove?: unknown; lat?: unknown; lon?: unknown; tier?: unknown; rank?: unknown };
   const updates: string[] = [];
   const args: (string | number)[] = [];
   let coordsChanged = false;
@@ -299,6 +299,11 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
   if (body.tier !== undefined) {
     if (typeof body.tier !== 'string' || !body.tier.trim()) { res.status(400).json({ error: 'tier must be a non-empty string' }); return; }
     updates.push('tier = ?'); args.push(body.tier.trim());
+  }
+  if (body.rank !== undefined) {
+    const v = typeof body.rank === 'string' ? parseInt(body.rank, 10) : body.rank;
+    if (typeof v !== 'number' || !isFinite(v) || v < 1) { res.status(400).json({ error: 'rank must be a positive integer' }); return; }
+    updates.push('rank = ?'); args.push(v);
   }
   if (updates.length === 0) { res.json(friend); return; }
   updates.push(`updated_at = datetime('now')`);
@@ -570,4 +575,23 @@ router.patch<{ key: string }>('/content/:key', requireAdmin, async (req, res) =>
     [key, body.value.trim()],
   );
   res.json({ key, value: body.value.trim() });
+});
+
+// POST /api/admin/friends/swap — swap rank+tier between two friends
+router.post('/admin/friends/swap', requireAdmin, async (req, res) => {
+  const body = req.body as { idA?: unknown; idB?: unknown };
+  if (typeof body.idA !== 'string' || typeof body.idB !== 'string') {
+    res.status(400).json({ error: 'idA and idB are required' });
+    return;
+  }
+  const [a, b] = await Promise.all([
+    queryOne<{ id: string; rank: number; tier: string }>('SELECT id, rank, tier FROM friends WHERE id = ?', [body.idA]),
+    queryOne<{ id: string; rank: number; tier: string }>('SELECT id, rank, tier FROM friends WHERE id = ?', [body.idB]),
+  ]);
+  if (!a || !b) { res.status(404).json({ error: 'one or both friends not found' }); return; }
+  await Promise.all([
+    exec(`UPDATE friends SET rank = ?, tier = ?, updated_at = datetime('now') WHERE id = ?`, [b.rank, b.tier, a.id]),
+    exec(`UPDATE friends SET rank = ?, tier = ?, updated_at = datetime('now') WHERE id = ?`, [a.rank, a.tier, b.id]),
+  ]);
+  res.json({ ok: true, swapped: [a.id, b.id] });
 });
