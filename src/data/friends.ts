@@ -65,7 +65,7 @@ export const FRIENDS: FriendSeed[] = [
   { id: 'mario',     name: 'Mario',     rank: 1,  tier: 's', address: { street: 'Mariekällgatan 36',  postcode: '15144', city: 'Södertälje' }, note: '' },
   { id: 'adam',      name: 'Adam',      rank: 2,  tier: 's', address: { street: 'Dalgatan 23',        postcode: '15133', city: 'Södertälje' }, note: '' },
   { id: 'emanuel',   name: 'Emanuel',   rank: 3,  tier: 's', address: { street: 'Bangatan 28',        postcode: '15132', city: 'Södertälje' }, note: '' },
-  { id: 'andre',     name: 'Andre',     rank: 4,  tier: 's', address: { street: 'Bangatan 28',        postcode: '15132', city: 'Södertälje' }, note: '' },
+  { id: 'fredrik',   name: 'Fredrik',   rank: 4,  tier: 's', address: { street: 'Drejarvägen 18',     postcode: '15162', city: 'Södertälje' }, note: '' },
   { id: 'gab',       name: 'Gab',       rank: 5,  tier: 's', address: { street: 'Handbollsvägen 5',   postcode: '15159', city: 'Södertälje' }, note: '' },
   // A tier — Normal People
   { id: 'john',      name: 'John',      rank: 6,  tier: 'a', address: { street: 'Drejarvägen 24',     postcode: '15162', city: 'Södertälje' }, note: '' },
@@ -74,7 +74,7 @@ export const FRIENDS: FriendSeed[] = [
   { id: 'ninos',     name: 'Ninos',     rank: 9,  tier: 'a', address: { street: 'Bollvägen 67',       postcode: '15159', city: 'Södertälje' }, note: '' },
   // I tier — I Dunno
   { id: 'joseph',    name: 'Joseph',    rank: 10, tier: 'i', address: { street: 'Slungbollsvägen 3',  postcode: '15159', city: 'Södertälje' }, note: 'Hänger ej med oss' },
-  { id: 'fredrik',   name: 'Fredrik',   rank: 11, tier: 'i', address: { street: 'Drejarvägen 18',     postcode: '15162', city: 'Södertälje' }, note: '' },
+  { id: 'andre',     name: 'Andre',     rank: 11, tier: 'i', address: { street: 'Bangatan 28',        postcode: '15132', city: 'Södertälje' }, note: '' },
   { id: 'ninmar',    name: 'Ninmar',    rank: 12, tier: 'i', address: { street: 'Hövdingevägen 1',    postcode: '15151', city: 'Södertälje' }, note: '' },
   { id: 'jovo',      name: 'Jovo',      rank: 13, tier: 'i', address: { street: 'Mosshagestigen 212', postcode: '',      city: 'Rönninge'   }, note: '' },
   { id: 'christian', name: 'Christian', rank: 14, tier: 'i', address: { street: 'Gamla enhörnavägen 12', postcode: '15152', city: 'Södertälje' }, note: '' },

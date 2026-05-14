@@ -256,25 +256,69 @@ interface PeopleTabProps {
   friends: Friend[];
   notes: Record<string, string>;
   setNote: (id: string, v: string) => void;
-  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; tier?: string }) => Promise<void>;
+  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; tier?: string; rank?: number }) => Promise<void>;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
 }
 
 function PeopleTab({ friends, notes, setNote, updateFriend, uploadPhoto, deletePhoto }: PeopleTabProps) {
+  const sorted = useMemo(() => [...friends].sort((a, b) => a.rank - b.rank), [friends]);
+  const [moving, setMoving] = useState<string | null>(null);
+
+  async function swapRanks(idxA: number, idxB: number) {
+    const a = sorted[idxA];
+    const b = sorted[idxB];
+    if (!a || !b) return;
+    setMoving(a.id);
+    try {
+      // Swap rank and tier between the two friends
+      await Promise.all([
+        updateFriend(a.id, { rank: b.rank, tier: b.tier }),
+        updateFriend(b.id, { rank: a.rank, tier: a.tier }),
+      ]);
+    } finally {
+      setMoving(null);
+    }
+  }
+
   return (
-    <div className="admin-grid">
-      {friends.map((f) => (
-        <PersonEditor
-          key={f.id}
-          friend={f}
-          note={notes[f.id] || ''}
-          onNoteChange={(v) => setNote(f.id, v)}
-          updateFriend={updateFriend}
-          uploadPhoto={uploadPhoto}
-          deletePhoto={deletePhoto}
-        />
-      ))}
+    <div>
+      <p className="card-meta" style={{ marginBottom: 12 }}>
+        Använd pilarna för att byta plats på personer (byter rank och tier).
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
+        {sorted.map((f, idx) => (
+          <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '6px 10px' }}>
+            <span style={{ width: 24, textAlign: 'right', color: 'var(--purple-2)', fontWeight: 700 }}>#{f.rank}</span>
+            <span style={{ flex: 1, fontWeight: 600 }}>{f.name}</span>
+            <span style={{ fontSize: 11, opacity: 0.55, marginRight: 4 }}>{f.tier.toUpperCase()}</span>
+            <button
+              className="lb-arrow"
+              disabled={idx === 0 || moving !== null}
+              onClick={() => void swapRanks(idx, idx - 1)}
+            >▲</button>
+            <button
+              className="lb-arrow"
+              disabled={idx === sorted.length - 1 || moving !== null}
+              onClick={() => void swapRanks(idx, idx + 1)}
+            >▼</button>
+            {moving === f.id && <span style={{ fontSize: 11, opacity: 0.6 }}>…</span>}
+          </div>
+        ))}
+      </div>
+      <div className="admin-grid">
+        {sorted.map((f) => (
+          <PersonEditor
+            key={f.id}
+            friend={f}
+            note={notes[f.id] || ''}
+            onNoteChange={(v) => setNote(f.id, v)}
+            updateFriend={updateFriend}
+            uploadPhoto={uploadPhoto}
+            deletePhoto={deletePhoto}
+          />
+        ))}
+      </div>
     </div>
   );
 }

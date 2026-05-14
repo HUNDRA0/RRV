@@ -261,7 +261,7 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
     res.status(404).json({ error: 'friend not found' });
     return;
   }
-  const body = req.body as { name?: unknown; note?: unknown; bio?: unknown; currentMove?: unknown; lat?: unknown; lon?: unknown; tier?: unknown };
+  const body = req.body as { name?: unknown; note?: unknown; bio?: unknown; currentMove?: unknown; lat?: unknown; lon?: unknown; tier?: unknown; rank?: unknown };
   const updates: string[] = [];
   const args: (string | number)[] = [];
   let coordsChanged = false;
@@ -299,6 +299,11 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
   if (body.tier !== undefined) {
     if (typeof body.tier !== 'string' || !body.tier.trim()) { res.status(400).json({ error: 'tier must be a non-empty string' }); return; }
     updates.push('tier = ?'); args.push(body.tier.trim());
+  }
+  if (body.rank !== undefined) {
+    const v = typeof body.rank === 'string' ? parseInt(body.rank, 10) : body.rank;
+    if (typeof v !== 'number' || !isFinite(v) || v < 1) { res.status(400).json({ error: 'rank must be a positive integer' }); return; }
+    updates.push('rank = ?'); args.push(v);
   }
   if (updates.length === 0) { res.json(friend); return; }
   updates.push(`updated_at = datetime('now')`);
