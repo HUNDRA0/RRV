@@ -1,6 +1,6 @@
 import { type Router } from 'express';
 import { randomUUID } from 'node:crypto';
-import { exec, queryAll, queryOne } from './db.js';
+import { exec, queryOne } from './db.js';
 import {
   createGame,
   addPlayer,

@@ -261,12 +261,13 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
     res.status(404).json({ error: 'friend not found' });
     return;
   }
-  const body = req.body as { name?: unknown; note?: unknown; bio?: unknown; currentMove?: unknown; lat?: unknown; lon?: unknown; tier?: unknown; rank?: unknown };
+  const body = req.body as { name?: unknown; note?: unknown; bio?: unknown; currentMove?: unknown; lat?: unknown; lon?: unknown; tier?: unknown; rank?: unknown; street?: unknown; postcode?: unknown; city?: unknown };
   const updates: string[] = [];
-  const args: (string | number)[] = [];
+  const args: (string | number | null)[] = [];
   let coordsChanged = false;
   let newLat: number | null = null;
   let newLon: number | null = null;
+  let addressChanged = false;
 
   if (body.name !== undefined) {
     if (typeof body.name !== 'string') { res.status(400).json({ error: 'name must be a string' }); return; }
@@ -304,6 +305,22 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
     const v = typeof body.rank === 'string' ? parseInt(body.rank, 10) : body.rank;
     if (typeof v !== 'number' || !isFinite(v) || v < 1) { res.status(400).json({ error: 'rank must be a positive integer' }); return; }
     updates.push('rank = ?'); args.push(v);
+  }
+  if (body.street !== undefined) {
+    if (typeof body.street !== 'string' || !body.street.trim()) { res.status(400).json({ error: 'street must be a non-empty string' }); return; }
+    updates.push('street = ?'); args.push(body.street.trim()); addressChanged = true;
+  }
+  if (body.postcode !== undefined) {
+    if (typeof body.postcode !== 'string') { res.status(400).json({ error: 'postcode must be a string' }); return; }
+    updates.push('postcode = ?'); args.push(body.postcode.trim()); addressChanged = true;
+  }
+  if (body.city !== undefined) {
+    if (typeof body.city !== 'string' || !body.city.trim()) { res.status(400).json({ error: 'city must be a non-empty string' }); return; }
+    updates.push('city = ?'); args.push(body.city.trim()); addressChanged = true;
+  }
+  // Clear geocoding when address changes so the next geocode run picks it up
+  if (addressChanged) {
+    updates.push('lat = NULL', 'lon = NULL', 'area = NULL', 'geocoded_at = NULL');
   }
   if (updates.length === 0) { res.json(friend); return; }
   updates.push(`updated_at = datetime('now')`);
@@ -442,56 +459,6 @@ photosRouter.get<{ id: string; position: string }>(
 // Backward-compat: /photos/<id> (no position) → position 1.
 photosRouter.get<{ id: string }>('/photos/:id', async (req, res) => {
   await streamPhoto(req.params.id, 1, res);
-});
-
-router.get('/gmap', async (_req, res) => {
-  const rows = await queryAll<FriendRow>(
-    `SELECT ${SELECT_FRIEND_COLS} FROM friends ORDER BY rank`,
-  );
-  const geocoded: GeoFriend[] = [];
-  const ungeocodedIds: string[] = [];
-  const addrById = new Map<string, { street: string; postcode: string; city: string }>();
-  for (const row of rows) {
-    addrById.set(row.id, { street: row.street, postcode: row.postcode, city: row.city });
-    if (row.lat != null && row.lon != null) {
-      geocoded.push({ id: row.id, name: row.name, lat: row.lat, lon: row.lon, area: row.area });
-    } else {
-      ungeocodedIds.push(row.id);
-    }
-  }
-  // Load cached OSRM road distances.
-  const cacheRows = await queryAll<{ id_a: string; id_b: string; distance_meters: number }>(
-    `SELECT id_a, id_b, distance_meters FROM gmap_route_cache`,
-  );
-  const routeCache = new Map<string, number>();
-  for (const row of cacheRows) {
-    routeCache.set(cacheKey(row.id_a, row.id_b), row.distance_meters);
-  }
-
-  const { pairs, unpairedIds } = computePairs(geocoded, routeCache);
-  const gLessIds = [...unpairedIds, ...ungeocodedIds];
-
-  const dtoPairs = pairs.map(p => ({
-    rank: p.rank,
-    proximity: p.proximity,
-    proximityLabel: p.proximityLabel,
-    proximityColor: p.proximityColor,
-    emoji: p.emoji,
-    friends: p.friendIds,
-    distanceMeters: Math.round(p.distanceMeters),
-    distanceLabel: p.distanceLabel,
-    area: p.area,
-    mapsUrl: buildMapsUrl(addrById.get(p.friendIds[0])!, addrById.get(p.friendIds[1])!),
-  }));
-
-  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-  res.json({
-    pairs: dtoPairs,
-    gLessIds,
-    pending: ungeocodedIds.length > 0,
-    geocodedCount: geocoded.length,
-    totalCount: rows.length,
-  });
 });
 
 router.get('/predictions', async (_req, res) => {

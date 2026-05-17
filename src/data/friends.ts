@@ -62,7 +62,7 @@ export interface Friend extends FriendSeed {
 // from the React app.
 export const FRIENDS: FriendSeed[] = [
   // S tier — Eliten
-  { id: 'mario',     name: 'Mario',     rank: 1,  tier: 's', address: { street: 'Mariekällgatan 36',  postcode: '15144', city: 'Södertälje' }, note: '' },
+  { id: 'mario',     name: 'Mario',     rank: 1,  tier: 's', address: { street: 'Högvretsvägen 32',  postcode: '14452',  city: 'Rönninge'   }, note: '' },
   { id: 'adam',      name: 'Adam',      rank: 2,  tier: 's', address: { street: 'Dalgatan 23',        postcode: '15133', city: 'Södertälje' }, note: '' },
   { id: 'emanuel',   name: 'Emanuel',   rank: 3,  tier: 's', address: { street: 'Bangatan 28',        postcode: '15132', city: 'Södertälje' }, note: '' },
   { id: 'andre',     name: 'Andre',     rank: 4,  tier: 's', address: { street: 'Bangatan 28',        postcode: '15132', city: 'Södertälje' }, note: '' },
