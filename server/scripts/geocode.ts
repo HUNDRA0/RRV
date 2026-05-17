@@ -101,9 +101,9 @@ async function main(): Promise<void> {
       } else {
         await db.execute({
           sql: `UPDATE friends
-                SET lat = ?, lon = ?, area = ?, geocoded_at = ?, updated_at = datetime('now')
+                SET lat = ?, lon = ?, area = ?, updated_at = datetime('now')
                 WHERE id = ?`,
-          args: [hit.lat, hit.lon, hit.area, new Date().toISOString(), friend.id],
+          args: [hit.lat, hit.lon, hit.area, friend.id],
         });
         console.log(`(${hit.lat.toFixed(5)}, ${hit.lon.toFixed(5)}) — ${hit.area ?? '(no area)'}`);
         success++;

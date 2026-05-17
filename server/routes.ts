@@ -320,7 +320,7 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
   }
   // Clear geocoding when address changes so the next geocode run picks it up
   if (addressChanged) {
-    updates.push('lat = NULL', 'lon = NULL', 'area = NULL', 'geocoded_at = NULL');
+    updates.push('lat = NULL', 'lon = NULL', 'area = NULL');
   }
   if (updates.length === 0) { res.json(friend); return; }
   updates.push(`updated_at = datetime('now')`);
