@@ -1,3 +1,5 @@
+import { PollsBlock } from './PollsBlock';
+
 export interface EventItem {
   id: string;
   date: string;        // ISO yyyy-mm-dd
@@ -79,9 +81,10 @@ function downloadICS(event: EventItem) {
 
 interface EventsSectionProps {
   events: EventItem[];
+  onRequestLogin: () => void;
 }
 
-export function EventsSection({ events }: EventsSectionProps) {
+export function EventsSection({ events, onRequestLogin }: EventsSectionProps) {
   const sorted = [...events].sort((a, b) => a.date.localeCompare(b.date));
   return (
     <section className="section container" id="events" data-screen-label="05 Events">
@@ -95,6 +98,8 @@ export function EventsSection({ events }: EventsSectionProps) {
         </div>
         <div className="section-num reveal" data-d="3">V</div>
       </header>
+
+      <PollsBlock events={events} onRequestLogin={onRequestLogin} />
 
       <div className="events-list">
         {sorted.map((e, i) => (
