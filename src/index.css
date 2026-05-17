@@ -1812,6 +1812,31 @@ footer.foot {
 /* ── Create-poll modal ────────────────────────────────────────────── */
 
 .create-poll-modal { grid-template-columns: 1fr; max-width: 520px; }
+
+.poll-preset-chips {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;
+}
+.poll-preset-chip {
+  padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--paper); color: var(--ink);
+  font: 500 12px/1.2 var(--font-mono);
+  cursor: pointer;
+  transition: all 180ms var(--ease-out);
+}
+.poll-preset-chip:hover:not(:disabled) {
+  border-color: var(--purple); color: var(--purple);
+  background: color-mix(in srgb, var(--purple) 5%, var(--paper));
+}
+.poll-preset-chip[data-used="true"] {
+  color: var(--purple); border-color: var(--purple);
+  background: color-mix(in srgb, var(--purple) 10%, var(--paper));
+  cursor: default;
+}
+.poll-preset-chip:disabled:not([data-used="true"]) {
+  opacity: 0.5; cursor: not-allowed;
+}
+
 .poll-option-edits { display: grid; gap: 8px; margin-top: 6px; }
 .poll-option-edit-row { display: flex; gap: 8px; align-items: center; }
 .poll-option-edit-row input {

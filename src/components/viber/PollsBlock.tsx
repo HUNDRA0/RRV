@@ -158,11 +158,22 @@ function PollCard({
 
 // ── Create-poll modal ─────────────────────────────────────────────────
 
+const PRESET_OPTIONS = [
+  'Ja',
+  'Nej',
+  'Kanske',
+  'Vet ej',
+  'Ja, jag kommer',
+  'Nej, kan inte',
+  'Säger till senare',
+  'Beror på vädret',
+];
+
 function CreatePollModal({ events, onClose }: { events: EventItem[]; onClose: () => void }) {
   const { createPoll } = useFriendsList();
   const [question, setQuestion] = useState('');
   const [eventId, setEventId] = useState<string>('');
-  const [options, setOptions] = useState<string[]>(['Ja', 'Nej', 'Kanske']);
+  const [options, setOptions] = useState<string[]>(['', '']);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -174,6 +185,23 @@ function CreatePollModal({ events, onClose }: { events: EventItem[]; onClose: ()
   };
   const addOpt = () => setOptions(prev => (prev.length < 8 ? [...prev, ''] : prev));
   const removeOpt = (i: number) => setOptions(prev => (prev.length > 2 ? prev.filter((_, idx) => idx !== i) : prev));
+
+  // Adds a preset chip: fills the first empty slot, otherwise appends.
+  // Ignores duplicates (case-insensitive) so the same chip isn't added twice.
+  const addPreset = (preset: string) => {
+    setOptions(prev => {
+      const already = prev.some(o => o.trim().toLowerCase() === preset.toLowerCase());
+      if (already) return prev;
+      const emptyIdx = prev.findIndex(o => o.trim() === '');
+      if (emptyIdx >= 0) {
+        return prev.map((v, i) => (i === emptyIdx ? preset : v));
+      }
+      if (prev.length >= 8) return prev;
+      return [...prev, preset];
+    });
+  };
+
+  const usedPresets = new Set(options.map(o => o.trim().toLowerCase()));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -237,14 +265,35 @@ function CreatePollModal({ events, onClose }: { events: EventItem[]; onClose: ()
           </label>
 
           <div className="admin-field">
-            <span>Alternativ (2–8)</span>
+            <span>Snabba förslag (klicka för att lägga till)</span>
+            <div className="poll-preset-chips">
+              {PRESET_OPTIONS.map(p => {
+                const used = usedPresets.has(p.toLowerCase());
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    className="poll-preset-chip"
+                    data-used={used}
+                    disabled={used || options.length >= 8}
+                    onClick={() => addPreset(p)}
+                  >
+                    {used ? `✓ ${p}` : `+ ${p}`}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="admin-field">
+            <span>Alternativ (2–8) — skriv egna eller använd förslagen</span>
             <div className="poll-option-edits">
               {options.map((o, i) => (
                 <div key={i} className="poll-option-edit-row">
                   <input
                     value={o}
                     onChange={(e) => setOpt(i, e.target.value)}
-                    placeholder={`Alternativ ${i + 1}`}
+                    placeholder={`Alternativ ${i + 1} — t.ex. "Njaaaeeee"`}
                   />
                   {options.length > 2 && (
                     <button type="button" className="poll-option-remove" onClick={() => removeOpt(i)} aria-label="Ta bort">✕</button>
@@ -252,7 +301,7 @@ function CreatePollModal({ events, onClose }: { events: EventItem[]; onClose: ()
                 </div>
               ))}
               {options.length < 8 && (
-                <button type="button" className="btn btn-ghost" onClick={addOpt}>+ Alternativ</button>
+                <button type="button" className="btn btn-ghost" onClick={addOpt}>+ Tomt fält</button>
               )}
             </div>
           </div>
