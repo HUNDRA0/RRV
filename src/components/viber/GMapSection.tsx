@@ -125,24 +125,36 @@ export function GMapSection({ friends, manualPairs }: GMapSectionProps) {
             );
           })}
         </svg>
-        {geo.map((f, i) => {
-          const p = project(f);
-          return (
-            <div
-              key={f.id}
-              className="gmap-pin"
-              data-tier={getTierCss(f.tier)}
-              style={{
-                left: `${p.x}%`,
-                top: `${p.y}%`,
-                animation: `pinIn 600ms var(--ease-spring) ${i * 60}ms both`,
-              }}
-            >
-              <div className="dot" />
-              <div className="label">{f.name}</div>
-            </div>
-          );
-        })}
+        {/* Group friends at the same location so all names are visible */}
+        {(() => {
+          const groups = new Map<string, typeof geo>();
+          for (const f of geo) {
+            const key = `${Math.round(f.lat * 5000)},${Math.round(f.lon * 5000)}`;
+            const g = groups.get(key) ?? [];
+            g.push(f);
+            groups.set(key, g);
+          }
+          return Array.from(groups.values()).map((group, i) => {
+            const p = project(group[0]);
+            const label = group.map(f => f.name).join(' · ');
+            const tierCss = getTierCss(group[0].tier);
+            return (
+              <div
+                key={group.map(f => f.id).join('-')}
+                className="gmap-pin"
+                data-tier={tierCss}
+                style={{
+                  left: `${p.x}%`,
+                  top: `${p.y}%`,
+                  animation: `pinIn 600ms var(--ease-spring) ${i * 60}ms both`,
+                }}
+              >
+                <div className="dot" />
+                <div className="label">{label}</div>
+              </div>
+            );
+          });
+        })()}
         <div className="gmap-compass">
           <div>N ↑</div>
           <div>Södertälje · Rönninge</div>

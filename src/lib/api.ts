@@ -116,7 +116,6 @@ export const api = {
   // kept for direct cache-busted calls after mutations
   fetchFriends: () => request<Friend[]>('/api/friends'),
   fetchPredictions: () => request<ApiPrediction[]>('/api/predictions'),
-  fetchGMap: () => request<ApiGMap>('/api/gmap'),
   fetchContent: () => request<SiteContent>('/api/content'),
 
   login: (password: string) =>
