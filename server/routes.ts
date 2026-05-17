@@ -10,7 +10,7 @@
 // returns both `photos: [{url, position}]` for the carousel and `photoUrl`
 // (= first photo's URL) as a convenience.
 
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { Router, type NextFunction, type Request, type Response } from 'express';
 import { exec, queryAll, queryOne } from './db.js';
 import { decodeDataUrl } from './lib/photos.js';
@@ -150,17 +150,59 @@ export const router: Router = Router();
 
 addCatanRoutes(router);
 
+// Per-IP login rate limiter: 5 attempts / 15 min, then 429.
+// In-memory map is fine for this scale; on serverless cold start it resets,
+// which is acceptable since attacker would need to also trigger a new instance.
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 5;
+
+function safeEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a, 'utf8');
+  const bb = Buffer.from(b, 'utf8');
+  // timingSafeEqual requires equal-length buffers, otherwise throws.
+  if (ba.length !== bb.length) {
+    // Still compare against a dummy to keep timing roughly constant.
+    timingSafeEqual(ba, ba);
+    return false;
+  }
+  return timingSafeEqual(ba, bb);
+}
+
 router.post('/admin/login', async (req, res) => {
   const expected = process.env.ADMIN_PASSWORD;
   if (!expected) {
     res.status(503).json({ error: 'admin login is not configured on this server' });
     return;
   }
+
+  // Rate limit per source IP
+  const ip = (req.headers['x-forwarded-for']?.toString().split(',')[0].trim()) || req.ip || 'unknown';
+  const now = Date.now();
+  const entry = loginAttempts.get(ip);
+  if (entry && entry.resetAt > now) {
+    if (entry.count >= LOGIN_MAX_ATTEMPTS) {
+      res.status(429).json({ error: 'för många försök, vänta 15 minuter' });
+      return;
+    }
+  } else {
+    loginAttempts.set(ip, { count: 0, resetAt: now + LOGIN_WINDOW_MS });
+  }
+
   const password = typeof req.body?.password === 'string' ? req.body.password : '';
-  if (password !== expected) {
+  if (!safeEqual(password, expected)) {
+    const cur = loginAttempts.get(ip)!;
+    cur.count += 1;
     res.status(401).json({ error: 'fel lösenord' });
     return;
   }
+
+  // Success: clear the throttle for this IP
+  loginAttempts.delete(ip);
+
+  // Garbage-collect expired session rows so they don't accumulate forever.
+  await exec(`DELETE FROM admin_sessions WHERE expires_at < datetime('now')`);
+
   const token = randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
   await exec(`INSERT INTO admin_sessions (token, expires_at) VALUES (?, ?)`, [token, expiresAt]);
@@ -271,21 +313,21 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
 
   if (body.name !== undefined) {
     if (typeof body.name !== 'string') { res.status(400).json({ error: 'name must be a string' }); return; }
-    const trimmed = body.name.trim();
+    const trimmed = body.name.trim().slice(0, MAX_NAME);
     if (!trimmed) { res.status(400).json({ error: 'name cannot be empty' }); return; }
     updates.push('name = ?'); args.push(trimmed);
   }
   if (body.note !== undefined) {
     if (typeof body.note !== 'string') { res.status(400).json({ error: 'note must be a string' }); return; }
-    updates.push('note = ?'); args.push(body.note);
+    updates.push('note = ?'); args.push(body.note.slice(0, MAX_NOTE));
   }
   if (body.bio !== undefined) {
     if (typeof body.bio !== 'string') { res.status(400).json({ error: 'bio must be a string' }); return; }
-    updates.push('bio = ?'); args.push(body.bio);
+    updates.push('bio = ?'); args.push(body.bio.slice(0, MAX_BIO));
   }
   if (body.currentMove !== undefined) {
     if (typeof body.currentMove !== 'string') { res.status(400).json({ error: 'currentMove must be a string' }); return; }
-    updates.push('current_move = ?'); args.push(body.currentMove);
+    updates.push('current_move = ?'); args.push(body.currentMove.slice(0, MAX_CURRENT_MOVE));
   }
   if (body.lat !== undefined) {
     const v = typeof body.lat === 'string' ? parseFloat(body.lat) : body.lat;
@@ -469,11 +511,21 @@ router.get('/predictions', async (_req, res) => {
   res.json(rows.map(toPredictionDto));
 });
 
+// Length caps for user-supplied free-text fields. The server enforces
+// these hard limits so a malicious client can't bypass the UI's softer
+// limits to bloat the DB or amplify XSS payloads.
+const MAX_GUESSER_NAME = 40;
+const MAX_PREDICTION_TEXT = 500;
+const MAX_BIO = 2000;
+const MAX_NOTE = 300;
+const MAX_CURRENT_MOVE = 200;
+const MAX_NAME = 60;
+
 router.post('/predictions', async (req, res) => {
   const body = req.body as { guesser?: unknown; friendId?: unknown; text?: unknown };
-  const guesser = typeof body.guesser === 'string' ? body.guesser.trim() : '';
+  const guesser = typeof body.guesser === 'string' ? body.guesser.trim().slice(0, MAX_GUESSER_NAME) : '';
   const friendId = typeof body.friendId === 'string' ? body.friendId : '';
-  const text = typeof body.text === 'string' ? body.text.trim() : '';
+  const text = typeof body.text === 'string' ? body.text.trim().slice(0, MAX_PREDICTION_TEXT) : '';
 
   if (!guesser) { res.status(400).json({ error: 'skriv ditt namn' }); return; }
   if (!friendId) { res.status(400).json({ error: 'välj en person' }); return; }

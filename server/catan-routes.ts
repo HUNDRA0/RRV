@@ -99,10 +99,16 @@ export function addCatanRoutes(router: Router): void {
 
   // GET /api/catan/by-code/:code → { gameId }
   router.get('/catan/by-code/:code', async (req, res) => {
-    const code = (req.params as { code: string }).code.toUpperCase();
+    const raw = (req.params as { code: string }).code.toUpperCase();
+    // Strict validation: 4–8 ASCII letters/digits only. Blocks SQL LIKE
+    // wildcards (% _) and any other unexpected characters.
+    if (!/^[A-Z0-9]{4,8}$/.test(raw)) {
+      res.status(400).json({ error: 'invalid code format' });
+      return;
+    }
     const row = await queryOne<{ id: string, state: string }>(
       'SELECT id, state FROM catan_games WHERE state LIKE ?',
-      [`%"code":"${code}"%`],
+      [`%"code":"${raw}"%`],
     );
     if (!row) {
       res.status(404).json({ error: 'Game not found' });
@@ -139,14 +145,21 @@ export function addCatanRoutes(router: Router): void {
       finalName = `${name} ${n}`;
     }
 
+    const playerId = randomUUID();
+    let newState;
     try {
-      const playerId = randomUUID();
-      const newState = addPlayer(state, playerId, finalName);
+      newState = addPlayer(state, playerId, finalName);
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'invalid join' });
+      return;
+    }
+    try {
       await saveGame(newState);
       const token = await createPlayerToken(id, playerId);
       res.status(201).json({ playerId, token, name: finalName });
     } catch (err) {
-      res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+      console.error('[catan join]', err);
+      res.status(500).json({ error: 'kunde inte spara spel' });
     }
   });
 
@@ -171,12 +184,19 @@ export function addCatanRoutes(router: Router): void {
       return;
     }
 
+    let newState;
     try {
-      const newState = startGame(state, playerId);
+      newState = startGame(state, playerId);
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'cannot start' });
+      return;
+    }
+    try {
       await saveGame(newState);
       res.json(filterStateForPlayer(newState, playerId));
     } catch (err) {
-      res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+      console.error('[catan start]', err);
+      res.status(500).json({ error: 'kunde inte spara spel' });
     }
   });
 
@@ -228,22 +248,24 @@ export function addCatanRoutes(router: Router): void {
       return;
     }
 
+    let newState;
     try {
-      const newState = applyAction(state, playerId, action);
+      newState = applyAction(state, playerId, action);
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'invalid action' });
+      return;
+    }
+    try {
       await saveGame(newState);
       res.json(filterStateForPlayer(newState, playerId));
     } catch (err) {
-      res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+      console.error('[catan action]', err);
+      res.status(500).json({ error: 'kunde inte spara spel' });
     }
   });
 
-  // GET /api/catan (list active games — useful for debugging)
-  router.get('/catan', async (_req, res) => {
-    const rows = await queryAll<{ id: string; created_at: number; updated_at: number }>(
-      'SELECT id, created_at, updated_at FROM catan_games ORDER BY updated_at DESC LIMIT 20',
-    );
-    res.json(rows);
-  });
+  // (Removed: public GET /api/catan game-list endpoint — leaked active
+  // game IDs to anonymous callers and was only intended for debugging.)
 
   // GET /api/catan/:id/players (public player list without sensitive data)
   router.get('/catan/:id/players', async (req, res) => {

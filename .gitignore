@@ -45,3 +45,6 @@ coverage/
 
 # Claude Code worktrees (local only)
 .claude/worktrees/
+
+# Claude Code local settings — may contain MCP tokens
+.claude/settings.local.json

@@ -20,13 +20,21 @@ await runMigrations();
 await seedIfEmpty();
 
 const app = express();
-app.use(express.json({ limit: '10mb' }));
+// Body limit kept to 2 MB — large enough for one photo (resized client-side)
+// but small enough to limit DoS amplification on the JSON parser.
+app.use(express.json({ limit: '2mb' }));
 
 // Security headers (lightweight, no extra dependency needed).
 app.use((_req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // Minimal CSP — restrict scripts/frames to self, allow inline styles
+  // (Tailwind/utility classes use these) and data: images.
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self'; script-src 'self' 'sha256-6JehW/Vl8fBZ9xkeeNP6c4UFJCIPBJcg2F4uvQdYo8g='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+  );
   next();
 });
 
@@ -47,6 +55,16 @@ if (PROD) {
     res.sendFile(resolve(distDir, 'index.html'));
   });
 }
+
+// Global error handler — must be last. Express 4 doesn't auto-forward
+// async rejections, so async route handlers should explicitly call next(err)
+// on failure. This catches anything that does reach the middleware chain
+// and returns a generic error to the client without leaking stack traces.
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[error]', err);
+  if (res.headersSent) return;
+  res.status(500).json({ error: 'internt serverfel' });
+});
 
 const PORT = Number(process.env.PORT) || 3001;
 app.listen(PORT, () => {
