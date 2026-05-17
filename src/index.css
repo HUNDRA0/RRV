@@ -1602,3 +1602,198 @@ footer.foot {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Login modal ─────────────────────────────────────────────────── */
+
+.login-modal { grid-template-columns: 1fr; max-width: 480px; }
+
+.login-tabs {
+  display: flex; gap: 4px; margin: 6px 0 22px;
+  padding: 4px; border-radius: 12px;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  border: 1px solid var(--line);
+}
+.login-tabs button {
+  flex: 1; padding: 8px 10px;
+  font: 500 13px/1.2 var(--font-mono);
+  letter-spacing: 0.02em;
+  border: 0; background: transparent;
+  color: var(--mute); border-radius: 8px;
+  cursor: pointer; transition: all 200ms var(--ease-out);
+}
+.login-tabs button:hover { color: var(--ink); }
+.login-tabs button.active {
+  background: var(--paper); color: var(--ink);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+}
+
+.login-form { display: grid; gap: 14px; }
+.login-hint {
+  font-size: 12px; color: var(--mute);
+  font-family: var(--font-mono); line-height: 1.5;
+}
+.login-error {
+  font-size: 13px; color: var(--rose);
+  font-family: var(--font-mono);
+  padding: 8px 10px; border-radius: 8px;
+  background: color-mix(in srgb, var(--rose) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rose) 25%, transparent);
+}
+.login-link {
+  margin-top: 4px; padding: 6px 0;
+  background: transparent; border: 0; cursor: pointer;
+  color: var(--purple);
+  font: 500 13px/1.2 var(--font-mono);
+  text-align: left; justify-self: start;
+}
+.login-link:hover { text-decoration: underline; }
+
+.login-question-display {
+  padding: 14px 16px; border-radius: 12px;
+  background: color-mix(in srgb, var(--purple) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--purple) 20%, transparent);
+}
+.login-question-display p {
+  margin: 6px 0 0; font-family: var(--font-display);
+  font-size: 18px; line-height: 1.3;
+}
+
+.admin-field select {
+  font: 14px var(--font-mono); padding: 9px 10px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--paper); color: var(--ink);
+}
+
+/* ── Nav user chip + login button ────────────────────────────────── */
+
+.nav-user-name {
+  font: 500 12px/1 var(--font-mono);
+  letter-spacing: 0.04em; padding: 0 2px;
+  max-width: 90px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.nav-login-label {
+  font: 500 12px/1 var(--font-mono);
+  letter-spacing: 0.06em; text-transform: uppercase;
+  margin-left: 4px;
+}
+@media (max-width: 700px) {
+  .nav-login-label { display: none; }
+}
+
+/* ── Polls block (inside Events section) ──────────────────────────── */
+
+.polls-block {
+  margin: 0 0 32px;
+  padding: 28px;
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--paper) 70%, var(--purple-soft));
+  border: 1px solid var(--line);
+}
+.polls-header {
+  display: flex; justify-content: space-between; align-items: end;
+  gap: 16px; margin-bottom: 20px; flex-wrap: wrap;
+}
+.polls-title {
+  font: 600 24px/1.1 var(--font-display);
+  font-style: italic; margin: 4px 0 0;
+}
+.polls-empty {
+  font-family: var(--font-mono); color: var(--mute);
+  padding: 16px 0; font-size: 14px;
+}
+.polls-list {
+  display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.poll-card {
+  padding: 18px 18px 14px;
+  border-radius: 16px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.poll-card-head {
+  display: flex; justify-content: space-between; align-items: start;
+  gap: 8px;
+}
+.poll-card-meta {
+  display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+  font: 500 11px/1 var(--font-mono);
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--mute);
+}
+.poll-event-pill {
+  padding: 3px 8px; border-radius: 999px;
+  background: color-mix(in srgb, var(--purple) 12%, transparent);
+  color: var(--purple);
+}
+.poll-delete {
+  width: 22px; height: 22px; border-radius: 6px;
+  border: 0; background: transparent; cursor: pointer;
+  color: var(--mute); font-size: 14px;
+}
+.poll-delete:hover {
+  background: color-mix(in srgb, var(--rose) 12%, transparent);
+  color: var(--rose);
+}
+.poll-question {
+  font: 600 17px/1.3 var(--font-display);
+  margin: 2px 0 4px;
+}
+
+.poll-options { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.poll-option-btn {
+  position: relative; display: grid;
+  grid-template-columns: 1fr auto; align-items: center;
+  width: 100%; padding: 10px 14px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--bg); cursor: pointer; overflow: hidden;
+  transition: border-color 180ms var(--ease-out), background 180ms var(--ease-out);
+  font-family: var(--font-mono);
+}
+.poll-option-btn:hover { border-color: var(--purple); }
+.poll-option-fill {
+  position: absolute; inset: 0 auto 0 0;
+  background: color-mix(in srgb, var(--purple) 14%, transparent);
+  transition: width 350ms var(--ease-out);
+  z-index: 0;
+}
+.poll-option-label, .poll-option-count { position: relative; z-index: 1; }
+.poll-option-label { font-size: 14px; color: var(--ink); }
+.poll-option-count {
+  font-size: 12px; color: var(--mute);
+  letter-spacing: 0.02em;
+}
+.poll-option.is-mine .poll-option-btn {
+  border-color: var(--purple);
+  background: color-mix(in srgb, var(--purple) 6%, var(--bg));
+}
+.poll-option.is-mine .poll-option-label { font-weight: 600; }
+
+.poll-card-foot {
+  display: flex; justify-content: space-between;
+  font: 500 11px/1 var(--font-mono);
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--mute); padding-top: 6px;
+}
+
+/* ── Create-poll modal ────────────────────────────────────────────── */
+
+.create-poll-modal { grid-template-columns: 1fr; max-width: 520px; }
+.poll-option-edits { display: grid; gap: 8px; margin-top: 6px; }
+.poll-option-edit-row { display: flex; gap: 8px; align-items: center; }
+.poll-option-edit-row input {
+  flex: 1; font: 14px var(--font-mono); padding: 9px 10px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--paper); color: var(--ink);
+}
+.poll-option-remove {
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 1px solid var(--line); background: var(--paper);
+  cursor: pointer; color: var(--mute);
+}
+.poll-option-remove:hover {
+  border-color: var(--rose); color: var(--rose);
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AuroraBg } from './components/viber/AuroraBg';
 import { StickyNav } from './components/viber/StickyNav';
 import { Hero } from './components/viber/Hero';
@@ -11,7 +11,7 @@ import { EventsSection, EVENTS_SEED, type EventItem } from './components/viber/E
 import { LunchSection, parseLunchData } from './components/viber/LunchSection';
 import { PersonModal } from './components/viber/PersonModal';
 import { EditBanner } from './components/viber/EditBanner';
-import { AdminLoginModal } from './components/viber/AdminLoginModal';
+import { LoginModal } from './components/viber/LoginModal';
 import { AdminConsole } from './components/viber/AdminConsole';
 import {
   useActiveSection,
@@ -27,14 +27,21 @@ export function App() {
     loading, loadError, refresh,
     friends, findFriend,
     isAdmin, isEditing, toggleEditMode,
-    tryLogin, loginError,
     siteContent, updateContent, dailyQuote,
     updateFriend, uploadPhoto, deletePhoto,
+    currentUser, logoutUser,
   } = useFriendsList();
 
   const [openId, setOpenId] = useState<string | null>(null);
-  const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
   const [adminConsoleOpen, setAdminConsoleOpen] = useState(false);
+
+  // Auto-open admin console the first time isAdmin flips on (post-login).
+  const wasAdmin = useRef(false);
+  useEffect(() => {
+    if (isAdmin && !wasAdmin.current) setAdminConsoleOpen(true);
+    wasAdmin.current = isAdmin;
+  }, [isAdmin]);
   const [bannerOpen, setBannerOpen] = useLocalState('vr.banner', true);
   const [theme, setTheme] = useLocalState<'light' | 'dark'>('vr.theme', 'light');
 
@@ -75,12 +82,12 @@ export function App() {
   const openFriend = openId ? findFriend(openId) : null;
 
   const onToggleEdit = () => {
-    if (!isAdmin) { setAdminLoginOpen(true); return; }
+    if (!isAdmin) { setLoginOpen(true); return; }
     toggleEditMode();
   };
-  const onAdminClick = () => {
+  const onLoginClick = () => {
     if (isAdmin) { setAdminConsoleOpen(true); return; }
-    setAdminLoginOpen(true);
+    setLoginOpen(true);
   };
 
   const onSetMove = async (id: string, value: string) => {
@@ -129,8 +136,10 @@ export function App() {
         active={active}
         edit={isEditing}
         isAdmin={isAdmin}
+        currentUser={currentUser}
         onToggleEdit={onToggleEdit}
-        onAdminClick={onAdminClick}
+        onLoginClick={onLoginClick}
+        onLogoutUser={logoutUser}
         theme={theme}
         onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
       />
@@ -162,7 +171,7 @@ export function App() {
           <LeaderboardSection friends={friends} edit={isEditing} siteContent={siteContent} updateContent={updateContent} />
           <GMapSection friends={friends} manualPairs={manualGmapPairs} />
           <MovesSection friends={friends} edit={isEditing} onSetMove={onSetMove} />
-          <EventsSection events={events} />
+          <EventsSection events={events} onRequestLogin={() => setLoginOpen(true)} />
           <LunchSection friends={friends} data={lunchData} />
         </>
       )}
@@ -183,12 +192,8 @@ export function App() {
         />
       )}
 
-      {adminLoginOpen && (
-        <AdminLoginModal
-          onClose={() => setAdminLoginOpen(false)}
-          onLogin={tryLogin}
-          loginError={loginError}
-        />
+      {loginOpen && (
+        <LoginModal onClose={() => setLoginOpen(false)} />
       )}
 
       {adminConsoleOpen && isAdmin && (

@@ -86,13 +86,15 @@ interface StickyNavProps {
   active: string;
   edit: boolean;
   isAdmin: boolean;
+  currentUser: { username: string; role: 'user' | 'admin' } | null;
   onToggleEdit: () => void;
-  onAdminClick: () => void;
+  onLoginClick: () => void;
+  onLogoutUser: () => Promise<void> | void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
 }
 
-export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, theme, onToggleTheme }: StickyNavProps) {
+export function StickyNav({ active, edit, isAdmin, currentUser, onToggleEdit, onLoginClick, onLogoutUser, theme, onToggleTheme }: StickyNavProps) {
   const scrolled = useScrolled(20);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuAnchorRef = useRef<HTMLDivElement | null>(null);
@@ -160,14 +162,36 @@ export function StickyNav({ active, edit, isAdmin, onToggleEdit, onAdminClick, t
             {theme === 'dark' ? '🌙' : '☀︎'}
           </button>
 
-          {/* Admin / settings — direct click, no dropdown needed */}
-          <button
-            className="nav-edit nav-admin"
-            onClick={onAdminClick}
-            title={isAdmin ? 'Admin console' : 'Admin-login'}
-          >
-            {isAdmin ? '🔓' : '⚙'}
-          </button>
+          {/* Login — key icon. Becomes user-chip when logged in as user, unlock when admin. */}
+          {isAdmin ? (
+            <button
+              className="nav-edit nav-admin"
+              onClick={onLoginClick}
+              title="Öppna admin console"
+              aria-label="Admin console"
+            >
+              <span aria-hidden="true">🔓</span>
+            </button>
+          ) : currentUser ? (
+            <button
+              className="nav-edit nav-user"
+              onClick={() => { void onLogoutUser(); }}
+              title={`Inloggad som ${currentUser.username} — klicka för att logga ut`}
+              aria-label={`Logga ut ${currentUser.username}`}
+            >
+              <span className="nav-user-name">{currentUser.username}</span>
+            </button>
+          ) : (
+            <button
+              className="nav-edit nav-admin"
+              onClick={onLoginClick}
+              title="Logga in"
+              aria-label="Logga in"
+            >
+              <span aria-hidden="true">🗝️</span>
+              <span className="nav-login-label">Login</span>
+            </button>
+          )}
 
           {/* Hamburger (mobile only) */}
           <div className="nav-anchor" ref={menuAnchorRef}>

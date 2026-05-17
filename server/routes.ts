@@ -16,6 +16,7 @@ import { exec, queryAll, queryOne } from './db.js';
 import { decodeDataUrl } from './lib/photos.js';
 import { buildMapsUrl, cacheKey, computePairs, type GeoFriend } from './lib/gmap.js';
 import { addCatanRoutes } from './catan-routes.js';
+import { addAuthRoutes } from './auth-routes.js';
 
 // ── DTO conversion ────────────────────────────────────────────────────
 
@@ -149,6 +150,7 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
 export const router: Router = Router();
 
 addCatanRoutes(router);
+addAuthRoutes(router);
 
 // Per-IP login rate limiter: 5 attempts / 15 min, then 429.
 // In-memory map is fine for this scale; on serverless cold start it resets,

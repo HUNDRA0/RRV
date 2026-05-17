@@ -9,6 +9,7 @@
 import type { Friend } from '../data/friends';
 
 const TOKEN_KEY = 'friendslist_admin_token';
+const USER_TOKEN_KEY = 'rrv_user_token';
 
 export class ApiError extends Error {
   status: number;
@@ -18,22 +19,29 @@ export class ApiError extends Error {
   }
 }
 
-export const tokenStore = {
-  get: (): string | null => {
-    try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
-  },
-  set: (token: string) => {
-    try { localStorage.setItem(TOKEN_KEY, token); } catch { /* ignore */ }
-  },
-  clear: () => {
-    try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ }
-  },
-};
+function makeStore(key: string) {
+  return {
+    get: (): string | null => {
+      try { return localStorage.getItem(key); } catch { return null; }
+    },
+    set: (token: string) => {
+      try { localStorage.setItem(key, token); } catch { /* ignore */ }
+    },
+    clear: () => {
+      try { localStorage.removeItem(key); } catch { /* ignore */ }
+    },
+  };
+}
+
+export const tokenStore = makeStore(TOKEN_KEY);
+export const userTokenStore = makeStore(USER_TOKEN_KEY);
 
 interface FetchOptions {
   method?: string;
   body?: unknown;
-  auth?: boolean;
+  auth?: boolean;       // admin bearer
+  userAuth?: boolean;   // user bearer (optional; if no token, header is just omitted)
+  requireUser?: boolean; // user bearer, throw if missing
 }
 
 async function request<T>(path: string, opts: FetchOptions = {}): Promise<T> {
@@ -43,6 +51,13 @@ async function request<T>(path: string, opts: FetchOptions = {}): Promise<T> {
     const token = tokenStore.get();
     if (!token) throw new ApiError('not logged in', 401);
     headers['authorization'] = `Bearer ${token}`;
+  } else if (opts.requireUser) {
+    const token = userTokenStore.get();
+    if (!token) throw new ApiError('not logged in', 401);
+    headers['authorization'] = `Bearer ${token}`;
+  } else if (opts.userAuth) {
+    const token = userTokenStore.get();
+    if (token) headers['authorization'] = `Bearer ${token}`;
   }
   const res = await fetch(path, {
     method: opts.method ?? 'GET',
@@ -172,4 +187,88 @@ export const api = {
 
   deletePrediction: (id: number) =>
     request<{ ok: true }>(`/api/predictions/${id}`, { method: 'DELETE', auth: true }),
+
+  // ── User auth ─────────────────────────────────────────────────────────
+
+  register: (input: {
+    username: string;
+    password: string;
+    securityQuestion: string;
+    securityAnswer: string;
+  }) =>
+    request<AuthResponse>('/api/auth/register', { method: 'POST', body: input }),
+
+  userLogin: (input: { username: string; password: string }) =>
+    request<AuthResponse>('/api/auth/login', { method: 'POST', body: input }),
+
+  userLogout: () =>
+    request<{ ok: true }>('/api/auth/logout', { method: 'POST', requireUser: true }),
+
+  userMe: () => request<{ user: ApiUser }>('/api/auth/me', { requireUser: true }),
+
+  recoverStart: (username: string) =>
+    request<{ securityQuestion: string }>('/api/auth/recover/start', {
+      method: 'POST',
+      body: { username },
+    }),
+
+  recoverFinish: (input: { username: string; securityAnswer: string; newPassword: string }) =>
+    request<AuthResponse>('/api/auth/recover/finish', { method: 'POST', body: input }),
+
+  // ── Polls ────────────────────────────────────────────────────────────
+
+  fetchPolls: () => request<{ polls: ApiPoll[] }>('/api/polls', { userAuth: true }),
+
+  createPoll: (input: { question: string; options: string[]; eventId?: string | null }) =>
+    request<{ ok: true; id: string }>('/api/polls', {
+      method: 'POST',
+      body: input,
+      requireUser: true,
+    }),
+
+  votePoll: (pollId: string, optionId: number) =>
+    request<{ ok: true }>(`/api/polls/${encodeURIComponent(pollId)}/vote`, {
+      method: 'POST',
+      body: { optionId },
+      requireUser: true,
+    }),
+
+  deletePoll: (pollId: string) =>
+    request<{ ok: true }>(`/api/polls/${encodeURIComponent(pollId)}`, {
+      method: 'DELETE',
+      requireUser: true,
+    }),
 };
+
+// ── DTOs for new endpoints ─────────────────────────────────────────────
+
+export interface ApiUser {
+  id: string;
+  username: string;
+  role: 'user' | 'admin';
+}
+
+export interface AuthResponse {
+  token: string;
+  expiresAt: string;
+  user: ApiUser;
+}
+
+export interface ApiPollOption {
+  id: number;
+  label: string;
+  position: number;
+  votes: number;
+}
+
+export interface ApiPoll {
+  id: string;
+  eventId: string | null;
+  question: string;
+  author: string;
+  createdBy: string;
+  createdAt: string;
+  closesAt: string | null;
+  options: ApiPollOption[];
+  myVote: number | null;
+}
