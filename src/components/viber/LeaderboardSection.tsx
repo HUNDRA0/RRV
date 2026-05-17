@@ -89,7 +89,7 @@ export function LeaderboardSection({ friends, edit, siteContent, updateContent }
             >
               <div className="lb-rank">{rank}</div>
               <div className="lb-avatar">
-                {photo ? <img src={photo} alt={f.name} /> : <span>{f.name[0]}</span>}
+                {photo ? <img src={photo} alt={f.name} loading="lazy" decoding="async" /> : <span>{f.name[0]}</span>}
               </div>
               <div className="lb-info">
                 <div className="lb-name">{f.name}</div>

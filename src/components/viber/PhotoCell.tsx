@@ -28,7 +28,7 @@ export function PhotoCell({ friend, onClick, edit, onRemovePhoto }: PhotoCellPro
       tabIndex={0}
     >
       {main ? (
-        <img src={main.url} alt={friend.name} />
+        <img src={main.url} alt={friend.name} loading="lazy" decoding="async" />
       ) : (
         <div className="placeholder">{(friend.name[0] || '?').toUpperCase()}</div>
       )}

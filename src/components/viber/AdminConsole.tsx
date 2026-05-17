@@ -354,7 +354,7 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, p
     <div className="admin-person">
       <div className="admin-person-head">
         <div className="admin-avatar" data-tier={tierCss}>
-          {arr[0] ? <img src={arr[0].url} alt={friend.name} /> : <span>{friend.name[0]}</span>}
+          {arr[0] ? <img src={arr[0].url} alt={friend.name} loading="lazy" decoding="async" /> : <span>{friend.name[0]}</span>}
         </div>
         <div>
           <div className="lb-name">{friend.name}</div>
@@ -426,7 +426,7 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, p
         <div className="admin-photo-strip">
           {arr.map((p) => (
             <div className="admin-photo-thumb" key={p.position}>
-              <img src={p.url} alt="" />
+              <img src={p.url} alt="" loading="lazy" decoding="async" />
               <button onClick={() => deletePhoto(friend.id, p.position)}>✕</button>
             </div>
           ))}

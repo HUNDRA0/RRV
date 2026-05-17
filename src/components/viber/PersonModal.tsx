@@ -62,7 +62,7 @@ export function PersonModal({
 
         <div className="modal-photo">
           {currentUrl ? (
-            <img src={currentUrl} alt={friend.name} key={idx} />
+            <img src={currentUrl} alt={friend.name} key={idx} decoding="async" />
           ) : (
             <div className="placeholder" data-tier={tierCss}>
               {(friend.name[0] || '?').toUpperCase()}

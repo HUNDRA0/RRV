@@ -29,7 +29,7 @@ function Avatar({ friend }: { friend: Friend }) {
   const photo = (friend.photos || [])[0]?.url;
   return (
     <div className="lunch-avatar">
-      {photo ? <img src={photo} alt={friend.name} /> : <span>{friend.name[0]}</span>}
+      {photo ? <img src={photo} alt={friend.name} loading="lazy" decoding="async" /> : <span>{friend.name[0]}</span>}
     </div>
   );
 }
