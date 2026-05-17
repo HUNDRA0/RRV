@@ -1666,11 +1666,37 @@ footer.foot {
 
 /* ── Nav user chip + login button ────────────────────────────────── */
 
+.nav-user-anchor { position: relative; }
 .nav-user-name {
   font: 500 12px/1 var(--font-mono);
   letter-spacing: 0.04em; padding: 0 2px;
   max-width: 90px; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap;
+}
+.nav-user-caret {
+  margin-left: 4px; font-size: 9px; color: var(--mute);
+  transition: transform 180ms var(--ease-out);
+}
+.nav-user[aria-expanded="true"] .nav-user-caret { transform: rotate(180deg); }
+
+.nav-user-menu {
+  right: 0; left: auto;
+  width: 200px; min-width: 0;
+}
+.nav-user-menu-head {
+  padding: 10px 14px 8px;
+  font: 500 11px/1.4 var(--font-mono);
+  letter-spacing: 0.04em; color: var(--mute);
+  border-bottom: 1px solid var(--line);
+}
+.nav-user-menu-head strong {
+  color: var(--ink); font-weight: 600;
+  font-size: 13px; letter-spacing: normal;
+}
+.nav-menu-danger { color: var(--rose); }
+.nav-menu-danger:hover {
+  background: color-mix(in srgb, var(--rose) 10%, transparent) !important;
+  color: var(--rose) !important;
 }
 .nav-login-label {
   font: 500 12px/1 var(--font-mono);
