@@ -158,16 +158,7 @@ function PollCard({
 
 // ── Create-poll modal ─────────────────────────────────────────────────
 
-const PRESET_OPTIONS = [
-  'Ja',
-  'Nej',
-  'Kanske',
-  'Vet ej',
-  'Ja, jag kommer',
-  'Nej, kan inte',
-  'Säger till senare',
-  'Beror på vädret',
-];
+const PRESET_OPTIONS = ['Ja', 'Nej', 'Kanske'];
 
 function CreatePollModal({ events, onClose }: { events: EventItem[]; onClose: () => void }) {
   const { createPoll } = useFriendsList();
