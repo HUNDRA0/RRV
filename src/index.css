@@ -1744,14 +1744,14 @@ footer.foot {
 }
 
 .poll-options { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.poll-option-row { display: flex; gap: 6px; align-items: stretch; }
 .poll-option-btn {
-  position: relative; display: grid;
-  grid-template-columns: 1fr auto; align-items: center;
-  width: 100%; padding: 10px 14px;
+  position: relative; display: flex; align-items: center;
+  flex: 1; padding: 10px 14px;
   border: 1px solid var(--line); border-radius: 10px;
   background: var(--bg); cursor: pointer; overflow: hidden;
   transition: border-color 180ms var(--ease-out), background 180ms var(--ease-out);
-  font-family: var(--font-mono);
+  font-family: var(--font-mono); text-align: left;
 }
 .poll-option-btn:hover { border-color: var(--purple); }
 .poll-option-fill {
@@ -1760,17 +1760,47 @@ footer.foot {
   transition: width 350ms var(--ease-out);
   z-index: 0;
 }
-.poll-option-label, .poll-option-count { position: relative; z-index: 1; }
-.poll-option-label { font-size: 14px; color: var(--ink); }
-.poll-option-count {
-  font-size: 12px; color: var(--mute);
-  letter-spacing: 0.02em;
+.poll-option-label { position: relative; z-index: 1; font-size: 14px; color: var(--ink); }
+.poll-option-count-btn {
+  position: relative; flex-shrink: 0;
+  min-width: 78px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--paper); cursor: pointer;
+  font: 500 12px/1 var(--font-mono);
+  color: var(--mute); letter-spacing: 0.02em;
+  transition: all 180ms var(--ease-out);
+}
+.poll-option-count-btn:hover:not(:disabled) {
+  border-color: var(--purple); color: var(--purple);
+}
+.poll-option-count-btn:disabled { cursor: default; opacity: 0.6; }
+.poll-option-count-btn[aria-expanded="true"] {
+  border-color: var(--purple); color: var(--purple);
+  background: color-mix(in srgb, var(--purple) 8%, var(--paper));
 }
 .poll-option.is-mine .poll-option-btn {
   border-color: var(--purple);
   background: color-mix(in srgb, var(--purple) 6%, var(--bg));
 }
 .poll-option.is-mine .poll-option-label { font-weight: 600; }
+
+.poll-option-voters {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: 6px; padding: 8px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--purple) 5%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--purple) 24%, transparent);
+}
+.poll-voter-chip {
+  padding: 3px 10px; border-radius: 999px;
+  background: var(--paper); color: var(--ink);
+  font: 500 12px/1.2 var(--font-mono);
+  border: 1px solid var(--line);
+}
+.poll-voter-empty {
+  font: 500 12px/1.2 var(--font-mono);
+  color: var(--mute);
+}
 
 .poll-card-foot {
   display: flex; justify-content: space-between;

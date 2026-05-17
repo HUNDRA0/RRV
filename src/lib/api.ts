@@ -219,7 +219,7 @@ export const api = {
 
   fetchPolls: () => request<{ polls: ApiPoll[] }>('/api/polls', { userAuth: true }),
 
-  createPoll: (input: { question: string; options: string[]; eventId?: string | null }) =>
+  createPoll: (input: { question: string; options: string[]; eventId?: string | null; closesAt?: string | null }) =>
     request<{ ok: true; id: string }>('/api/polls', {
       method: 'POST',
       body: input,
@@ -259,6 +259,7 @@ export interface ApiPollOption {
   label: string;
   position: number;
   votes: number;
+  voters: string[];  // empty when caller is not authenticated
 }
 
 export interface ApiPoll {

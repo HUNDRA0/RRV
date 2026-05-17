@@ -67,7 +67,7 @@ interface FriendsListState {
   // Polls.
   polls: ApiPoll[];
   refreshPolls: () => Promise<void>;
-  createPoll: (input: { question: string; options: string[]; eventId?: string | null }) => Promise<string | null>;
+  createPoll: (input: { question: string; options: string[]; eventId?: string | null; closesAt?: string | null }) => Promise<string | null>;
   votePoll: (pollId: string, optionId: number) => Promise<void>;
   deletePoll: (pollId: string) => Promise<void>;
 }
@@ -310,7 +310,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
   // ── Polls ───────────────────────────────────────────────────────────
 
   const createPoll = useCallback(
-    async (input: { question: string; options: string[]; eventId?: string | null }) => {
+    async (input: { question: string; options: string[]; eventId?: string | null; closesAt?: string | null }) => {
       const { id } = await api.createPoll(input);
       await refreshPolls();
       return id;

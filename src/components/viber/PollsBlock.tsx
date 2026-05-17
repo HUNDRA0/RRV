@@ -89,6 +89,7 @@ function PollCard({
   onRequestLogin: () => void;
 }) {
   const total = poll.options.reduce((s, o) => s + o.votes, 0);
+  const [expandedOption, setExpandedOption] = useState<number | null>(null);
   return (
     <article className="poll-card">
       <header className="poll-card-head">
@@ -105,17 +106,44 @@ function PollCard({
         {poll.options.map((o) => {
           const pct = total === 0 ? 0 : Math.round((o.votes / total) * 100);
           const isMine = poll.myVote === o.id;
+          const isExpanded = expandedOption === o.id;
+          // Count is clickable separately from the vote button to reveal voters.
           return (
             <li key={o.id} className={`poll-option${isMine ? ' is-mine' : ''}`}>
-              <button
-                className="poll-option-btn"
-                onClick={() => (canVote ? onVote(o.id) : onRequestLogin())}
-                aria-pressed={isMine}
-              >
-                <span className="poll-option-fill" style={{ width: `${pct}%` }} />
-                <span className="poll-option-label">{o.label}</span>
-                <span className="poll-option-count">{o.votes} · {pct}%</span>
-              </button>
+              <div className="poll-option-row">
+                <button
+                  className="poll-option-btn"
+                  onClick={() => (canVote ? onVote(o.id) : onRequestLogin())}
+                  aria-pressed={isMine}
+                >
+                  <span className="poll-option-fill" style={{ width: `${pct}%` }} />
+                  <span className="poll-option-label">{o.label}</span>
+                </button>
+                <button
+                  type="button"
+                  className="poll-option-count-btn"
+                  onClick={() => {
+                    if (!canVote) { onRequestLogin(); return; }
+                    setExpandedOption(prev => (prev === o.id ? null : o.id));
+                  }}
+                  aria-expanded={isExpanded}
+                  aria-label={`Visa vilka som röstat på ${o.label}`}
+                  disabled={o.votes === 0}
+                >
+                  {o.votes} · {pct}%
+                </button>
+              </div>
+              {isExpanded && (
+                <div className="poll-option-voters">
+                  {o.voters.length === 0 ? (
+                    <span className="poll-voter-empty">Ingen ännu</span>
+                  ) : (
+                    o.voters.map((v) => (
+                      <span key={v} className="poll-voter-chip">{v}</span>
+                    ))
+                  )}
+                </div>
+              )}
             </li>
           );
         })}
@@ -152,10 +180,22 @@ function CreatePollModal({ events, onClose }: { events: EventItem[]; onClose: ()
     setBusy(true);
     setErr(null);
     try {
+      // Snap closesAt to the day after the linked event so the poll auto-disappears.
+      // Standalone polls (no eventId) stay forever until manually deleted.
+      let closesAt: string | null = null;
+      if (eventId) {
+        const ev = events.find(e => e.id === eventId);
+        if (ev) {
+          const d = new Date(`${ev.date}T00:00:00`);
+          d.setDate(d.getDate() + 1);
+          closesAt = d.toISOString();
+        }
+      }
       const id = await createPoll({
         question,
         options: options.map(o => o.trim()).filter(Boolean),
         eventId: eventId || null,
+        closesAt,
       });
       if (id) onClose();
     } catch (e) {

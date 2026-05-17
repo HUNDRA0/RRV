@@ -245,6 +245,8 @@ export function addAuthRoutes(router: Router): void {
   // ── Polls ─────────────────────────────────────────────────────────────
 
   // Public list. Includes counts + caller's own vote if a valid bearer is passed.
+  // Polls with `closes_at` in the past are hidden (auto-expire — used to hide
+  // event-linked polls the day after the event).
   router.get('/polls', async (req, res) => {
     const polls = await queryAll<{
       id: string;
@@ -259,6 +261,7 @@ export function addAuthRoutes(router: Router): void {
               u.username AS author
        FROM polls p
        JOIN users u ON u.id = p.created_by
+       WHERE p.closes_at IS NULL OR datetime(p.closes_at) > datetime('now')
        ORDER BY p.created_at DESC`,
     );
     if (polls.length === 0) {
@@ -277,8 +280,11 @@ export function addAuthRoutes(router: Router): void {
     const tallyMap = new Map<number, number>();
     for (const t of tallies) tallyMap.set(t.option_id, t.n);
 
-    // If caller has a session, surface their own choice per poll.
+    // If caller has a session, surface their own choice per poll AND include
+    // voter usernames per option (so the friend group can see who voted for what).
+    // Anonymous viewers see only counts.
     let myVotes = new Map<string, number>();
+    let votersByOption = new Map<number, string[]>();
     const header = req.header('authorization') ?? '';
     const match = /^Bearer\s+(.+)$/i.exec(header);
     if (match) {
@@ -289,6 +295,17 @@ export function addAuthRoutes(router: Router): void {
           [user.id],
         );
         for (const r of rows) myVotes.set(r.poll_id, r.option_id);
+
+        const voterRows = await queryAll<{ option_id: number; username: string }>(
+          `SELECT v.option_id, u.username
+           FROM poll_votes v JOIN users u ON u.id = v.user_id
+           ORDER BY v.created_at`,
+        );
+        for (const r of voterRows) {
+          const list = votersByOption.get(r.option_id) ?? [];
+          list.push(r.username);
+          votersByOption.set(r.option_id, list);
+        }
       }
     }
 
@@ -307,6 +324,7 @@ export function addAuthRoutes(router: Router): void {
             id: o.id,
             label: o.label,
             position: o.position,
+            voters: votersByOption.get(o.id) ?? [],
             votes: tallyMap.get(o.id) ?? 0,
           })),
         myVote: myVotes.get(p.id) ?? null,
@@ -324,6 +342,22 @@ export function addAuthRoutes(router: Router): void {
       ? body.eventId.trim().slice(0, 60)
       : null;
     const rawOptions = Array.isArray(body.options) ? body.options : [];
+
+    // Optional auto-close timestamp. We accept ISO strings only.
+    // Used by the client to expire event-linked polls the day after the event.
+    let closesAt: string | null = null;
+    if (typeof body.closesAt === 'string' && body.closesAt) {
+      const t = Date.parse(body.closesAt);
+      if (!Number.isFinite(t)) {
+        res.status(400).json({ error: 'ogiltigt datum för stängning' });
+        return;
+      }
+      if (t <= Date.now()) {
+        res.status(400).json({ error: 'stängningsdatum måste vara i framtiden' });
+        return;
+      }
+      closesAt = new Date(t).toISOString();
+    }
 
     if (question.length < 4) {
       res.status(400).json({ error: 'fråga måste vara minst 4 tecken' });
@@ -352,8 +386,8 @@ export function addAuthRoutes(router: Router): void {
 
     const id = newPollId();
     await exec(
-      `INSERT INTO polls (id, created_by, event_id, question) VALUES (?, ?, ?, ?)`,
-      [id, req.user!.id, eventId, question],
+      `INSERT INTO polls (id, created_by, event_id, question, closes_at) VALUES (?, ?, ?, ?, ?)`,
+      [id, req.user!.id, eventId, question, closesAt],
     );
     for (let i = 0; i < uniqueOptions.length; i++) {
       await exec(
