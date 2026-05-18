@@ -171,9 +171,13 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
   const tryLogin = useCallback(async (password: string) => {
     setLoginError(null);
     try {
-      const { token } = await api.login(password);
+      const { token, userToken, user } = await api.login(password);
       tokenStore.set(token);
       setIsAdmin(true);
+      // Admin login also issues a parallel user session for the synthetic
+      // 'admin' user so polls (which require a user_session) work natively.
+      if (userToken) userTokenStore.set(userToken);
+      if (user) setCurrentUser(user);
       return true;
     } catch (err) {
       setLoginError(err instanceof ApiError ? err.message : 'inloggning misslyckades');
@@ -184,7 +188,9 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     try { await api.logout(); } catch { /* token already invalid is fine */ }
     tokenStore.clear();
+    userTokenStore.clear();
     setIsAdmin(false);
+    setCurrentUser(null);
     setIsEditMode(false);
     setLoginError(null);
   }, []);

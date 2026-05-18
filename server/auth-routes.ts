@@ -102,6 +102,10 @@ export function addAuthRoutes(router: Router): void {
       res.status(400).json({ error: 'användarnamn: bara bokstäver, siffror, _ . -' });
       return;
     }
+    if (username.toLowerCase() === 'admin') {
+      res.status(409).json({ error: 'användarnamnet är reserverat' });
+      return;
+    }
     if (password.length < MIN_PASSWORD || password.length > MAX_PASSWORD) {
       res.status(400).json({ error: `lösenord minst ${MIN_PASSWORD} tecken` });
       return;
