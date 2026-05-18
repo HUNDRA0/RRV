@@ -196,8 +196,22 @@ function CreatePollModal({ events, onClose }: { events: EventItem[]; onClose: ()
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
     setErr(null);
+
+    // Validate up-front and surface a clear message instead of silently
+    // refusing to click. This was a real footgun — users would press the
+    // disabled button and assume something was broken.
+    const cleanOptions = options.map(o => o.trim()).filter(Boolean);
+    if (question.trim().length < 4) {
+      setErr('Skriv en fråga (minst 4 tecken).');
+      return;
+    }
+    if (cleanOptions.length < 2) {
+      setErr('Lägg till minst 2 alternativ.');
+      return;
+    }
+
+    setBusy(true);
     try {
       // Snap closesAt to the day after the linked event so the poll auto-disappears.
       // Standalone polls (no eventId) stay forever until manually deleted.
@@ -212,7 +226,7 @@ function CreatePollModal({ events, onClose }: { events: EventItem[]; onClose: ()
       }
       const id = await createPoll({
         question,
-        options: options.map(o => o.trim()).filter(Boolean),
+        options: cleanOptions,
         eventId: eventId || null,
         closesAt,
       });
@@ -223,9 +237,6 @@ function CreatePollModal({ events, onClose }: { events: EventItem[]; onClose: ()
       setBusy(false);
     }
   }
-
-  const cleanCount = options.map(o => o.trim()).filter(Boolean).length;
-  const valid = question.trim().length >= 4 && cleanCount >= 2;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -299,7 +310,7 @@ function CreatePollModal({ events, onClose }: { events: EventItem[]; onClose: ()
 
           {err && <div className="login-error">{err}</div>}
           <div className="modal-photo-controls">
-            <button type="submit" className="btn btn-purple" disabled={busy || !valid}>
+            <button type="submit" className="btn btn-purple" disabled={busy}>
               {busy ? 'Skapar…' : 'Skapa omröstning'}
             </button>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Avbryt</button>
