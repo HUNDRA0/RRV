@@ -134,7 +134,11 @@ export const api = {
   fetchContent: () => request<SiteContent>('/api/content'),
 
   login: (password: string) =>
-    request<{ token: string; expiresAt: string }>('/api/admin/login', {
+    request<{
+      token: string; expiresAt: string;
+      userToken: string; userTokenExpiresAt: string;
+      user: ApiUser;
+    }>('/api/admin/login', {
       method: 'POST',
       body: { password },
     }),

@@ -17,6 +17,37 @@ import { decodeDataUrl } from './lib/photos.js';
 import { buildMapsUrl, cacheKey, computePairs, type GeoFriend } from './lib/gmap.js';
 import { addCatanRoutes } from './catan-routes.js';
 import { addAuthRoutes } from './auth-routes.js';
+import { USER_SESSION_TTL_MS, hashPassword, newSessionToken } from './auth.js';
+
+// Synthetic user record backing the admin password flow. Lets admins create,
+// vote on, and delete polls without having to register a separate account —
+// the polls feature is gated on a user_sessions token, so admin login also
+// issues one for this record.
+const ADMIN_USER_ID = '__admin__';
+const ADMIN_USERNAME = 'admin';
+
+async function ensureAdminUserAndSession(): Promise<{ userToken: string; userTokenExpires: string }> {
+  const existing = await queryOne<{ id: string }>(`SELECT id FROM users WHERE id = ?`, [ADMIN_USER_ID]);
+  if (!existing) {
+    // Lock-out hashes — the admin row is unreachable via /api/auth/login or
+    // /api/auth/recover because we only authenticate this principal through
+    // ADMIN_PASSWORD. randomBytes for the lock value keeps the column non-empty.
+    const lock = randomBytes(32).toString('hex');
+    await exec(
+      `INSERT INTO users (id, username, password_hash, security_question, security_answer_hash, role)
+       VALUES (?, ?, ?, ?, ?, 'admin')`,
+      [ADMIN_USER_ID, ADMIN_USERNAME, hashPassword(lock), 'n/a', hashPassword(lock)],
+    );
+  }
+  await exec(`DELETE FROM user_sessions WHERE expires_at < datetime('now')`);
+  const userToken = newSessionToken();
+  const userTokenExpires = new Date(Date.now() + USER_SESSION_TTL_MS).toISOString();
+  await exec(
+    `INSERT INTO user_sessions (token, user_id, expires_at) VALUES (?, ?, ?)`,
+    [userToken, ADMIN_USER_ID, userTokenExpires],
+  );
+  return { userToken, userTokenExpires };
+}
 
 // ── DTO conversion ────────────────────────────────────────────────────
 
@@ -208,12 +239,22 @@ router.post('/admin/login', async (req, res) => {
   const token = randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS).toISOString();
   await exec(`INSERT INTO admin_sessions (token, expires_at) VALUES (?, ?)`, [token, expiresAt]);
-  res.json({ token, expiresAt });
+
+  // Issue a parallel user_session for the synthetic admin user so the polls
+  // feature (gated on user auth) works without forcing admins to register.
+  const { userToken, userTokenExpires } = await ensureAdminUserAndSession();
+  res.json({
+    token, expiresAt,
+    userToken, userTokenExpiresAt: userTokenExpires,
+    user: { id: ADMIN_USER_ID, username: ADMIN_USERNAME, role: 'admin' as const },
+  });
 });
 
 router.post('/admin/logout', requireAdmin, async (req, res) => {
   const token = (req.header('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
   await exec('DELETE FROM admin_sessions WHERE token = ?', [token]);
+  // Also drop the parallel user session(s) for the synthetic admin.
+  await exec('DELETE FROM user_sessions WHERE user_id = ?', [ADMIN_USER_ID]);
   res.json({ ok: true });
 });
 
