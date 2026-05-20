@@ -12,6 +12,7 @@ import { LunchSection, parseLunchData } from './components/viber/LunchSection';
 import { PersonModal } from './components/viber/PersonModal';
 import { EditBanner } from './components/viber/EditBanner';
 import { LoginModal } from './components/viber/LoginModal';
+import { applyTheme, readThemeFromContent } from './lib/theme';
 import { AdminConsole } from './components/viber/AdminConsole';
 import {
   useActiveSection,
@@ -53,6 +54,12 @@ export function App() {
     document.documentElement.dataset.theme = theme;
     return () => { delete document.documentElement.dataset.theme; };
   }, [theme]);
+
+  // Apply admin-set theme overrides (accent, font-scale, bg image, etc.)
+  // whenever siteContent changes.
+  useEffect(() => {
+    applyTheme(readThemeFromContent(siteContent));
+  }, [siteContent]);
 
   // Re-show the edit banner whenever editing turns back on.
   useEffect(() => { if (isEditing) setBannerOpen(true); }, [isEditing, setBannerOpen]);

@@ -7,7 +7,7 @@ import { QUOTES_SEED } from './QuoteTicker';
 import { EVENTS_SEED, type EventItem } from './EventsSection';
 import { parseLunchData, type LunchData, type LunchDebt } from './LunchSection';
 
-type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'events' | 'lunch' | 'tiers' | 'data';
+type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'events' | 'lunch' | 'tiers' | 'design' | 'data';
 
 const TABS: [Tab, string][] = [
   ['people',      'Personer'],
@@ -18,6 +18,7 @@ const TABS: [Tab, string][] = [
   ['events',      'Events'],
   ['lunch',       'Lunch 🎟'],
   ['tiers',       'Tiers'],
+  ['design',      'Design'],
   ['data',        'Data'],
 ];
 
@@ -225,6 +226,10 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
 
           {tab === 'tiers' && (
             <TiersTab siteContent={siteContent} updateContent={updateContent} />
+          )}
+
+          {tab === 'design' && (
+            <DesignTab siteContent={siteContent} updateContent={updateContent} />
           )}
 
           {tab === 'data' && (
@@ -1020,6 +1025,136 @@ function TiersTab({ siteContent, updateContent }: TiersTabProps) {
           {saving ? 'Sparar…' : 'Spara'}
         </button>
         {savedAt && <span className="card-meta" style={{ color: 'var(--purple-2)' }}>✓ Sparat</span>}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Design tab — admin-controlled theme overrides. Saved to site_content
+// keys (theme_*) so all visitors see the same look. Live preview applies
+// each change to documentElement via CSS custom properties.
+// ─────────────────────────────────────────────────────────────────────
+
+interface DesignTabProps {
+  siteContent: Record<string, string>;
+  updateContent: (key: string, value: string) => Promise<void>;
+}
+
+function DesignTab({ siteContent, updateContent }: DesignTabProps) {
+  // Local drafts; saved on blur or via explicit Save.
+  const [accent, setAccent] = useState(siteContent['theme_accent'] || '#8B5CF6');
+  const [fontScale, setFontScale] = useState(siteContent['theme_font_scale'] || '1');
+  const [radius, setRadius] = useState(siteContent['theme_radius'] || '1');
+  const [bgColor, setBgColor] = useState(siteContent['theme_bg_color'] || '');
+  const [bgImageUrl, setBgImageUrl] = useState(siteContent['theme_bg_image_url'] || '');
+  const [bgImageOpacity, setBgImageOpacity] = useState(siteContent['theme_bg_image_opacity'] || '0.5');
+  const [saving, setSaving] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  function flashSaved(key: string) {
+    setSaving(null);
+    setSavedAt(key);
+    setTimeout(() => setSavedAt(null), 1500);
+  }
+
+  async function persist(key: string, value: string) {
+    setSaving(key);
+    try { await updateContent(key, value); flashSaved(key); }
+    catch { setSaving(null); }
+  }
+
+  async function resetAll() {
+    if (!confirm('Återställ all design till original? Detta påverkar alla.')) return;
+    setAccent('#8B5CF6'); setFontScale('1'); setRadius('1');
+    setBgColor(''); setBgImageUrl(''); setBgImageOpacity('0.5');
+    await Promise.all([
+      updateContent('theme_accent', ''),
+      updateContent('theme_font_scale', ''),
+      updateContent('theme_radius', ''),
+      updateContent('theme_bg_color', ''),
+      updateContent('theme_bg_image_url', ''),
+      updateContent('theme_bg_image_opacity', ''),
+    ]).catch(() => { /* surface later */ });
+  }
+
+  return (
+    <div className="admin-design">
+      <p className="card-meta" style={{ marginBottom: 18 }}>
+        Ändringar syns omedelbart för dig. När du sparar slår de igenom för alla.
+        Tryck <strong>Återställ till original</strong> om något ser knepigt ut.
+      </p>
+
+      <div className="design-row">
+        <label className="design-label">Accentfärg</label>
+        <div className="design-control">
+          <input type="color" value={accent} onChange={(e) => setAccent(e.target.value)} />
+          <input type="text" value={accent} onChange={(e) => setAccent(e.target.value)} style={{ width: 110 }} />
+          <button className="btn btn-ghost" onClick={() => persist('theme_accent', accent)} disabled={saving === 'theme_accent'}>
+            {saving === 'theme_accent' ? 'Sparar…' : 'Spara'}
+          </button>
+          {savedAt === 'theme_accent' && <span className="design-saved">✓</span>}
+        </div>
+      </div>
+
+      <div className="design-row">
+        <label className="design-label">Textstorlek <span className="card-meta">({fontScale}×)</span></label>
+        <div className="design-control">
+          <input type="range" min="0.85" max="1.25" step="0.05" value={fontScale} onChange={(e) => setFontScale(e.target.value)} />
+          <button className="btn btn-ghost" onClick={() => persist('theme_font_scale', fontScale)} disabled={saving === 'theme_font_scale'}>Spara</button>
+          {savedAt === 'theme_font_scale' && <span className="design-saved">✓</span>}
+        </div>
+      </div>
+
+      <div className="design-row">
+        <label className="design-label">Hörnradius <span className="card-meta">({radius}×)</span></label>
+        <div className="design-control">
+          <input type="range" min="0" max="2" step="0.1" value={radius} onChange={(e) => setRadius(e.target.value)} />
+          <button className="btn btn-ghost" onClick={() => persist('theme_radius', radius)} disabled={saving === 'theme_radius'}>Spara</button>
+          {savedAt === 'theme_radius' && <span className="design-saved">✓</span>}
+        </div>
+      </div>
+
+      <div className="design-row">
+        <label className="design-label">Bakgrundsfärg</label>
+        <div className="design-control">
+          <input type="color" value={bgColor || '#f3ecdf'} onChange={(e) => setBgColor(e.target.value)} />
+          <input type="text" value={bgColor} onChange={(e) => setBgColor(e.target.value)} placeholder="tom = standard" style={{ width: 110 }} />
+          <button className="btn btn-ghost" onClick={() => persist('theme_bg_color', bgColor)} disabled={saving === 'theme_bg_color'}>Spara</button>
+          {savedAt === 'theme_bg_color' && <span className="design-saved">✓</span>}
+        </div>
+      </div>
+
+      <div className="design-row">
+        <label className="design-label">Bakgrundsbild (URL)</label>
+        <div className="design-control" style={{ gap: 6 }}>
+          <input
+            type="url"
+            value={bgImageUrl}
+            onChange={(e) => setBgImageUrl(e.target.value)}
+            placeholder="https://..."
+            style={{ flex: 1, minWidth: 0 }}
+          />
+          <button className="btn btn-ghost" onClick={() => persist('theme_bg_image_url', bgImageUrl)} disabled={saving === 'theme_bg_image_url'}>Spara</button>
+          {savedAt === 'theme_bg_image_url' && <span className="design-saved">✓</span>}
+        </div>
+      </div>
+
+      {bgImageUrl && (
+        <div className="design-row">
+          <label className="design-label">Bild-opacitet <span className="card-meta">({bgImageOpacity})</span></label>
+          <div className="design-control">
+            <input type="range" min="0" max="1" step="0.05" value={bgImageOpacity} onChange={(e) => setBgImageOpacity(e.target.value)} />
+            <button className="btn btn-ghost" onClick={() => persist('theme_bg_image_opacity', bgImageOpacity)} disabled={saving === 'theme_bg_image_opacity'}>Spara</button>
+            {savedAt === 'theme_bg_image_opacity' && <span className="design-saved">✓</span>}
+          </div>
+        </div>
+      )}
+
+      <div className="design-row" style={{ marginTop: 24 }}>
+        <button className="btn btn-ghost" onClick={resetAll} style={{ color: 'var(--rose)' }}>
+          ↺ Återställ till original
+        </button>
       </div>
     </div>
   );

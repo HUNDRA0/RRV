@@ -44,7 +44,14 @@ export function CatanPage() {
           renders its own Lämna-button and inline Regler button next to the room code. */}
       {!isInGame && (
         <div className="catan-page-header">
-          <span />
+          <a
+            href="#"
+            className="catan-back-btn"
+            onClick={(e) => { e.preventDefault(); location.hash = ''; }}
+            aria-label="Tillbaka till Viber Rankings"
+          >
+            ← Tillbaka
+          </a>
           <button
             className="catan-rules-btn"
             onClick={() => setShowRules(true)}
