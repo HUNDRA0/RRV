@@ -88,8 +88,8 @@ export function LoginModal({ onClose, initialTab = 'login' }: LoginModalProps) {
                 const ok = await loginWithPasskey();
                 if (ok) onClose();
               }}
-              onPasskeySignup={async (username) => {
-                const ok = await signupWithPasskey(username);
+              onPasskeySignup={async (input) => {
+                const ok = await signupWithPasskey(input);
                 if (ok) onClose();
                 return ok;
               }}
@@ -141,7 +141,7 @@ function LoginForm({
   error: string | null;
   onAdmin: () => void;
   onPasskeyLogin: () => Promise<void>;
-  onPasskeySignup: (username: string) => Promise<boolean>;
+  onPasskeySignup: (input: { username: string; securityQuestion: string; securityAnswer: string }) => Promise<boolean>;
 }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -149,11 +149,18 @@ function LoginForm({
   const [localErr, setLocalErr] = useState<string | null>(null);
   const [passkeySupported, setPasskeySupported] = useState(false);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
-  // Signup sub-flow
+  // Signup sub-flow — username + security question/answer (so the user can
+  // recover the account if they lose their device).
   const [signupOpen, setSignupOpen] = useState(false);
   const [signupUsername, setSignupUsername] = useState('');
+  const [signupQuestion, setSignupQuestion] = useState(QUESTION_SUGGESTIONS[0]);
+  const [signupCustomQuestion, setSignupCustomQuestion] = useState('');
+  const [signupAnswer, setSignupAnswer] = useState('');
   const [signupErr, setSignupErr] = useState<string | null>(null);
   const [signupBusy, setSignupBusy] = useState(false);
+
+  const signupUsingCustom = signupQuestion === '__custom__';
+  const signupFinalQuestion = signupUsingCustom ? signupCustomQuestion.trim() : signupQuestion;
 
   useEffect(() => {
     void isPlatformAuthenticatorAvailable().then(setPasskeySupported);
@@ -171,9 +178,15 @@ function LoginForm({
     setSignupErr(null);
     const name = signupUsername.trim();
     if (name.length < 2) { setSignupErr('Skriv ett användarnamn (minst 2 tecken).'); return; }
+    if (signupFinalQuestion.length < 4) { setSignupErr('Välj eller skriv en säkerhetsfråga.'); return; }
+    if (!signupAnswer.trim()) { setSignupErr('Skriv ett svar på säkerhetsfrågan.'); return; }
     setSignupBusy(true);
     try {
-      const ok = await onPasskeySignup(name);
+      const ok = await onPasskeySignup({
+        username: name,
+        securityQuestion: signupFinalQuestion,
+        securityAnswer: signupAnswer,
+      });
       if (!ok) setSignupErr('Misslyckades. Försök igen eller välj ett annat namn.');
     } finally {
       setSignupBusy(false);
@@ -224,6 +237,31 @@ function LoginForm({
                   autoFocus
                 />
               </label>
+              <label className="admin-field" style={{ marginBottom: 8 }}>
+                <span>Säkerhetsfråga (för återställning om du tappar telefonen)</span>
+                <select value={signupQuestion} onChange={(e) => setSignupQuestion(e.target.value)}>
+                  {QUESTION_SUGGESTIONS.map((q) => <option key={q} value={q}>{q}</option>)}
+                  <option value="__custom__">Egen fråga…</option>
+                </select>
+              </label>
+              {signupUsingCustom && (
+                <label className="admin-field" style={{ marginBottom: 8 }}>
+                  <span>Din egen fråga</span>
+                  <input
+                    value={signupCustomQuestion}
+                    onChange={(e) => setSignupCustomQuestion(e.target.value)}
+                    placeholder="t.ex. Vad var min första hund?"
+                  />
+                </label>
+              )}
+              <label className="admin-field" style={{ marginBottom: 8 }}>
+                <span>Svar</span>
+                <input
+                  value={signupAnswer}
+                  onChange={(e) => setSignupAnswer(e.target.value)}
+                  placeholder="Stora/små bokstäver spelar ingen roll"
+                />
+              </label>
               {signupErr && <div className="login-error" style={{ marginBottom: 8 }}>{signupErr}</div>}
               <div className="modal-photo-controls">
                 <button type="button" className="btn btn-purple" onClick={(e) => handleSignup(e as unknown as React.FormEvent)} disabled={signupBusy}>
@@ -231,9 +269,6 @@ function LoginForm({
                 </button>
                 <button type="button" className="btn btn-ghost" onClick={() => { setSignupOpen(false); setSignupErr(null); }}>Avbryt</button>
               </div>
-              <p className="login-hint" style={{ marginTop: 6 }}>
-                Tips: lägg till ett lösenord i inställningar efter du skapat kontot — då kan du logga in även utan din enhet.
-              </p>
             </div>
           )}
           <div className="login-divider"><span>eller med lösenord</span></div>

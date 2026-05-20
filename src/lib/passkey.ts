@@ -90,11 +90,15 @@ export async function checkSignupUsername(username: string): Promise<{ ok: boole
   return r.json();
 }
 
-export async function signupWithPasskey(username: string): Promise<PasskeyLoginResult> {
+export async function signupWithPasskey(input: {
+  username: string;
+  securityQuestion: string;
+  securityAnswer: string;
+}): Promise<PasskeyLoginResult> {
   const start = await fetch('/api/auth/passkey/signup/start', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ username }),
+    body: JSON.stringify(input),
   });
   if (!start.ok) throw new Error((await start.json()).error || 'kunde inte starta');
   const { options, nonce } = await start.json();

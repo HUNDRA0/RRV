@@ -32,6 +32,7 @@ import {
   hashPassword,
   newSessionToken,
   newUserId,
+  normalizeAnswer,
   requireUser,
   type UserRow,
 } from './auth.js';
@@ -60,10 +61,16 @@ interface ChallengeEntry {
   challenge: string;
   // When registering an existing user → bound to that user.
   userId?: string;
-  // When signing up a brand-new account → carries the proposed username and a
-  // pre-generated user id. We materialize the user row only on signup/finish
-  // to avoid orphan rows from abandoned biometric prompts.
-  pendingSignup?: { username: string; userId: string };
+  // When signing up a brand-new account → carries the proposed username,
+  // a pre-generated user id, and the security question/answer. We
+  // materialize the user row only on signup/finish to avoid orphan rows
+  // from abandoned biometric prompts.
+  pendingSignup?: {
+    username: string;
+    userId: string;
+    securityQuestion: string;
+    securityAnswer: string;
+  };
   expiresAt: number;
 }
 const challenges = new Map<string, ChallengeEntry>();
@@ -72,7 +79,7 @@ const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 function newNonce(): string {
   return randomBytes(16).toString('hex');
 }
-function stashChallenge(challenge: string, extras?: { userId?: string; pendingSignup?: { username: string; userId: string } }): string {
+function stashChallenge(challenge: string, extras?: Pick<ChallengeEntry, 'userId' | 'pendingSignup'>): string {
   // Opportunistic GC.
   const now = Date.now();
   for (const [k, v] of challenges) if (v.expiresAt < now) challenges.delete(k);
@@ -222,14 +229,31 @@ export function addPasskeyRoutes(router: Router): void {
   }
 
   router.post('/auth/passkey/signup/start', async (req, res) => {
-    const body = req.body as { username?: unknown };
+    const body = req.body as {
+      username?: unknown;
+      securityQuestion?: unknown;
+      securityAnswer?: unknown;
+    };
     const username = typeof body.username === 'string' ? body.username.trim() : '';
+    const securityQuestion = typeof body.securityQuestion === 'string'
+      ? body.securityQuestion.trim().slice(0, 200) : '';
+    const rawAnswer = typeof body.securityAnswer === 'string' ? body.securityAnswer : '';
+    const securityAnswer = normalizeAnswer(rawAnswer);
+
     if (username.length < MIN_USERNAME || username.length > MAX_USERNAME) {
       res.status(400).json({ error: `Användarnamn ${MIN_USERNAME}–${MAX_USERNAME} tecken.` });
       return;
     }
     if (!USERNAME_PATTERN.test(username)) {
       res.status(400).json({ error: 'Bara bokstäver, siffror, _ . -' });
+      return;
+    }
+    if (securityQuestion.length < 4) {
+      res.status(400).json({ error: 'Skriv en säkerhetsfråga (minst 4 tecken).' });
+      return;
+    }
+    if (securityAnswer.length < 1 || securityAnswer.length > 200) {
+      res.status(400).json({ error: 'Skriv ett svar på säkerhetsfrågan.' });
       return;
     }
     if (!await isUsernameAvailable(username)) {
@@ -253,7 +277,9 @@ export function addPasskeyRoutes(router: Router): void {
       },
       attestationType: 'none',
     });
-    const nonce = stashChallenge(options.challenge, { pendingSignup: { username, userId } });
+    const nonce = stashChallenge(options.challenge, {
+      pendingSignup: { username, userId, securityQuestion, securityAnswer },
+    });
     res.json({ options, nonce });
   });
 
@@ -268,7 +294,7 @@ export function addPasskeyRoutes(router: Router): void {
       res.status(400).json({ error: 'utgången eller okänd challenge' });
       return;
     }
-    const { username, userId } = entry.pendingSignup;
+    const { username, userId, securityQuestion, securityAnswer } = entry.pendingSignup;
 
     // Re-check uniqueness — a different signup may have used the name while
     // the user was holding their finger on the sensor.
@@ -300,16 +326,19 @@ export function addPasskeyRoutes(router: Router): void {
     const transports = (body.response.response.transports ?? []).join(',');
     const label = detectDeviceLabel(req.header('user-agent') ?? '');
 
-    // Lock-out hashes for password + security answer — this account is
-    // biometric-only until the user adds a password from settings.
-    const lock1 = randomBytes(32).toString('hex');
-    const lock2 = randomBytes(32).toString('hex');
+    // Password is a random lock-out hash (account is biometric-only until
+    // the user adds a real password from settings). But the security
+    // question/answer are REAL — this gives the user a real recovery path
+    // if they lose their device. /api/auth/recover/start will return the
+    // question; /api/auth/recover/finish will let them set a new password
+    // and sign in without the biometric.
+    const passwordLock = randomBytes(32).toString('hex');
 
     try {
       await exec(
         `INSERT INTO users (id, username, password_hash, security_question, security_answer_hash, role)
          VALUES (?, ?, ?, ?, ?, 'user')`,
-        [userId, username, hashPassword(lock1), 'n/a (biometric-only account)', hashPassword(lock2)],
+        [userId, username, hashPassword(passwordLock), securityQuestion, hashPassword(securityAnswer)],
       );
     } catch {
       res.status(409).json({ error: 'Användarnamnet är upptaget.' });
