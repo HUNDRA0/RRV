@@ -31,7 +31,7 @@ interface LoginModalProps {
 
 export function LoginModal({ onClose, initialTab = 'login' }: LoginModalProps) {
   const {
-    loginUser, loginWithPasskey, registerUser, recoverStart, recoverFinish, userAuthError,
+    loginUser, loginWithPasskey, signupWithPasskey, registerUser, recoverStart, recoverFinish, userAuthError,
     tryLogin, loginError,
   } = useFriendsList();
 
@@ -88,6 +88,11 @@ export function LoginModal({ onClose, initialTab = 'login' }: LoginModalProps) {
                 const ok = await loginWithPasskey();
                 if (ok) onClose();
               }}
+              onPasskeySignup={async (username) => {
+                const ok = await signupWithPasskey(username);
+                if (ok) onClose();
+                return ok;
+              }}
               error={userAuthError}
               onAdmin={() => setAdminMode(true)}
             />
@@ -130,12 +135,13 @@ export function LoginModal({ onClose, initialTab = 'login' }: LoginModalProps) {
 // ── Sub-forms ─────────────────────────────────────────────────────────
 
 function LoginForm({
-  onSubmit, error, onAdmin, onPasskeyLogin,
+  onSubmit, error, onAdmin, onPasskeyLogin, onPasskeySignup,
 }: {
   onSubmit: (input: { username: string; password: string }) => Promise<void>;
   error: string | null;
   onAdmin: () => void;
   onPasskeyLogin: () => Promise<void>;
+  onPasskeySignup: (username: string) => Promise<boolean>;
 }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -143,6 +149,11 @@ function LoginForm({
   const [localErr, setLocalErr] = useState<string | null>(null);
   const [passkeySupported, setPasskeySupported] = useState(false);
   const [passkeyBusy, setPasskeyBusy] = useState(false);
+  // Signup sub-flow
+  const [signupOpen, setSignupOpen] = useState(false);
+  const [signupUsername, setSignupUsername] = useState('');
+  const [signupErr, setSignupErr] = useState<string | null>(null);
+  const [signupBusy, setSignupBusy] = useState(false);
 
   useEffect(() => {
     void isPlatformAuthenticatorAvailable().then(setPasskeySupported);
@@ -153,6 +164,20 @@ function LoginForm({
     setPasskeyBusy(true);
     try { await onPasskeyLogin(); }
     finally { setPasskeyBusy(false); }
+  }
+
+  async function handleSignup(e: React.FormEvent) {
+    e.preventDefault();
+    setSignupErr(null);
+    const name = signupUsername.trim();
+    if (name.length < 2) { setSignupErr('Skriv ett användarnamn (minst 2 tecken).'); return; }
+    setSignupBusy(true);
+    try {
+      const ok = await onPasskeySignup(name);
+      if (!ok) setSignupErr('Misslyckades. Försök igen eller välj ett annat namn.');
+    } finally {
+      setSignupBusy(false);
+    }
   }
 
   async function handle(e: React.FormEvent) {
@@ -177,16 +202,50 @@ function LoginForm({
           >
             <PasskeyIcon /> {passkeyBusy ? 'Väntar på enhet…' : 'Logga in med Face ID / Touch ID'}
           </button>
+          {!signupOpen ? (
+            <button
+              type="button"
+              className="login-link"
+              onClick={() => setSignupOpen(true)}
+              style={{ textAlign: 'center', justifySelf: 'center' }}
+            >
+              Inget konto än? Skapa med Face ID →
+            </button>
+          ) : (
+            <div className="passkey-signup-box">
+              <div className="section-eyebrow" style={{ marginBottom: 6 }}>Skapa konto</div>
+              <label className="admin-field" style={{ marginBottom: 8 }}>
+                <span>Välj användarnamn</span>
+                <input
+                  value={signupUsername}
+                  onChange={(e) => setSignupUsername(e.target.value)}
+                  placeholder="t.ex. jacob"
+                  autoComplete="username webauthn"
+                  autoFocus
+                />
+              </label>
+              {signupErr && <div className="login-error" style={{ marginBottom: 8 }}>{signupErr}</div>}
+              <div className="modal-photo-controls">
+                <button type="button" className="btn btn-purple" onClick={(e) => handleSignup(e as unknown as React.FormEvent)} disabled={signupBusy}>
+                  {signupBusy ? 'Väntar på enhet…' : 'Fortsätt med Face ID'}
+                </button>
+                <button type="button" className="btn btn-ghost" onClick={() => { setSignupOpen(false); setSignupErr(null); }}>Avbryt</button>
+              </div>
+              <p className="login-hint" style={{ marginTop: 6 }}>
+                Tips: lägg till ett lösenord i inställningar efter du skapat kontot — då kan du logga in även utan din enhet.
+              </p>
+            </div>
+          )}
           <div className="login-divider"><span>eller med lösenord</span></div>
         </>
       )}
       <label className="admin-field">
         <span>Användarnamn</span>
-        <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus autoComplete="username" />
+        <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus={!passkeySupported} autoComplete="username webauthn" />
       </label>
       <label className="admin-field">
         <span>Lösenord</span>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password webauthn" />
       </label>
       {(localErr || error) && <div className="login-error">{localErr || error}</div>}
       <div className="modal-photo-controls">

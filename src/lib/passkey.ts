@@ -78,6 +78,40 @@ export async function loginWithPasskey(): Promise<PasskeyLoginResult> {
   return body as PasskeyLoginResult;
 }
 
+// ── Anonymous signup (no account yet) ──────────────────────────────
+// Single biometric prompt creates: a user record, a passkey, and a session.
+
+export async function checkSignupUsername(username: string): Promise<{ ok: boolean; reason?: string }> {
+  const r = await fetch('/api/auth/passkey/signup/check-username', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username }),
+  });
+  return r.json();
+}
+
+export async function signupWithPasskey(username: string): Promise<PasskeyLoginResult> {
+  const start = await fetch('/api/auth/passkey/signup/start', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ username }),
+  });
+  if (!start.ok) throw new Error((await start.json()).error || 'kunde inte starta');
+  const { options, nonce } = await start.json();
+
+  // Triggers Face ID / Touch ID. User can cancel here.
+  const credential = await startRegistration({ optionsJSON: options });
+
+  const finish = await fetch('/api/auth/passkey/signup/finish', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ nonce, response: credential }),
+  });
+  const body = await finish.json();
+  if (!finish.ok) throw new Error(body.error || 'kunde inte verifiera');
+  return body as PasskeyLoginResult;
+}
+
 export interface PasskeyEntry {
   id: string;
   deviceLabel: string;
