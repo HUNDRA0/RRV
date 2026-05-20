@@ -25,15 +25,16 @@ const QUESTION_SUGGESTIONS = [
 
 interface LoginModalProps {
   onClose: () => void;
+  initialTab?: Tab;
 }
 
-export function LoginModal({ onClose }: LoginModalProps) {
+export function LoginModal({ onClose, initialTab = 'login' }: LoginModalProps) {
   const {
     loginUser, registerUser, recoverStart, recoverFinish, userAuthError,
     tryLogin, loginError,
   } = useFriendsList();
 
-  const [tab, setTab] = useState<Tab>('login');
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [adminMode, setAdminMode] = useState(false);
 
   useLockBody(true);

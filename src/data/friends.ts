@@ -50,6 +50,7 @@ export interface FriendPhoto {
 export interface Friend extends FriendSeed {
   photoUrl: string | null;
   photos: FriendPhoto[];
+  socials: { platform: string; handle: string }[];
   bio: string;
   currentMove: string;
   lat: number | null;

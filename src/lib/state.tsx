@@ -54,6 +54,7 @@ interface FriendsListState {
   swapFriends: (idA: string, idB: string) => Promise<void>;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
+  updateSocials: (id: string, socials: { platform: string; handle: string }[]) => Promise<void>;
 
   // User accounts (separate flow from admin).
   currentUser: ApiUser | null;
@@ -245,6 +246,11 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     setFriends(prev => prev.map(f => (f.id === id ? updated : f)));
   }, []);
 
+  const updateSocials = useCallback(async (id: string, socials: { platform: string; handle: string }[]) => {
+    const updated = await api.updateSocials(id, socials);
+    setFriends(prev => prev.map(f => (f.id === id ? updated : f)));
+  }, []);
+
   // ── User auth ───────────────────────────────────────────────────────
 
   const registerUser = useCallback(
@@ -342,7 +348,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       gmap,
       siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
-      updateFriend, swapFriends, uploadPhoto, deletePhoto,
+      updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials,
       currentUser, userAuthError, registerUser, loginUser, logoutUser, recoverStart, recoverFinish,
       polls, refreshPolls, createPoll, votePoll, deletePoll,
     }),
@@ -353,7 +359,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       gmap,
       siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
-      updateFriend, swapFriends, uploadPhoto, deletePhoto,
+      updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials,
       currentUser, userAuthError, registerUser, loginUser, logoutUser, recoverStart, recoverFinish,
       polls, refreshPolls, createPoll, votePoll, deletePoll,
     ],

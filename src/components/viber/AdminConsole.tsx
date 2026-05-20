@@ -28,7 +28,7 @@ interface AdminConsoleProps {
 export function AdminConsole({ onClose }: AdminConsoleProps) {
   const {
     friends, siteContent, updateContent,
-    updateFriend, swapFriends, uploadPhoto, deletePhoto,
+    updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials,
     logout, gmap,
   } = useFriendsList();
   const [tab, setTab] = useState<Tab>('people');
@@ -117,6 +117,7 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
               swapFriends={swapFriends}
               uploadPhoto={uploadPhoto}
               deletePhoto={deletePhoto}
+              updateSocials={updateSocials}
             />
           )}
 
@@ -261,9 +262,10 @@ interface PeopleTabProps {
   swapFriends: (idA: string, idB: string) => Promise<void>;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
+  updateSocials: (id: string, socials: { platform: string; handle: string }[]) => Promise<void>;
 }
 
-function PeopleTab({ friends, notes, setNote, updateFriend, swapFriends, uploadPhoto, deletePhoto }: PeopleTabProps) {
+function PeopleTab({ friends, notes, setNote, updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials }: PeopleTabProps) {
   const sorted = useMemo(() => [...friends].sort((a, b) => a.rank - b.rank), [friends]);
 
   return (
@@ -285,6 +287,7 @@ function PeopleTab({ friends, notes, setNote, updateFriend, swapFriends, uploadP
             nextInTier={next}
             uploadPhoto={uploadPhoto}
             deletePhoto={deletePhoto}
+            updateSocials={updateSocials}
           />
         );
       })}
@@ -302,9 +305,10 @@ interface PersonEditorProps {
   nextInTier: Friend | null;
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
+  updateSocials: (id: string, socials: { platform: string; handle: string }[]) => Promise<void>;
 }
 
-function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, prevInTier, nextInTier, uploadPhoto, deletePhoto }: PersonEditorProps) {
+function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, prevInTier, nextInTier, uploadPhoto, deletePhoto, updateSocials }: PersonEditorProps) {
   const { siteContent: sc } = useFriendsList();
   const allTiers = useMemo(() => parseTierConfig(sc['tier_config']), [sc]);
   const [name, setName] = useState(friend.name);
@@ -440,6 +444,71 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, p
               onChange={onFile}
             />
           </label>
+        </div>
+      </div>
+
+      <SocialsEditor friend={friend} updateSocials={updateSocials} />
+    </div>
+  );
+}
+
+function SocialsEditor({
+  friend, updateSocials,
+}: {
+  friend: Friend;
+  updateSocials: (id: string, socials: { platform: string; handle: string }[]) => Promise<void>;
+}) {
+  const [rows, setRows] = useState<{ platform: string; handle: string }[]>(
+    () => (friend.socials || []).map(s => ({ platform: s.platform, handle: s.handle })),
+  );
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // platforms list mirrors lib/socials.ts (kept in sync manually for now).
+  const PLATFORMS = [
+    'instagram', 'facebook', 'linkedin', 'x', 'tiktok',
+    'github', 'youtube', 'snapchat', 'discord', 'twitch', 'threads', 'website',
+  ];
+
+  const setRow = (i: number, patch: Partial<{ platform: string; handle: string }>) => {
+    setRows(prev => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  };
+  const addRow = () => setRows(prev => [...prev, { platform: 'instagram', handle: '' }]);
+  const removeRow = (i: number) => setRows(prev => prev.filter((_, idx) => idx !== i));
+
+  async function save() {
+    setSaving(true);
+    const clean = rows
+      .map(r => ({ platform: r.platform.trim(), handle: r.handle.trim() }))
+      .filter(r => r.handle.length > 0);
+    try { await updateSocials(friend.id, clean); setSaved(true); setTimeout(() => setSaved(false), 2000); }
+    catch { /* error surfaced via state */ }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="admin-field">
+      <span>Sociala medier ({rows.length})</span>
+      <div className="admin-socials-grid">
+        {rows.map((r, i) => (
+          <div className="admin-social-row" key={i}>
+            <select value={r.platform} onChange={(e) => setRow(i, { platform: e.target.value })}>
+              {PLATFORMS.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <input
+              value={r.handle}
+              onChange={(e) => setRow(i, { handle: e.target.value })}
+              placeholder="@användarnamn eller fullständig URL"
+            />
+            <button type="button" className="admin-social-remove" onClick={() => removeRow(i)} aria-label="Ta bort">✕</button>
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <button type="button" className="btn btn-ghost" onClick={addRow}>+ Lägg till</button>
+          <button type="button" className="btn btn-purple" onClick={save} disabled={saving} style={{ fontSize: 13, padding: '6px 16px' }}>
+            {saving ? 'Sparar…' : 'Spara'}
+          </button>
+          {saved && <span style={{ fontSize: 12, color: 'var(--purple-2)', alignSelf: 'center' }}>✓ Sparat</span>}
         </div>
       </div>
     </div>

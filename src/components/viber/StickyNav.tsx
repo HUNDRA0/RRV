@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useScrolled } from '../../hooks/useViberHooks';
+import { UserMenu } from './UserMenu';
+import type { ApiUser } from '../../lib/api';
 
 const TABS: [string, string][] = [
   ['rankings', 'Tier'],
@@ -86,20 +88,24 @@ interface StickyNavProps {
   active: string;
   edit: boolean;
   isAdmin: boolean;
-  currentUser: { username: string; role: 'user' | 'admin' } | null;
+  currentUser: ApiUser | null;
   onToggleEdit: () => void;
-  onLoginClick: () => void;
+  onOpenLogin: (tab?: 'login' | 'register' | 'recover') => void;
+  onOpenAdminConsole: () => void;
   onLogoutUser: () => Promise<void> | void;
+  onLogoutAdmin: () => Promise<void> | void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
 }
 
-export function StickyNav({ active, edit, isAdmin, currentUser, onToggleEdit, onLoginClick, onLogoutUser, theme, onToggleTheme }: StickyNavProps) {
+export function StickyNav({
+  active, edit, isAdmin, currentUser,
+  onToggleEdit, onOpenLogin, onOpenAdminConsole, onLogoutUser, onLogoutAdmin,
+  theme, onToggleTheme,
+}: StickyNavProps) {
   const scrolled = useScrolled(20);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menuAnchorRef = useRef<HTMLDivElement | null>(null);
-  const userMenuRef = useRef<HTMLDivElement | null>(null);
 
   // Label of the currently active section — shown on mobile in the navbar
   const activeLabel = TABS.find(([id]) => id === active)?.[1] ?? '';
@@ -125,18 +131,6 @@ export function StickyNav({ active, edit, isAdmin, currentUser, onToggleEdit, on
     window.addEventListener('pointerdown', onPointer);
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('pointerdown', onPointer); };
   }, [menuOpen]);
-
-  useEffect(() => {
-    if (!userMenuOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setUserMenuOpen(false); };
-    const onPointer = (e: PointerEvent) => {
-      const target = e.target as Node | null;
-      if (userMenuRef.current && !userMenuRef.current.contains(target)) setUserMenuOpen(false);
-    };
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('pointerdown', onPointer);
-    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('pointerdown', onPointer); };
-  }, [userMenuOpen]);
 
   return (
     <div className="nav-wrap" data-scrolled={scrolled} data-menu-open={menuOpen}>
@@ -176,54 +170,18 @@ export function StickyNav({ active, edit, isAdmin, currentUser, onToggleEdit, on
             {theme === 'dark' ? '🌙' : '☀︎'}
           </button>
 
-          {/* Login — key icon. Becomes user-chip when logged in as user, unlock when admin. */}
-          {isAdmin ? (
-            <button
-              className="nav-edit nav-admin"
-              onClick={onLoginClick}
-              title="Öppna admin console"
-              aria-label="Admin console"
-            >
-              <span aria-hidden="true">🔓</span>
-            </button>
-          ) : currentUser ? (
-            <div className="nav-anchor nav-user-anchor" ref={userMenuRef}>
-              <button
-                className="nav-edit nav-user"
-                onClick={() => setUserMenuOpen((v) => !v)}
-                title={`Inloggad som ${currentUser.username}`}
-                aria-expanded={userMenuOpen}
-                aria-haspopup="menu"
-              >
-                <span className="nav-user-name">{currentUser.username}</span>
-                <span className="nav-user-caret" aria-hidden="true">▾</span>
-              </button>
-              {userMenuOpen && (
-                <div className="nav-menu nav-user-menu" role="menu">
-                  <div className="nav-user-menu-head">
-                    Inloggad som<br />
-                    <strong>{currentUser.username}</strong>
-                  </div>
-                  <button
-                    className="nav-menu-item nav-menu-danger"
-                    onClick={() => { setUserMenuOpen(false); void onLogoutUser(); }}
-                  >
-                    Logga ut
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <button
-              className="nav-edit nav-admin"
-              onClick={onLoginClick}
-              title="Logga in"
-              aria-label="Logga in"
-            >
-              <span aria-hidden="true">🗝️</span>
-              <span className="nav-login-label">Login</span>
-            </button>
-          )}
+          <UserMenu
+            isAdmin={isAdmin}
+            currentUser={currentUser}
+            theme={theme}
+            onToggleTheme={onToggleTheme}
+            onLoginClick={() => onOpenLogin('login')}
+            onRegisterClick={() => onOpenLogin('register')}
+            onRecoverClick={() => onOpenLogin('recover')}
+            onOpenAdminConsole={onOpenAdminConsole}
+            onLogoutUser={onLogoutUser}
+            onLogoutAdmin={onLogoutAdmin}
+          />
 
           {/* Hamburger (mobile only) */}
           <div className="nav-anchor" ref={menuAnchorRef}>

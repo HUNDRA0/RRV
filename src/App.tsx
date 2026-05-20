@@ -29,11 +29,12 @@ export function App() {
     isAdmin, isEditing, toggleEditMode,
     siteContent, updateContent, dailyQuote,
     updateFriend, uploadPhoto, deletePhoto,
-    currentUser, logoutUser,
+    currentUser, logoutUser, logout: logoutAdmin,
   } = useFriendsList();
 
   const [openId, setOpenId] = useState<string | null>(null);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [loginInitialTab, setLoginInitialTab] = useState<'login' | 'register' | 'recover'>('login');
   const [adminConsoleOpen, setAdminConsoleOpen] = useState(false);
 
   // Auto-open admin console the first time isAdmin flips on (post-login).
@@ -82,11 +83,11 @@ export function App() {
   const openFriend = openId ? findFriend(openId) : null;
 
   const onToggleEdit = () => {
-    if (!isAdmin) { setLoginOpen(true); return; }
+    if (!isAdmin) { setLoginInitialTab('login'); setLoginOpen(true); return; }
     toggleEditMode();
   };
-  const onLoginClick = () => {
-    if (isAdmin) { setAdminConsoleOpen(true); return; }
+  const onOpenLogin = (tab: 'login' | 'register' | 'recover' = 'login') => {
+    setLoginInitialTab(tab);
     setLoginOpen(true);
   };
 
@@ -138,8 +139,10 @@ export function App() {
         isAdmin={isAdmin}
         currentUser={currentUser}
         onToggleEdit={onToggleEdit}
-        onLoginClick={onLoginClick}
+        onOpenLogin={onOpenLogin}
+        onOpenAdminConsole={() => setAdminConsoleOpen(true)}
         onLogoutUser={logoutUser}
+        onLogoutAdmin={logoutAdmin}
         theme={theme}
         onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
       />
@@ -193,7 +196,7 @@ export function App() {
       )}
 
       {loginOpen && (
-        <LoginModal onClose={() => setLoginOpen(false)} />
+        <LoginModal onClose={() => setLoginOpen(false)} initialTab={loginInitialTab} />
       )}
 
       {adminConsoleOpen && isAdmin && (

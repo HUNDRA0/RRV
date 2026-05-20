@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Friend } from '../../data/friends';
 import { Editable } from './Editable';
+import { SocialChips } from './SocialChips';
+import type { SocialEntry } from '../../lib/socials';
 import { getTierCss, findTier, parseTierConfig } from './tier-map';
 import { useMemo } from 'react';
 import { useFriendsList } from '../../lib/state';
@@ -112,6 +114,13 @@ export function PersonModal({
             edit={edit}
             placeholder={edit ? 'Skriv en bio…' : 'Ingen bio än. Sätt på Edit mode för att skriva.'}
           />
+
+          {friend.socials && friend.socials.length > 0 && (
+            <SocialChips socials={friend.socials as SocialEntry[]} />
+          )}
+          {edit && (!friend.socials || friend.socials.length === 0) && (
+            <p className="modal-hint">Lägg till sociala medier i Admin Console → Personer.</p>
+          )}
 
           {edit && (
             <div className="modal-photo-controls">
