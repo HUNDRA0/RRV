@@ -134,9 +134,13 @@ function LoginForm({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [localErr, setLocalErr] = useState<string | null>(null);
 
   async function handle(e: React.FormEvent) {
     e.preventDefault();
+    setLocalErr(null);
+    if (!username.trim()) { setLocalErr('Fyll i användarnamn.'); return; }
+    if (!password) { setLocalErr('Fyll i lösenord.'); return; }
     setBusy(true);
     await onSubmit({ username, password });
     setBusy(false);
@@ -152,9 +156,9 @@ function LoginForm({
         <span>Lösenord</span>
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
       </label>
-      {error && <div className="login-error">{error}</div>}
+      {(localErr || error) && <div className="login-error">{localErr || error}</div>}
       <div className="modal-photo-controls">
-        <button type="submit" className="btn btn-purple" disabled={busy || !username || !password}>
+        <button type="submit" className="btn btn-purple" disabled={busy}>
           {busy ? 'Loggar in…' : 'Logga in'}
         </button>
       </div>
@@ -174,8 +178,11 @@ function AdminForm({
 }) {
   const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
+  const [localErr, setLocalErr] = useState<string | null>(null);
   async function handle(e: React.FormEvent) {
     e.preventDefault();
+    setLocalErr(null);
+    if (!pw) { setLocalErr('Fyll i admin-lösenord.'); return; }
     setBusy(true);
     await onSubmit(pw);
     setBusy(false);
@@ -187,9 +194,9 @@ function AdminForm({
         <span>Admin-lösenord</span>
         <input type="password" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus autoComplete="current-password" />
       </label>
-      {error && <div className="login-error">{error}</div>}
+      {(localErr || error) && <div className="login-error">{localErr || error}</div>}
       <div className="modal-photo-controls">
-        <button type="submit" className="btn btn-purple" disabled={busy || !pw}>
+        <button type="submit" className="btn btn-purple" disabled={busy}>
           {busy ? 'Loggar in…' : 'Logga in'}
         </button>
         <button type="button" className="btn btn-ghost" onClick={onBack}>Tillbaka</button>
@@ -213,15 +220,19 @@ function RegisterForm({
 
   const usingCustom = questionChoice === '__custom__';
   const question = usingCustom ? customQuestion.trim() : questionChoice;
+  const [localErr, setLocalErr] = useState<string | null>(null);
 
   async function handle(e: React.FormEvent) {
     e.preventDefault();
+    setLocalErr(null);
+    if (username.trim().length < 2) { setLocalErr('Användarnamn: minst 2 tecken.'); return; }
+    if (password.length < 6) { setLocalErr('Lösenord: minst 6 tecken.'); return; }
+    if (question.length < 4) { setLocalErr('Skriv en säkerhetsfråga.'); return; }
+    if (!answer.trim()) { setLocalErr('Skriv ett svar på säkerhetsfrågan.'); return; }
     setBusy(true);
     await onSubmit({ username, password, securityQuestion: question, securityAnswer: answer });
     setBusy(false);
   }
-
-  const valid = username.length >= 2 && password.length >= 6 && question.length >= 4 && answer.trim().length >= 1;
 
   return (
     <form onSubmit={handle} className="login-form">
@@ -253,9 +264,9 @@ function RegisterForm({
       <div className="login-hint">
         Svaret används om du glömmer ditt lösenord. Stora/små bokstäver och mellanslag spelar ingen roll.
       </div>
-      {error && <div className="login-error">{error}</div>}
+      {(localErr || error) && <div className="login-error">{localErr || error}</div>}
       <div className="modal-photo-controls">
-        <button type="submit" className="btn btn-purple" disabled={busy || !valid}>
+        <button type="submit" className="btn btn-purple" disabled={busy}>
           {busy ? 'Skapar konto…' : 'Skapa konto'}
         </button>
       </div>
@@ -275,9 +286,12 @@ function RecoverForm({
   const [answer, setAnswer] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [localErr, setLocalErr] = useState<string | null>(null);
 
   async function handleStart(e: React.FormEvent) {
     e.preventDefault();
+    setLocalErr(null);
+    if (!username.trim()) { setLocalErr('Fyll i användarnamn.'); return; }
     setBusy(true);
     const q = await onStart(username);
     setBusy(false);
@@ -286,6 +300,9 @@ function RecoverForm({
 
   async function handleFinish(e: React.FormEvent) {
     e.preventDefault();
+    setLocalErr(null);
+    if (!answer.trim()) { setLocalErr('Skriv ditt svar.'); return; }
+    if (newPassword.length < 6) { setLocalErr('Nytt lösenord: minst 6 tecken.'); return; }
     setBusy(true);
     await onFinish({ username, securityAnswer: answer, newPassword });
     setBusy(false);
@@ -298,9 +315,9 @@ function RecoverForm({
           <span>Användarnamn</span>
           <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus autoComplete="username" />
         </label>
-        {error && <div className="login-error">{error}</div>}
+        {(localErr || error) && <div className="login-error">{localErr || error}</div>}
         <div className="modal-photo-controls">
-          <button type="submit" className="btn btn-purple" disabled={busy || !username}>
+          <button type="submit" className="btn btn-purple" disabled={busy}>
             {busy ? 'Hämtar…' : 'Hämta säkerhetsfråga'}
           </button>
         </div>
@@ -322,9 +339,9 @@ function RecoverForm({
         <span>Nytt lösenord (minst 6 tecken)</span>
         <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
       </label>
-      {error && <div className="login-error">{error}</div>}
+      {(localErr || error) && <div className="login-error">{localErr || error}</div>}
       <div className="modal-photo-controls">
-        <button type="submit" className="btn btn-purple" disabled={busy || !answer || newPassword.length < 6}>
+        <button type="submit" className="btn btn-purple" disabled={busy}>
           {busy ? 'Sätter…' : 'Sätt nytt lösenord'}
         </button>
         <button type="button" className="btn btn-ghost" onClick={() => setQuestion(null)}>Tillbaka</button>
