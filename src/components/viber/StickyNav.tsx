@@ -92,7 +92,6 @@ interface StickyNavProps {
   onToggleEdit: () => void;
   onOpenLogin: (tab?: 'login' | 'register' | 'recover') => void;
   onOpenAdminConsole: () => void;
-  onOpenPasskeys: () => void;
   onLogoutUser: () => Promise<void> | void;
   onLogoutAdmin: () => Promise<void> | void;
   theme: 'light' | 'dark';
@@ -101,7 +100,7 @@ interface StickyNavProps {
 
 export function StickyNav({
   active, edit, isAdmin, currentUser,
-  onToggleEdit, onOpenLogin, onOpenAdminConsole, onOpenPasskeys, onLogoutUser, onLogoutAdmin,
+  onToggleEdit, onOpenLogin, onOpenAdminConsole, onLogoutUser, onLogoutAdmin,
   theme, onToggleTheme,
 }: StickyNavProps) {
   const scrolled = useScrolled(20);
@@ -178,7 +177,6 @@ export function StickyNav({
             onRegisterClick={() => onOpenLogin('register')}
             onRecoverClick={() => onOpenLogin('recover')}
             onOpenAdminConsole={onOpenAdminConsole}
-            onOpenPasskeys={onOpenPasskeys}
             onLogoutUser={onLogoutUser}
             onLogoutAdmin={onLogoutAdmin}
           />
