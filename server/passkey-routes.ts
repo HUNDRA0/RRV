@@ -29,7 +29,9 @@ import type {
 import { exec, queryAll, queryOne } from './db.js';
 import {
   USER_SESSION_TTL_MS,
+  hashPassword,
   newSessionToken,
+  newUserId,
   requireUser,
   type UserRow,
 } from './auth.js';
@@ -56,7 +58,12 @@ function expectedOrigin(): string | string[] {
 // Keyed by a nonce (NOT the IP) so multiple users behind a NAT don't clash.
 interface ChallengeEntry {
   challenge: string;
-  userId?: string;       // when registering — bound to this user
+  // When registering an existing user → bound to that user.
+  userId?: string;
+  // When signing up a brand-new account → carries the proposed username and a
+  // pre-generated user id. We materialize the user row only on signup/finish
+  // to avoid orphan rows from abandoned biometric prompts.
+  pendingSignup?: { username: string; userId: string };
   expiresAt: number;
 }
 const challenges = new Map<string, ChallengeEntry>();
@@ -65,12 +72,12 @@ const CHALLENGE_TTL_MS = 5 * 60 * 1000;
 function newNonce(): string {
   return randomBytes(16).toString('hex');
 }
-function stashChallenge(challenge: string, userId?: string): string {
+function stashChallenge(challenge: string, extras?: { userId?: string; pendingSignup?: { username: string; userId: string } }): string {
   // Opportunistic GC.
   const now = Date.now();
   for (const [k, v] of challenges) if (v.expiresAt < now) challenges.delete(k);
   const nonce = newNonce();
-  challenges.set(nonce, { challenge, userId, expiresAt: now + CHALLENGE_TTL_MS });
+  challenges.set(nonce, { challenge, ...extras, expiresAt: now + CHALLENGE_TTL_MS });
   return nonce;
 }
 function popChallenge(nonce: string): ChallengeEntry | undefined {
@@ -133,7 +140,7 @@ export function addPasskeyRoutes(router: Router): void {
       },
       attestationType: 'none',
     });
-    const nonce = stashChallenge(options.challenge, user.id);
+    const nonce = stashChallenge(options.challenge, { userId: user.id });
     res.json({ options, nonce });
   });
 
@@ -189,6 +196,153 @@ export function addPasskeyRoutes(router: Router): void {
     });
   });
 
+  // ── SIGN UP (anonymous — creates a new account in one biometric prompt) ─
+
+  // The flow:
+  //   1. user picks a username
+  //   2. server reserves it (validates + checks uniqueness, but DOESN'T
+  //      insert the user row yet — we don't want orphan rows from cancelled
+  //      Face ID prompts)
+  //   3. server returns RegistrationOptions
+  //   4. browser invokes the platform authenticator → Face ID prompt
+  //   5. browser sends back a RegistrationResponse
+  //   6. server materializes the user row + passkey + session in one go,
+  //      re-checking uniqueness in case of a TOCTOU race
+
+  const USERNAME_PATTERN = /^[a-zA-Z0-9_.-]+$/;
+  const MIN_USERNAME = 2;
+  const MAX_USERNAME = 32;
+
+  async function isUsernameAvailable(username: string): Promise<boolean> {
+    const row = await queryOne<{ id: string }>(
+      `SELECT id FROM users WHERE username = ? COLLATE NOCASE`,
+      [username],
+    );
+    return !row;
+  }
+
+  router.post('/auth/passkey/signup/start', async (req, res) => {
+    const body = req.body as { username?: unknown };
+    const username = typeof body.username === 'string' ? body.username.trim() : '';
+    if (username.length < MIN_USERNAME || username.length > MAX_USERNAME) {
+      res.status(400).json({ error: `Användarnamn ${MIN_USERNAME}–${MAX_USERNAME} tecken.` });
+      return;
+    }
+    if (!USERNAME_PATTERN.test(username)) {
+      res.status(400).json({ error: 'Bara bokstäver, siffror, _ . -' });
+      return;
+    }
+    if (!await isUsernameAvailable(username)) {
+      res.status(409).json({ error: 'Användarnamnet är upptaget.' });
+      return;
+    }
+    if (username.toLowerCase() === 'admin') {
+      res.status(409).json({ error: 'Användarnamnet är reserverat.' });
+      return;
+    }
+    const userId = newUserId();
+    const options = await generateRegistrationOptions({
+      rpName: rpName(),
+      rpID: rpId(),
+      userID: new TextEncoder().encode(userId),
+      userName: username,
+      userDisplayName: username,
+      authenticatorSelection: {
+        residentKey: 'preferred',
+        userVerification: 'preferred',
+      },
+      attestationType: 'none',
+    });
+    const nonce = stashChallenge(options.challenge, { pendingSignup: { username, userId } });
+    res.json({ options, nonce });
+  });
+
+  router.post('/auth/passkey/signup/finish', async (req, res) => {
+    const body = req.body as { nonce?: string; response?: RegistrationResponseJSON };
+    if (!body.nonce || !body.response) {
+      res.status(400).json({ error: 'nonce and response required' });
+      return;
+    }
+    const entry = popChallenge(body.nonce);
+    if (!entry || !entry.pendingSignup) {
+      res.status(400).json({ error: 'utgången eller okänd challenge' });
+      return;
+    }
+    const { username, userId } = entry.pendingSignup;
+
+    // Re-check uniqueness — a different signup may have used the name while
+    // the user was holding their finger on the sensor.
+    if (!await isUsernameAvailable(username)) {
+      res.status(409).json({ error: 'Användarnamnet är upptaget. Välj ett annat.' });
+      return;
+    }
+
+    let verification;
+    try {
+      verification = await verifyRegistrationResponse({
+        response: body.response,
+        expectedChallenge: entry.challenge,
+        expectedOrigin: expectedOrigin(),
+        expectedRPID: rpId(),
+        requireUserVerification: false,
+      });
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'verifiering misslyckades' });
+      return;
+    }
+    if (!verification.verified || !verification.registrationInfo) {
+      res.status(400).json({ error: 'verifiering misslyckades' });
+      return;
+    }
+
+    const info = verification.registrationInfo;
+    const cred = info.credential;
+    const transports = (body.response.response.transports ?? []).join(',');
+    const label = detectDeviceLabel(req.header('user-agent') ?? '');
+
+    // Lock-out hashes for password + security answer — this account is
+    // biometric-only until the user adds a password from settings.
+    const lock1 = randomBytes(32).toString('hex');
+    const lock2 = randomBytes(32).toString('hex');
+
+    try {
+      await exec(
+        `INSERT INTO users (id, username, password_hash, security_question, security_answer_hash, role)
+         VALUES (?, ?, ?, ?, ?, 'user')`,
+        [userId, username, hashPassword(lock1), 'n/a (biometric-only account)', hashPassword(lock2)],
+      );
+    } catch {
+      res.status(409).json({ error: 'Användarnamnet är upptaget.' });
+      return;
+    }
+
+    try {
+      await exec(
+        `INSERT INTO passkeys (credential_id, user_id, public_key, counter, transports, device_label)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [cred.id, userId, Buffer.from(cred.publicKey), cred.counter ?? 0, transports, label],
+      );
+    } catch {
+      // Roll back the user we just created — orphan otherwise.
+      await exec(`DELETE FROM users WHERE id = ?`, [userId]);
+      res.status(500).json({ error: 'kunde inte spara passkey' });
+      return;
+    }
+
+    await exec(`DELETE FROM user_sessions WHERE expires_at < datetime('now')`);
+    const token = newSessionToken();
+    const expiresAt = new Date(Date.now() + USER_SESSION_TTL_MS).toISOString();
+    await exec(
+      `INSERT INTO user_sessions (token, user_id, expires_at) VALUES (?, ?, ?)`,
+      [token, userId, expiresAt],
+    );
+    res.json({
+      token,
+      expiresAt,
+      user: { id: userId, username, role: 'user' as const },
+    });
+  });
+
   // ── LOGIN (no session required) ────────────────────────────────────
 
   router.post('/auth/passkey/login/start', async (_req, res) => {
@@ -201,6 +355,31 @@ export function addPasskeyRoutes(router: Router): void {
     });
     const nonce = stashChallenge(options.challenge);
     res.json({ options, nonce });
+  });
+
+  // Convenience for the client: "is this username free + valid?" Used by
+  // the inline signup form to give instant feedback before invoking the
+  // biometric prompt.
+  router.post('/auth/passkey/signup/check-username', async (req, res) => {
+    const body = req.body as { username?: unknown };
+    const username = typeof body.username === 'string' ? body.username.trim() : '';
+    if (username.length < MIN_USERNAME || username.length > MAX_USERNAME) {
+      res.json({ ok: false, reason: `Användarnamn ${MIN_USERNAME}–${MAX_USERNAME} tecken.` });
+      return;
+    }
+    if (!USERNAME_PATTERN.test(username)) {
+      res.json({ ok: false, reason: 'Bara bokstäver, siffror, _ . -' });
+      return;
+    }
+    if (username.toLowerCase() === 'admin') {
+      res.json({ ok: false, reason: 'Användarnamnet är reserverat.' });
+      return;
+    }
+    if (!await isUsernameAvailable(username)) {
+      res.json({ ok: false, reason: 'Användarnamnet är upptaget.' });
+      return;
+    }
+    res.json({ ok: true });
   });
 
   router.post('/auth/passkey/login/finish', async (req, res) => {

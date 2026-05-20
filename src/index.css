@@ -2152,3 +2152,11 @@ img, video, svg { max-width: 100%; height: auto; }
   cursor: pointer; color: var(--mute);
 }
 .passkey-delete:hover { border-color: var(--rose); color: var(--rose); }
+
+/* ── Inline "Skapa konto med Face ID" sub-form ─────────────────── */
+.passkey-signup-box {
+  padding: 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--purple) 6%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--purple) 22%, transparent);
+}
