@@ -21,6 +21,7 @@ interface UserMenuProps {
   onRegisterClick: () => void;
   onRecoverClick: () => void;
   onOpenAdminConsole: () => void;
+  onOpenPasskeys: () => void;
   onLogoutUser: () => Promise<void> | void;
   onLogoutAdmin: () => Promise<void> | void;
 }
@@ -28,7 +29,7 @@ interface UserMenuProps {
 export function UserMenu({
   isAdmin, currentUser,
   onLoginClick, onRegisterClick, onRecoverClick,
-  onOpenAdminConsole, onLogoutUser, onLogoutAdmin,
+  onOpenAdminConsole, onOpenPasskeys, onLogoutUser, onLogoutAdmin,
 }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLDivElement | null>(null);
@@ -108,6 +109,12 @@ export function UserMenu({
           {isAdmin && (
             <button className="user-menu-item" onClick={() => { close(); onOpenAdminConsole(); }}>
               <span className="user-menu-ico">⚙</span> Admin Console
+            </button>
+          )}
+
+          {(isAdmin || currentUser) && (
+            <button className="user-menu-item" onClick={() => { close(); onOpenPasskeys(); }}>
+              <span className="user-menu-ico">🔑</span> Face ID / Passkeys
             </button>
           )}
 

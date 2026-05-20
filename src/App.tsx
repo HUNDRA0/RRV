@@ -12,6 +12,7 @@ import { LunchSection, parseLunchData } from './components/viber/LunchSection';
 import { PersonModal } from './components/viber/PersonModal';
 import { EditBanner } from './components/viber/EditBanner';
 import { LoginModal } from './components/viber/LoginModal';
+import { PasskeyManager } from './components/viber/PasskeyManager';
 import { applyTheme, readThemeFromContent } from './lib/theme';
 import { AdminConsole } from './components/viber/AdminConsole';
 import {
@@ -37,6 +38,7 @@ export function App() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginInitialTab, setLoginInitialTab] = useState<'login' | 'register' | 'recover'>('login');
   const [adminConsoleOpen, setAdminConsoleOpen] = useState(false);
+  const [passkeyManagerOpen, setPasskeyManagerOpen] = useState(false);
 
   // Auto-open admin console the first time isAdmin flips on (post-login).
   const wasAdmin = useRef(false);
@@ -148,6 +150,7 @@ export function App() {
         onToggleEdit={onToggleEdit}
         onOpenLogin={onOpenLogin}
         onOpenAdminConsole={() => setAdminConsoleOpen(true)}
+        onOpenPasskeys={() => setPasskeyManagerOpen(true)}
         onLogoutUser={logoutUser}
         onLogoutAdmin={logoutAdmin}
         theme={theme}
@@ -204,6 +207,10 @@ export function App() {
 
       {loginOpen && (
         <LoginModal onClose={() => setLoginOpen(false)} initialTab={loginInitialTab} />
+      )}
+
+      {passkeyManagerOpen && (
+        <PasskeyManager onClose={() => setPasskeyManagerOpen(false)} />
       )}
 
       {adminConsoleOpen && isAdmin && (

@@ -2096,3 +2096,59 @@ select:focus-visible {
 /* Prevent overflow from any rogue wide element */
 .app, .section, .container { max-width: 100%; }
 img, video, svg { max-width: 100%; height: auto; }
+
+/* ── Passkey login button + manager ──────────────────────────────── */
+
+.btn-passkey {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px;
+  width: 100%; padding: 11px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--ink);
+  background: var(--ink); color: var(--paper);
+  font: 500 14px/1 var(--font-body);
+  cursor: pointer;
+  transition: transform 180ms var(--ease-spring), background 180ms var(--ease-out);
+}
+.btn-passkey:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ink) 90%, var(--purple));
+}
+.btn-passkey:active { transform: scale(0.98); }
+.btn-passkey:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-passkey svg { flex-shrink: 0; }
+
+.login-divider {
+  position: relative;
+  text-align: center;
+  margin: 4px 0;
+  font: 500 11px/1 var(--font-mono);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--mute);
+}
+.login-divider::before, .login-divider::after {
+  content: ''; position: absolute; top: 50%;
+  width: calc(50% - 60px);
+  height: 1px; background: var(--line);
+}
+.login-divider::before { left: 0; }
+.login-divider::after { right: 0; }
+.login-divider span { background: var(--paper); padding: 0 8px; position: relative; }
+
+.passkey-list { display: grid; gap: 8px; margin: 10px 0; }
+.passkey-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center; gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.passkey-label { font: 500 14px/1.2 var(--font-body); color: var(--ink); }
+.passkey-meta { font: 400 12px/1.3 var(--font-mono); color: var(--mute); margin-top: 4px; }
+.passkey-delete {
+  width: 30px; height: 30px; border-radius: 7px;
+  border: 1px solid var(--line); background: var(--paper);
+  cursor: pointer; color: var(--mute);
+}
+.passkey-delete:hover { border-color: var(--rose); color: var(--rose); }
