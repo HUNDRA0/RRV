@@ -17,8 +17,6 @@ import type { ApiUser } from '../../lib/api';
 interface UserMenuProps {
   isAdmin: boolean;
   currentUser: ApiUser | null;
-  theme: 'light' | 'dark';
-  onToggleTheme: () => void;
   onLoginClick: () => void;
   onRegisterClick: () => void;
   onRecoverClick: () => void;
@@ -28,8 +26,7 @@ interface UserMenuProps {
 }
 
 export function UserMenu({
-  isAdmin, currentUser, theme,
-  onToggleTheme,
+  isAdmin, currentUser,
   onLoginClick, onRegisterClick, onRecoverClick,
   onOpenAdminConsole, onLogoutUser, onLogoutAdmin,
 }: UserMenuProps) {
@@ -113,11 +110,6 @@ export function UserMenu({
               <span className="user-menu-ico">⚙</span> Admin Console
             </button>
           )}
-
-          <button className="user-menu-item" onClick={() => { onToggleTheme(); }}>
-            <span className="user-menu-ico">{theme === 'dark' ? '☀︎' : '🌙'}</span>
-            {theme === 'dark' ? 'Ljust läge' : 'Mörkt läge'}
-          </button>
 
           {(isAdmin || currentUser) && <div className="user-menu-divider" role="separator" />}
 

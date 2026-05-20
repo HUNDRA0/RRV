@@ -173,8 +173,6 @@ export function StickyNav({
           <UserMenu
             isAdmin={isAdmin}
             currentUser={currentUser}
-            theme={theme}
-            onToggleTheme={onToggleTheme}
             onLoginClick={() => onOpenLogin('login')}
             onRegisterClick={() => onOpenLogin('register')}
             onRecoverClick={() => onOpenLogin('recover')}
