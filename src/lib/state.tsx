@@ -63,7 +63,7 @@ interface FriendsListState {
   registerUser: (input: { username: string; password: string; securityQuestion: string; securityAnswer: string }) => Promise<boolean>;
   loginUser: (input: { username: string; password: string }) => Promise<boolean>;
   loginWithPasskey: () => Promise<boolean>;
-  signupWithPasskey: (username: string) => Promise<boolean>;
+  signupWithPasskey: (input: { username: string; securityQuestion: string; securityAnswer: string }) => Promise<boolean>;
   logoutUser: () => Promise<void>;
   recoverStart: (username: string) => Promise<string | null>;
   recoverFinish: (input: { username: string; securityAnswer: string; newPassword: string }) => Promise<boolean>;
@@ -304,10 +304,10 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signupWithPasskey = useCallback(async (username: string) => {
+  const signupWithPasskey = useCallback(async (input: { username: string; securityQuestion: string; securityAnswer: string }) => {
     setUserAuthError(null);
     try {
-      const { token, user } = await apiSignupWithPasskey(username);
+      const { token, user } = await apiSignupWithPasskey(input);
       userTokenStore.set(token);
       setCurrentUser(user);
       return true;
