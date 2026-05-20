@@ -179,6 +179,13 @@ export const api = {
       auth: true,
     }),
 
+  updateSocials: (id: string, socials: { platform: string; handle: string }[]) =>
+    request<Friend>(`/api/friends/${encodeURIComponent(id)}/socials`, {
+      method: 'PUT',
+      body: { socials },
+      auth: true,
+    }),
+
   submitPrediction: (input: { guesser: string; friendId: string; text: string }) =>
     request<ApiPrediction>('/api/predictions', { method: 'POST', body: input }),
 

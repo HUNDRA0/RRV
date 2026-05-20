@@ -33,7 +33,22 @@ app.use((_req, res, next) => {
   // (Tailwind/utility classes use these) and data: images.
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'sha256-6JehW/Vl8fBZ9xkeeNP6c4UFJCIPBJcg2F4uvQdYo8g='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+    [
+      "default-src 'self'",
+      // Inline bootstrap script in index.html is whitelisted by hash.
+      "script-src 'self' 'sha256-6JehW/Vl8fBZ9xkeeNP6c4UFJCIPBJcg2F4uvQdYo8g='",
+      // Google Fonts stylesheet + Tailwind/utility inline styles.
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      // Admin can set an external bg-image URL; we allow https: globally
+      // since the value comes from a logged-in admin in our own DB.
+      "img-src 'self' data: blob: https:",
+      // Google Fonts woff/woff2 files.
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "connect-src 'self'",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join('; '),
   );
   next();
 });

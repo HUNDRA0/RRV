@@ -61,11 +61,26 @@ html, body {
   margin: 0; padding: 0;
   color: var(--ink);
   font-family: var(--font-body);
-  font-size: 16px; line-height: 1.5;
+  /* font-scale lets admin scale all text from 0.85 → 1.25 via the editor. */
+  font-size: calc(16px * var(--font-scale, 1)); line-height: 1.5;
   -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
   background: var(--bg);
 }
-body { min-height: 100vh; overflow-x: hidden; }
+body {
+  min-height: 100vh; overflow-x: hidden;
+  position: relative;
+}
+/* Optional admin-set background image overlay. Sits behind everything but
+   above the body background color. Pointer events off so it doesn't block. */
+body::before {
+  content: ''; display: block;
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none;
+  background-image: var(--bg-image, none);
+  background-size: cover; background-position: center;
+  opacity: var(--bg-image-opacity, 0);
+  transition: opacity 400ms var(--ease-out);
+}
 
 /* ---------- Aurora background ---------- */
 .bg-aurora {
@@ -1664,47 +1679,102 @@ footer.foot {
   background: var(--paper); color: var(--ink);
 }
 
-/* ── Nav user chip + login button ────────────────────────────────── */
+/* ── Nav: user-icon trigger + dropdown menu ─────────────────────── */
 
-.nav-user-anchor { position: relative; }
-.nav-user-name {
-  font: 500 12px/1 var(--font-mono);
-  letter-spacing: 0.04em; padding: 0 2px;
-  max-width: 90px; overflow: hidden;
-  text-overflow: ellipsis; white-space: nowrap;
-}
-.nav-user-caret {
-  margin-left: 4px; font-size: 9px; color: var(--mute);
-  transition: transform 180ms var(--ease-out);
-}
-.nav-user[aria-expanded="true"] .nav-user-caret { transform: rotate(180deg); }
+.user-menu-anchor { position: relative; }
 
-.nav-user-menu {
+.user-menu-trigger {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform 180ms var(--ease-spring), border-color 180ms var(--ease-out), background 180ms var(--ease-out);
+}
+.user-menu-trigger:hover {
+  border-color: var(--purple);
+  background: color-mix(in srgb, var(--purple) 6%, var(--paper));
+}
+.user-menu-trigger:active { transform: scale(0.94); }
+.user-menu-trigger:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+.user-menu-trigger[data-state="admin"] {
+  background: color-mix(in srgb, var(--purple) 14%, var(--paper));
+  border-color: var(--purple);
+}
+.user-menu-icon { display: block; }
+
+/* Tiny status dot in lower-right of the avatar when logged in. */
+.user-menu-dot {
+  position: absolute; right: 3px; bottom: 3px;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #4ade80;
+  border: 1.5px solid var(--paper);
+}
+.user-menu-trigger[data-state="admin"] .user-menu-dot {
+  background: #fbbf24;
+}
+
+.user-menu {
   right: 0; left: auto;
-  width: 200px; min-width: 0;
+  width: 240px; min-width: 0;
+  padding: 6px;
 }
-.nav-user-menu-head {
-  padding: 10px 14px 8px;
-  font: 500 11px/1.4 var(--font-mono);
-  letter-spacing: 0.04em; color: var(--mute);
+.user-menu-head {
+  padding: 12px 14px 10px;
+  font: 500 11px/1.3 var(--font-mono);
+  letter-spacing: 0.05em; color: var(--mute);
   border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+  display: flex; flex-direction: column; gap: 4px;
 }
-.nav-user-menu-head strong {
+.user-menu-eyebrow { text-transform: uppercase; font-size: 10px; opacity: 0.9; }
+.user-menu-head strong {
   color: var(--ink); font-weight: 600;
-  font-size: 13px; letter-spacing: normal;
+  font-size: 14px; letter-spacing: normal;
+  font-family: var(--font-display);
 }
-.nav-menu-danger { color: var(--rose); }
-.nav-menu-danger:hover {
-  background: color-mix(in srgb, var(--rose) 10%, transparent) !important;
-  color: var(--rose) !important;
+.user-menu-item {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  border: 0; background: transparent;
+  font: 500 14px/1 var(--font-body);
+  color: var(--ink-soft);
+  padding: 11px 14px;
+  border-radius: 10px;
+  cursor: pointer; text-align: left;
+  transition: background 180ms var(--ease-out), color 180ms var(--ease-out), transform 180ms var(--ease-spring);
 }
-.nav-login-label {
-  font: 500 12px/1 var(--font-mono);
-  letter-spacing: 0.06em; text-transform: uppercase;
-  margin-left: 4px;
+.user-menu-item:hover {
+  background: color-mix(in srgb, var(--purple) 8%, transparent);
+  color: var(--ink);
 }
-@media (max-width: 700px) {
-  .nav-login-label { display: none; }
+.user-menu-item:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: -2px;
+}
+.user-menu-item:active { transform: scale(0.98); }
+.user-menu-ico {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  font-size: 13px; color: var(--mute);
+  flex-shrink: 0;
+}
+.user-menu-divider {
+  height: 1px; background: var(--line);
+  margin: 4px 6px;
+}
+.user-menu-danger { color: var(--rose); }
+.user-menu-danger .user-menu-ico { color: var(--rose); }
+.user-menu-danger:hover {
+  background: color-mix(in srgb, var(--rose) 10%, transparent);
+  color: var(--rose);
 }
 
 /* ── Polls block (inside Events section) ──────────────────────────── */
@@ -1878,3 +1948,151 @@ footer.foot {
 .poll-option-remove:hover {
   border-color: var(--rose); color: var(--rose);
 }
+
+/* ── Social chips (person modal) ─────────────────────────────────── */
+
+.social-chips {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-top: 12px;
+}
+.social-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  color: #fff;
+  text-decoration: none;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.12);
+  transition: transform 180ms var(--ease-spring), box-shadow 180ms var(--ease-out);
+}
+.social-chip:hover { transform: translateY(-2px) scale(1.05); box-shadow: 0 6px 16px rgb(0 0 0 / 0.18); }
+.social-chip:active { transform: scale(0.95); }
+.social-chip svg { width: 18px; height: 18px; }
+.social-chips-sm .social-chip { width: 28px; height: 28px; }
+.social-chips-sm .social-chip svg { width: 14px; height: 14px; }
+
+.modal-hint {
+  font: 500 12px/1.4 var(--font-mono);
+  color: var(--mute);
+  margin: 12px 0 0;
+}
+
+/* ── Admin: social-editor inside person tab ───────────────────── */
+
+.admin-socials-grid {
+  display: grid; gap: 6px;
+  margin-top: 8px;
+}
+.admin-social-row {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  gap: 6px; align-items: center;
+}
+.admin-social-row select,
+.admin-social-row input {
+  font: 13px var(--font-mono); padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--paper); color: var(--ink);
+}
+.admin-social-remove {
+  width: 30px; height: 30px; border-radius: 7px;
+  border: 1px solid var(--line); background: var(--paper);
+  cursor: pointer; color: var(--mute);
+}
+.admin-social-remove:hover { border-color: var(--rose); color: var(--rose); }
+@media (max-width: 560px) {
+  .admin-social-row { grid-template-columns: 1fr 1fr auto; }
+}
+
+/* ── Admin design tab ────────────────────────────────────────────── */
+
+.admin-design { padding: 8px 0; }
+.design-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  align-items: center; gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.design-row:last-child { border-bottom: 0; }
+.design-label {
+  font: 500 13px/1.3 var(--font-mono);
+  color: var(--ink-soft);
+}
+.design-control {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.design-control input[type="color"] {
+  width: 36px; height: 36px;
+  border: 1px solid var(--line); border-radius: 8px;
+  cursor: pointer; padding: 2px; background: var(--paper);
+}
+.design-control input[type="text"], .design-control input[type="url"] {
+  font: 13px var(--font-mono);
+  padding: 8px 10px;
+  border: 1px solid var(--line); border-radius: 8px;
+  background: var(--paper); color: var(--ink);
+}
+.design-control input[type="range"] {
+  flex: 1; min-width: 120px;
+  accent-color: var(--purple);
+}
+.design-saved {
+  color: var(--purple-2); font: 600 14px/1 var(--font-mono);
+}
+
+@media (max-width: 560px) {
+  .design-row { grid-template-columns: 1fr; gap: 6px; }
+}
+
+/* ── Safe-area + touch targets + a11y polish ──────────────────────── */
+
+/* iPhone safe-area insets for fixed nav + footer */
+.nav-wrap { padding-top: env(safe-area-inset-top, 0); }
+.foot { padding-bottom: max(env(safe-area-inset-bottom, 0), 16px); }
+
+/* Ensure modals never overflow viewport on small screens */
+.modal {
+  max-width: min(640px, calc(100vw - 24px));
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  margin: 16px;
+}
+@supports (-webkit-touch-callout: none) {
+  /* iOS — use dvh aware sizing */
+  .modal { max-height: calc(100dvh - env(safe-area-inset-top, 0) - env(safe-area-inset-bottom, 0) - 32px); }
+}
+.modal-backdrop {
+  padding: env(safe-area-inset-top, 16px) env(safe-area-inset-right, 16px)
+           env(safe-area-inset-bottom, 16px) env(safe-area-inset-left, 16px);
+}
+
+/* Touch targets — make every clickable button at least 40×40 on phones.
+   .btn / .nav-tab / .user-menu-item only. Avoid broad selectors like
+   `button` or `[role="button"]` because they hit decorative buttons (e.g.
+   the nav brand, which uses role=button just for keyboard accessibility)
+   and stretch their layout. */
+@media (max-width: 640px) {
+  .btn, .nav-tab, .user-menu-item {
+    min-height: 40px;
+  }
+}
+
+/* Universal focus-visible ring for keyboard nav */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+/* …except where the element already has a custom focus state */
+.user-menu-item:focus-visible,
+.user-menu-trigger:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Prevent overflow from any rogue wide element */
+.app, .section, .container { max-width: 100%; }
+img, video, svg { max-width: 100%; height: auto; }

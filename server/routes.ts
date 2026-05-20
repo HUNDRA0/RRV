@@ -73,6 +73,12 @@ interface FriendPhotoMetaRow {
   uploaded_at: string;
 }
 
+interface FriendSocialRow {
+  friend_id: string;
+  platform: string;
+  handle: string;
+}
+
 interface PredictionRow {
   id: number;
   guesser_name: string;
@@ -91,7 +97,11 @@ function buildPhotoUrl(friendId: string, position: number, uploadedAt: string): 
   return `/photos/${encodeURIComponent(friendId)}/${position}?v=${encodeURIComponent(uploadedAt)}`;
 }
 
-function toFriendDto(row: FriendRow, photos: FriendPhotoMetaRow[]) {
+function toFriendDto(
+  row: FriendRow,
+  photos: FriendPhotoMetaRow[],
+  socials: FriendSocialRow[] = [],
+) {
   const sorted = photos
     .filter(p => p.friend_id === row.id)
     .sort((a, b) => a.position - b.position);
@@ -99,6 +109,9 @@ function toFriendDto(row: FriendRow, photos: FriendPhotoMetaRow[]) {
     position: p.position,
     url: buildPhotoUrl(row.id, p.position, p.uploaded_at),
   }));
+  const friendSocials = socials
+    .filter(s => s.friend_id === row.id)
+    .map(s => ({ platform: s.platform, handle: s.handle }));
   return {
     id: row.id,
     name: row.name,
@@ -110,6 +123,7 @@ function toFriendDto(row: FriendRow, photos: FriendPhotoMetaRow[]) {
     currentMove: row.current_move,
     photoUrl: photoEntries[0]?.url ?? null,
     photos: photoEntries,
+    socials: friendSocials,
     lat: row.lat,
     lon: row.lon,
     area: row.area,
@@ -133,11 +147,17 @@ async function getFriendDto(id: string) {
     [id],
   );
   if (!row) return null;
-  const photos = await queryAll<FriendPhotoMetaRow>(
-    `SELECT friend_id, position, uploaded_at FROM friend_photos WHERE friend_id = ? ORDER BY position`,
-    [id],
-  );
-  return toFriendDto(row, photos);
+  const [photos, socials] = await Promise.all([
+    queryAll<FriendPhotoMetaRow>(
+      `SELECT friend_id, position, uploaded_at FROM friend_photos WHERE friend_id = ? ORDER BY position`,
+      [id],
+    ),
+    queryAll<FriendSocialRow>(
+      `SELECT friend_id, platform, handle FROM friend_socials WHERE friend_id = ?`,
+      [id],
+    ),
+  ]);
+  return toFriendDto(row, photos, socials);
 }
 
 async function getPredictionDto(id: number) {
@@ -263,22 +283,22 @@ router.get('/admin/check', requireAdmin, (_req, res) => {
 });
 
 router.get('/friends', async (_req, res) => {
-  const rows = await queryAll<FriendRow>(
-    `SELECT ${SELECT_FRIEND_COLS} FROM friends ORDER BY rank`,
-  );
-  const photos = await queryAll<FriendPhotoMetaRow>(
-    `SELECT friend_id, position, uploaded_at FROM friend_photos ORDER BY friend_id, position`,
-  );
+  const [rows, photos, socials] = await Promise.all([
+    queryAll<FriendRow>(`SELECT ${SELECT_FRIEND_COLS} FROM friends ORDER BY rank`),
+    queryAll<FriendPhotoMetaRow>(`SELECT friend_id, position, uploaded_at FROM friend_photos ORDER BY friend_id, position`),
+    queryAll<FriendSocialRow>(`SELECT friend_id, platform, handle FROM friend_socials`),
+  ]);
   res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
-  res.json(rows.map(r => toFriendDto(r, photos)));
+  res.json(rows.map(r => toFriendDto(r, photos, socials)));
 });
 
 // Single endpoint that returns friends + predictions + gmap + content in one
 // round-trip. Cuts 4 cold-start Lambda invocations down to 1.
 router.get('/bootstrap', async (_req, res) => {
-  const [friendRows, photoRows, predRows, contentRows, cacheRows] = await Promise.all([
+  const [friendRows, photoRows, socialRows, predRows, contentRows, cacheRows] = await Promise.all([
     queryAll<FriendRow>(`SELECT ${SELECT_FRIEND_COLS} FROM friends ORDER BY rank`),
     queryAll<FriendPhotoMetaRow>(`SELECT friend_id, position, uploaded_at FROM friend_photos ORDER BY friend_id, position`),
+    queryAll<FriendSocialRow>(`SELECT friend_id, platform, handle FROM friend_socials`),
     queryAll<PredictionRow>(`SELECT ${SELECT_PREDICTION_COLS} FROM predictions ORDER BY created_at DESC, id DESC`),
     queryAll<{ key: string; value: string }>('SELECT key, value FROM site_content'),
     queryAll<{ id_a: string; id_b: string; distance_meters: number }>('SELECT id_a, id_b, distance_meters FROM gmap_route_cache'),
@@ -314,7 +334,7 @@ router.get('/bootstrap', async (_req, res) => {
 
   res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
   res.json({
-    friends: friendRows.map(r => toFriendDto(r, photoRows)),
+    friends: friendRows.map(r => toFriendDto(r, photoRows, socialRows)),
     predictions: predRows.map(toPredictionDto),
     dailyQuote,
     gmap: {
@@ -656,4 +676,47 @@ router.post('/admin/friends/swap', requireAdmin, async (req, res) => {
     exec(`UPDATE friends SET rank = ?, tier = ?, updated_at = datetime('now') WHERE id = ?`, [a.rank, a.tier, b.id]),
   ]);
   res.json({ ok: true, swapped: [a.id, b.id] });
+});
+
+// ── Friend socials ───────────────────────────────────────────────────
+// Admin manages. Reads come bundled in /api/bootstrap and /api/friends.
+// We accept handles or full URLs; the client builds the actual link.
+
+const ALLOWED_PLATFORMS = new Set([
+  'instagram', 'facebook', 'linkedin', 'x', 'tiktok',
+  'github', 'youtube', 'snapchat', 'discord', 'twitch', 'threads', 'website',
+]);
+const MAX_HANDLE = 200;
+
+// PUT /api/friends/:id/socials — replace the full list for one friend
+router.put<{ id: string }>('/friends/:id/socials', requireAdmin, async (req, res) => {
+  const id = req.params.id;
+  const body = req.body as { socials?: unknown };
+  if (!Array.isArray(body.socials)) {
+    res.status(400).json({ error: 'socials must be an array' });
+    return;
+  }
+  const exists = await queryOne<{ one: 1 }>('SELECT 1 AS one FROM friends WHERE id = ?', [id]);
+  if (!exists) { res.status(404).json({ error: 'okänd vän' }); return; }
+
+  const clean: Array<{ platform: string; handle: string }> = [];
+  for (const raw of body.socials) {
+    if (!raw || typeof raw !== 'object') continue;
+    const r = raw as Record<string, unknown>;
+    const platform = typeof r.platform === 'string' ? r.platform.trim().toLowerCase() : '';
+    const handle = typeof r.handle === 'string' ? r.handle.trim().slice(0, MAX_HANDLE) : '';
+    if (!ALLOWED_PLATFORMS.has(platform) || !handle) continue;
+    // De-dup on platform (one entry per friend+platform).
+    if (clean.some(c => c.platform === platform)) continue;
+    clean.push({ platform, handle });
+  }
+
+  await exec('DELETE FROM friend_socials WHERE friend_id = ?', [id]);
+  for (const s of clean) {
+    await exec(
+      `INSERT INTO friend_socials (friend_id, platform, handle) VALUES (?, ?, ?)`,
+      [id, s.platform, s.handle],
+    );
+  }
+  res.json(await getFriendDto(id));
 });
