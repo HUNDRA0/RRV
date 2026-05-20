@@ -1686,7 +1686,7 @@ footer.foot {
 .user-menu-trigger {
   position: relative;
   display: inline-flex; align-items: center; justify-content: center;
-  width: 38px; height: 38px;
+  width: 40px; height: 40px;
   border-radius: 50%;
   border: 1px solid var(--line);
   background: var(--paper);
@@ -2066,15 +2066,14 @@ footer.foot {
            env(safe-area-inset-bottom, 16px) env(safe-area-inset-left, 16px);
 }
 
-/* Touch targets — make every clickable button at least 40×40 on phones */
+/* Touch targets — make every clickable button at least 40×40 on phones.
+   .btn / .nav-tab / .user-menu-item only. Avoid broad selectors like
+   `button` or `[role="button"]` because they hit decorative buttons (e.g.
+   the nav brand, which uses role=button just for keyboard accessibility)
+   and stretch their layout. */
 @media (max-width: 640px) {
-  button, [role="button"], .btn, .nav-tab {
+  .btn, .nav-tab, .user-menu-item {
     min-height: 40px;
-  }
-  /* exceptions: small inline cells inside lists */
-  .poll-option-remove, .admin-photo-thumb button, .admin-social-remove,
-  .modal-close, .user-menu-trigger {
-    min-height: 0;
   }
 }
 
