@@ -9,9 +9,10 @@
 // On successful login the modal closes. The parent decides what to do next
 // (admin → open AdminConsole; user → stay on the page).
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useEsc, useLockBody } from '../../hooks/useViberHooks';
 import { useFriendsList } from '../../lib/state';
+import { isPlatformAuthenticatorAvailable } from '../../lib/passkey';
 
 type Tab = 'login' | 'register' | 'recover';
 
@@ -30,7 +31,7 @@ interface LoginModalProps {
 
 export function LoginModal({ onClose, initialTab = 'login' }: LoginModalProps) {
   const {
-    loginUser, registerUser, recoverStart, recoverFinish, userAuthError,
+    loginUser, loginWithPasskey, registerUser, recoverStart, recoverFinish, userAuthError,
     tryLogin, loginError,
   } = useFriendsList();
 
@@ -83,6 +84,10 @@ export function LoginModal({ onClose, initialTab = 'login' }: LoginModalProps) {
                 const ok = await loginUser(input);
                 if (ok) onClose();
               }}
+              onPasskeyLogin={async () => {
+                const ok = await loginWithPasskey();
+                if (ok) onClose();
+              }}
               error={userAuthError}
               onAdmin={() => setAdminMode(true)}
             />
@@ -125,16 +130,30 @@ export function LoginModal({ onClose, initialTab = 'login' }: LoginModalProps) {
 // ── Sub-forms ─────────────────────────────────────────────────────────
 
 function LoginForm({
-  onSubmit, error, onAdmin,
+  onSubmit, error, onAdmin, onPasskeyLogin,
 }: {
   onSubmit: (input: { username: string; password: string }) => Promise<void>;
   error: string | null;
   onAdmin: () => void;
+  onPasskeyLogin: () => Promise<void>;
 }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [localErr, setLocalErr] = useState<string | null>(null);
+  const [passkeySupported, setPasskeySupported] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
+
+  useEffect(() => {
+    void isPlatformAuthenticatorAvailable().then(setPasskeySupported);
+  }, []);
+
+  async function handlePasskey() {
+    setLocalErr(null);
+    setPasskeyBusy(true);
+    try { await onPasskeyLogin(); }
+    finally { setPasskeyBusy(false); }
+  }
 
   async function handle(e: React.FormEvent) {
     e.preventDefault();
@@ -148,6 +167,19 @@ function LoginForm({
 
   return (
     <form onSubmit={handle} className="login-form">
+      {passkeySupported && (
+        <>
+          <button
+            type="button"
+            className="btn btn-passkey"
+            onClick={handlePasskey}
+            disabled={passkeyBusy}
+          >
+            <PasskeyIcon /> {passkeyBusy ? 'Väntar på enhet…' : 'Logga in med Face ID / Touch ID'}
+          </button>
+          <div className="login-divider"><span>eller med lösenord</span></div>
+        </>
+      )}
       <label className="admin-field">
         <span>Användarnamn</span>
         <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus autoComplete="username" />
@@ -166,6 +198,14 @@ function LoginForm({
         Logga in som admin →
       </button>
     </form>
+  );
+}
+
+function PasskeyIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M9 11a3 3 0 1 1 6 0 3 3 0 0 1-6 0Zm-3 6a6 6 0 0 1 12 0v1H6v-1Zm12-9V6a6 6 0 0 0-12 0v2H4v12h16V8h-2ZM8 8V6a4 4 0 0 1 8 0v2H8Z" />
+    </svg>
   );
 }
 

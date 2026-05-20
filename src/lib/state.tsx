@@ -10,6 +10,7 @@ import {
 } from 'react';
 import type { Friend, TierId } from '../data/friends';
 import { ApiError, api, tokenStore, userTokenStore, type ApiGMap, type ApiPoll, type ApiPrediction, type ApiUser, type SiteContent, type BootstrapPayload } from './api';
+import { loginWithPasskey as apiLoginWithPasskey } from './passkey';
 
 interface FriendsListState {
   // Loading + error surface for the initial fetch.
@@ -61,6 +62,7 @@ interface FriendsListState {
   userAuthError: string | null;
   registerUser: (input: { username: string; password: string; securityQuestion: string; securityAnswer: string }) => Promise<boolean>;
   loginUser: (input: { username: string; password: string }) => Promise<boolean>;
+  loginWithPasskey: () => Promise<boolean>;
   logoutUser: () => Promise<void>;
   recoverStart: (username: string) => Promise<string | null>;
   recoverFinish: (input: { username: string; securityAnswer: string; newPassword: string }) => Promise<boolean>;
@@ -285,6 +287,22 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const loginWithPasskey = useCallback(async () => {
+    setUserAuthError(null);
+    try {
+      const { token, user } = await apiLoginWithPasskey();
+      userTokenStore.set(token);
+      setCurrentUser(user);
+      return true;
+    } catch (err) {
+      const m = err instanceof Error ? err.message : 'inloggning misslyckades';
+      // Browser cancellations are not errors worth surfacing.
+      if (/cancel|aborted|not allowed/i.test(m)) setUserAuthError(null);
+      else setUserAuthError(m);
+      return false;
+    }
+  }, []);
+
   const logoutUser = useCallback(async () => {
     try { await api.userLogout(); } catch { /* ignore */ }
     userTokenStore.clear();
@@ -349,7 +367,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
       updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials,
-      currentUser, userAuthError, registerUser, loginUser, logoutUser, recoverStart, recoverFinish,
+      currentUser, userAuthError, registerUser, loginUser, loginWithPasskey, logoutUser, recoverStart, recoverFinish,
       polls, refreshPolls, createPoll, votePoll, deletePoll,
     }),
     [
@@ -360,7 +378,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
       updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials,
-      currentUser, userAuthError, registerUser, loginUser, logoutUser, recoverStart, recoverFinish,
+      currentUser, userAuthError, registerUser, loginUser, loginWithPasskey, logoutUser, recoverStart, recoverFinish,
       polls, refreshPolls, createPoll, votePoll, deletePoll,
     ],
   );

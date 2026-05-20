@@ -17,6 +17,7 @@ import { decodeDataUrl } from './lib/photos.js';
 import { buildMapsUrl, cacheKey, computePairs, type GeoFriend } from './lib/gmap.js';
 import { addCatanRoutes } from './catan-routes.js';
 import { addAuthRoutes } from './auth-routes.js';
+import { addPasskeyRoutes } from './passkey-routes.js';
 import { USER_SESSION_TTL_MS, hashPassword, newSessionToken } from './auth.js';
 
 // Synthetic user record backing the admin password flow. Lets admins create,
@@ -202,6 +203,7 @@ export const router: Router = Router();
 
 addCatanRoutes(router);
 addAuthRoutes(router);
+addPasskeyRoutes(router);
 
 // Per-IP login rate limiter: 5 attempts / 15 min, then 429.
 // In-memory map is fine for this scale; on serverless cold start it resets,
