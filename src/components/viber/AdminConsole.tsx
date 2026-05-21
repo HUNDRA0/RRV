@@ -850,7 +850,7 @@ function LunchTab({ friends, siteContent, updateContent }: LunchTabProps) {
     const id = `d-${Date.now()}`;
     const a = friends[0]?.id ?? '';
     const b = friends[1]?.id ?? '';
-    setDebts((prev) => [...prev, { id, debtor: a, creditor: b, amount: 1, note: '' }]);
+    setDebts((prev) => [...prev, { id, debtor: a, creditors: [{ creditor: b, amount: 1 }], note: '' }]);
   }
 
   function removeDebt(id: string) {
@@ -859,6 +859,28 @@ function LunchTab({ friends, siteContent, updateContent }: LunchTabProps) {
 
   function updateDebt(id: string, patch: Partial<LunchDebt>) {
     setDebts((prev) => prev.map((d) => (d.id === id ? { ...d, ...patch } : d)));
+  }
+
+  // Operations on the creditors array inside a single debt.
+  function addCreditor(debtId: string) {
+    const fallback = friends[0]?.id ?? '';
+    setDebts((prev) => prev.map((d) =>
+      d.id === debtId ? { ...d, creditors: [...d.creditors, { creditor: fallback, amount: 1 }] } : d,
+    ));
+  }
+  function removeCreditor(debtId: string, idx: number) {
+    setDebts((prev) => prev.map((d) =>
+      d.id === debtId
+        ? { ...d, creditors: d.creditors.filter((_, i) => i !== idx) }
+        : d,
+    ));
+  }
+  function updateCreditor(debtId: string, idx: number, patch: Partial<{ creditor: string; amount: number }>) {
+    setDebts((prev) => prev.map((d) =>
+      d.id === debtId
+        ? { ...d, creditors: d.creditors.map((c, i) => (i === idx ? { ...c, ...patch } : c)) }
+        : d,
+    ));
   }
 
   return (
@@ -886,41 +908,72 @@ function LunchTab({ friends, siteContent, updateContent }: LunchTabProps) {
         <p className="card-meta">Inga skulder inlagda.</p>
       )}
       {debts.map((d) => (
-        <div key={d.id} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10, flexWrap: 'wrap' }}>
-          <select
-            value={d.debtor}
-            onChange={(e) => updateDebt(d.id, { debtor: e.target.value })}
-            style={{ flex: 1, minWidth: 90, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }}
-          >
-            {friends.map((f) => <option key={f.id} value={f.id}>{f.name.split(' ')[0]}</option>)}
-          </select>
-          <span style={{ color: 'var(--mute)', fontSize: 12, flexShrink: 0 }}>är skyldig 🎟</span>
-          <input
-            type="number"
-            min={1}
-            value={d.amount}
-            onChange={(e) => updateDebt(d.id, { amount: Math.max(1, parseInt(e.target.value) || 1) })}
-            style={{ width: 56, textAlign: 'center', padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }}
-          />
-          <span style={{ color: 'var(--mute)', fontSize: 12, flexShrink: 0 }}>till</span>
-          <select
-            value={d.creditor}
-            onChange={(e) => updateDebt(d.id, { creditor: e.target.value })}
-            style={{ flex: 1, minWidth: 90, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }}
-          >
-            {friends.map((f) => <option key={f.id} value={f.id}>{f.name.split(' ')[0]}</option>)}
-          </select>
+        <div key={d.id} className="lunch-debt-card">
+          <div className="lunch-debt-head">
+            <div className="lunch-debt-debtor">
+              <span className="lunch-debt-label">är skyldig 🎟 till:</span>
+              <select
+                value={d.debtor}
+                onChange={(e) => updateDebt(d.id, { debtor: e.target.value })}
+                className="lunch-debt-select"
+                aria-label="Vem är skyldig"
+              >
+                {friends.map((f) => <option key={f.id} value={f.id}>{f.name.split(' ')[0]}</option>)}
+              </select>
+            </div>
+            <button
+              onClick={() => removeDebt(d.id)}
+              className="lunch-debt-remove"
+              aria-label="Ta bort hela skulden"
+            >✕</button>
+          </div>
+
+          <div className="lunch-creditors">
+            {d.creditors.map((c, idx) => (
+              <div key={idx} className="lunch-creditor-row">
+                <select
+                  value={c.creditor}
+                  onChange={(e) => updateCreditor(d.id, idx, { creditor: e.target.value })}
+                  className="lunch-debt-select"
+                  aria-label="Mottagare"
+                >
+                  {friends.map((f) => <option key={f.id} value={f.id}>{f.name.split(' ')[0]}</option>)}
+                </select>
+                <input
+                  type="number"
+                  min={1}
+                  value={c.amount}
+                  onChange={(e) => updateCreditor(d.id, idx, { amount: Math.max(1, parseInt(e.target.value) || 1) })}
+                  className="lunch-debt-amount"
+                  aria-label="Antal tickets"
+                />
+                <span style={{ color: 'var(--mute)', fontSize: 12 }}>🎟</span>
+                {d.creditors.length > 1 && (
+                  <button
+                    onClick={() => removeCreditor(d.id, idx)}
+                    className="lunch-creditor-remove"
+                    aria-label="Ta bort mottagare"
+                  >✕</button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => addCreditor(d.id)}
+              style={{ fontSize: 12, padding: '6px 12px', marginTop: 4 }}
+            >
+              + Lägg till mottagare
+            </button>
+          </div>
+
           <input
             type="text"
             value={d.note}
             onChange={(e) => updateDebt(d.id, { note: e.target.value })}
-            placeholder="Anmärkning (valfri)"
-            style={{ flex: 2, minWidth: 100, padding: '6px 8px', borderRadius: 8, border: '1px solid var(--line)', background: 'var(--paper)', color: 'var(--ink)', fontSize: 13 }}
+            placeholder="Anledning (t.ex. flytthjälp)"
+            className="lunch-debt-note"
           />
-          <button
-            onClick={() => removeDebt(d.id)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--mute)', fontSize: 18, padding: '0 4px', flexShrink: 0 }}
-          >✕</button>
         </div>
       ))}
 
