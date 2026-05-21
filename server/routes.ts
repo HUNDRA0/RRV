@@ -361,6 +361,71 @@ router.get('/bootstrap', async (_req, res) => {
   });
 });
 
+// POST /api/friends — admin creates a new person.
+// Required: name. Everything else is derived/defaulted:
+//   id          → slugified from name if not provided (lowercase, a-z0-9 only)
+//   rank        → max(rank) + 1
+//   tier        → 'a' if not provided
+//   address     → empty strings
+//   bio/move    → empty
+// Returns the new Friend DTO so the client can append without a full refetch.
+router.post('/friends', requireAdmin, async (req, res) => {
+  const body = req.body as Record<string, unknown>;
+  const name = typeof body.name === 'string' ? body.name.trim().slice(0, 60) : '';
+  if (name.length < 1) { res.status(400).json({ error: 'namn krävs' }); return; }
+
+  // Slugify name → id. Allow admin override but sanitize.
+  const slug = (typeof body.id === 'string' && body.id.trim() ? body.id : name)
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // strip accents
+    .replace(/[^a-z0-9]+/g, '')                          // a-z0-9 only
+    .slice(0, 40);
+  if (slug.length < 2) {
+    res.status(400).json({ error: 'kunde inte skapa id från namnet — skriv ett manuellt id' });
+    return;
+  }
+
+  // Uniqueness check.
+  const dupe = await queryOne<{ id: string }>('SELECT id FROM friends WHERE id = ?', [slug]);
+  if (dupe) { res.status(409).json({ error: `id "${slug}" finns redan` }); return; }
+
+  const tier = typeof body.tier === 'string' && body.tier ? body.tier : 'a';
+  const street = typeof body.street === 'string' ? body.street.trim().slice(0, 80) : '';
+  const postcode = typeof body.postcode === 'string' ? body.postcode.trim().slice(0, 20) : '';
+  const city = typeof body.city === 'string' ? body.city.trim().slice(0, 60) : '';
+  const bio = typeof body.bio === 'string' ? body.bio.trim().slice(0, 2000) : '';
+  const note = typeof body.note === 'string' ? body.note.trim().slice(0, 300) : '';
+  const currentMove = typeof body.currentMove === 'string'
+    ? body.currentMove.trim().slice(0, 200)
+    : 'To be continued';
+
+  // Rank = max existing + 1. Admin can override.
+  const maxRow = await queryOne<{ max_rank: number | null }>(
+    `SELECT MAX(rank) AS max_rank FROM friends`,
+  );
+  const rank = typeof body.rank === 'number' && Number.isFinite(body.rank)
+    ? Math.max(1, Math.floor(body.rank))
+    : (maxRow?.max_rank ?? 0) + 1;
+
+  await exec(
+    `INSERT INTO friends (id, name, rank, tier, street, postcode, city, note, bio, current_move)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [slug, name, rank, tier, street, postcode, city, note, bio, currentMove],
+  );
+  res.status(201).json(await getFriendDto(slug));
+});
+
+// DELETE /api/friends/:id — remove a person entirely.
+// ON DELETE CASCADE on friend_photos and friend_socials handles those.
+// Predictions referencing this friend will also cascade-delete.
+router.delete<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
+  const id = req.params.id;
+  const friend = await queryOne<{ id: string }>(`SELECT id FROM friends WHERE id = ?`, [id]);
+  if (!friend) { res.status(404).json({ error: 'friend not found' }); return; }
+  await exec(`DELETE FROM friends WHERE id = ?`, [id]);
+  res.json({ ok: true, removed: id });
+});
+
 router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
   const id = req.params.id;
   const friend = await getFriendDto(id);

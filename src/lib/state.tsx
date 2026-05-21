@@ -56,6 +56,8 @@ interface FriendsListState {
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
   updateSocials: (id: string, socials: { platform: string; handle: string }[]) => Promise<void>;
+  createFriend: (input: { name: string; id?: string; tier?: string; rank?: number; street?: string; postcode?: string; city?: string; bio?: string; currentMove?: string }) => Promise<Friend>;
+  deleteFriend: (id: string) => Promise<void>;
 
   // User accounts (separate flow from admin).
   currentUser: ApiUser | null;
@@ -254,6 +256,17 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     setFriends(prev => prev.map(f => (f.id === id ? updated : f)));
   }, []);
 
+  const createFriend = useCallback(async (input: { name: string; id?: string; tier?: string; rank?: number; street?: string; postcode?: string; city?: string; bio?: string; currentMove?: string }) => {
+    const created = await api.createFriend(input);
+    setFriends(prev => [...prev, created].sort((a, b) => a.rank - b.rank));
+    return created;
+  }, []);
+
+  const deleteFriend = useCallback(async (id: string) => {
+    await api.deleteFriend(id);
+    setFriends(prev => prev.filter(f => f.id !== id));
+  }, []);
+
   // ── User auth ───────────────────────────────────────────────────────
 
   const registerUser = useCallback(
@@ -382,7 +395,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       gmap,
       siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
-      updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials,
+      updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials, createFriend, deleteFriend,
       currentUser, userAuthError, registerUser, loginUser, loginWithPasskey, signupWithPasskey, logoutUser, recoverStart, recoverFinish,
       polls, refreshPolls, createPoll, votePoll, deletePoll,
     }),
@@ -393,7 +406,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       gmap,
       siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
-      updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials,
+      updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials, createFriend, deleteFriend,
       currentUser, userAuthError, registerUser, loginUser, loginWithPasskey, signupWithPasskey, logoutUser, recoverStart, recoverFinish,
       polls, refreshPolls, createPoll, votePoll, deletePoll,
     ],

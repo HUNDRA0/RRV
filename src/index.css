@@ -2240,3 +2240,79 @@ img, video, svg { max-width: 100%; height: auto; }
   color: var(--ink);
   font: 13px var(--font-mono);
 }
+
+/* ── Theme variable defaults (admin can override via Design tab) ── */
+
+:root {
+  --glass-blur: 18px;
+  --glass-opacity: 0.55;
+  --spacing-scale: 1;
+  --shadow-depth: normal;
+}
+
+/* Section padding scales with --spacing-scale */
+.section { padding-top: calc(60px * var(--spacing-scale)); padding-bottom: calc(60px * var(--spacing-scale)); }
+
+/* Shadow-depth maps named values to actual box-shadows. The cards,
+   nav, modal etc reference these depth tokens. */
+:root {
+  --depth-card: 0 1px 0 rgba(255,255,255,0.6) inset, 0 8px 30px -12px rgba(76, 40, 176, 0.2);
+}
+:root[data-theme-shadow="none"] {
+  --depth-card: none;
+}
+:root[data-theme-shadow="soft"] {
+  --depth-card: 0 4px 16px -8px rgba(28, 22, 18, 0.08);
+}
+:root[data-theme-shadow="dramatic"] {
+  --depth-card: 0 1px 0 rgba(255,255,255,0.7) inset, 0 24px 60px -10px rgba(76, 40, 176, 0.45), 0 8px 24px -8px rgba(28, 22, 18, 0.2);
+}
+
+/* Motion controls — admin can dial down or off via theme.
+   prefers-reduced-motion still respected at the media-query level. */
+:root[data-motion="off"] *, :root[data-motion="off"] *::before, :root[data-motion="off"] *::after {
+  animation-duration: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0ms !important;
+}
+:root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 100ms !important;
+  transform: none !important;
+}
+
+/* ── Admin: Add friend modal + delete button ─────────────────────── */
+
+.add-friend-modal { grid-template-columns: 1fr; max-width: 520px; }
+.add-friend-modal .modal-info { display: grid; gap: 10px; }
+.add-friend-photo {
+  display: flex; gap: 12px; align-items: center;
+  margin-top: 4px;
+}
+.add-friend-photo img {
+  width: 80px; height: 80px;
+  object-fit: cover; border-radius: 12px;
+  border: 1px solid var(--line);
+}
+.add-friend-photo-pick {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 80px; height: 80px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  cursor: pointer;
+  font: 500 12px/1.2 var(--font-mono);
+  color: var(--mute);
+  text-align: center; padding: 0 6px;
+}
+.add-friend-photo-pick:hover { border-color: var(--purple); color: var(--purple); }
+
+.admin-delete-friend {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--rose) !important;
+  border-color: color-mix(in srgb, var(--rose) 30%, var(--line)) !important;
+}
+.admin-delete-friend:hover {
+  background: color-mix(in srgb, var(--rose) 8%, transparent) !important;
+}
