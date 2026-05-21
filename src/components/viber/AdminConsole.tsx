@@ -331,6 +331,7 @@ interface PersonEditorProps {
 
 function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, prevInTier, nextInTier, uploadPhoto, deletePhoto, updateSocials }: PersonEditorProps) {
   const { siteContent: sc, deleteFriend } = useFriendsList();
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const allTiers = useMemo(() => parseTierConfig(sc['tier_config']), [sc]);
   const [name, setName] = useState(friend.name);
   const [bio, setBio] = useState(friend.bio || '');
@@ -472,14 +473,114 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, p
 
       <button
         className="btn btn-ghost admin-delete-friend"
-        onClick={async () => {
-          if (!confirm(`Ta bort ${friend.name} permanent? Allt (bilder, socials, predictions) försvinner.`)) return;
-          try { await deleteFriend(friend.id); }
-          catch { /* surface later */ }
-        }}
+        onClick={() => setConfirmDeleteOpen(true)}
       >
         🗑 Ta bort {friend.name}
       </button>
+
+      {confirmDeleteOpen && (
+        <ConfirmDeleteFriend
+          friend={friend}
+          onClose={() => setConfirmDeleteOpen(false)}
+          onConfirm={async () => {
+            try { await deleteFriend(friend.id); }
+            catch { /* surface later */ }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Permanent-delete confirmation modal.
+// Browser confirm() is too easy to dismiss with an accidental Enter
+// keypress. This modal requires the admin to TYPE the friend's name
+// before the Delete button enables — same pattern as GitHub repo delete.
+// ─────────────────────────────────────────────────────────────────────
+
+function ConfirmDeleteFriend({
+  friend, onClose, onConfirm,
+}: {
+  friend: Friend;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const [typed, setTyped] = useState('');
+  const [busy, setBusy] = useState(false);
+  useLockBody(true);
+  useEsc(onClose, !busy);
+
+  const matches = typed.trim().toLowerCase() === friend.name.toLowerCase();
+  const photoCount = friend.photos?.length ?? 0;
+  const socialCount = friend.socials?.length ?? 0;
+
+  async function handleConfirm() {
+    if (!matches || busy) return;
+    setBusy(true);
+    try { await onConfirm(); onClose(); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={busy ? undefined : onClose}>
+      <div
+        className="modal confirm-delete-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="alertdialog"
+        aria-labelledby="confirm-delete-title"
+        aria-describedby="confirm-delete-body"
+      >
+        <div className="modal-info" style={{ padding: '28px 28px 24px' }}>
+          <div className="confirm-delete-icon" aria-hidden="true">⚠️</div>
+          <h2 id="confirm-delete-title" className="confirm-delete-title">
+            Ta bort <em>{friend.name}</em> permanent?
+          </h2>
+          <p id="confirm-delete-body" className="confirm-delete-body">
+            Detta går <strong>inte</strong> att ångra. Följande försvinner också:
+          </p>
+          <ul className="confirm-delete-list">
+            <li>{photoCount} bild{photoCount === 1 ? '' : 'er'}</li>
+            <li>{socialCount} sociala länk{socialCount === 1 ? '' : 'ar'}</li>
+            <li>Alla Making Moves-gissningar om {friend.name.split(' ')[0]}</li>
+            <li>Alla lunch-skulder kopplade till {friend.name.split(' ')[0]}</li>
+          </ul>
+
+          <label className="admin-field confirm-delete-field">
+            <span>
+              Skriv <strong>{friend.name}</strong> för att bekräfta
+            </span>
+            <input
+              type="text"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && matches) { e.preventDefault(); void handleConfirm(); } }}
+              autoFocus
+              placeholder={friend.name}
+              aria-invalid={typed.length > 0 && !matches}
+            />
+          </label>
+
+          <div className="modal-photo-controls" style={{ marginTop: 14 }}>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={onClose}
+              disabled={busy}
+            >
+              Avbryt
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={handleConfirm}
+              disabled={!matches || busy}
+            >
+              {busy ? 'Tar bort…' : `🗑 Ja, ta bort ${friend.name.split(' ')[0]}`}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

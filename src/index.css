@@ -2346,3 +2346,64 @@ img, video, svg { max-width: 100%; height: auto; }
     justify-content: center;
   }
 }
+
+/* ── Confirm-delete-friend modal ─────────────────────────────────── */
+
+.confirm-delete-modal {
+  grid-template-columns: 1fr;
+  max-width: 460px;
+}
+.confirm-delete-icon {
+  font-size: 36px; line-height: 1;
+  margin-bottom: 10px;
+}
+.confirm-delete-title {
+  font: 600 22px/1.25 var(--font-display);
+  margin: 0 0 12px;
+}
+.confirm-delete-title em {
+  font-style: italic;
+  background: linear-gradient(150deg, var(--rose), #f87171);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.confirm-delete-body {
+  font: 400 14px/1.5 var(--font-body);
+  color: var(--ink-soft); margin: 0 0 10px;
+}
+.confirm-delete-list {
+  margin: 0 0 16px; padding-left: 18px;
+  font: 400 13px/1.6 var(--font-mono);
+  color: var(--mute);
+}
+.confirm-delete-list li::marker { color: var(--rose); }
+
+.confirm-delete-field {
+  margin-top: 4px;
+}
+.confirm-delete-field input {
+  font: 14px var(--font-mono);
+}
+.confirm-delete-field input[aria-invalid="true"] {
+  border-color: color-mix(in srgb, var(--rose) 40%, var(--line));
+}
+.confirm-delete-field input:focus {
+  border-color: var(--rose);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--rose) 18%, transparent);
+}
+
+/* Solid danger button variant for the confirm action — explicit, not subtle */
+.btn.btn-danger {
+  background: var(--rose);
+  color: white;
+  border-color: var(--rose);
+}
+.btn.btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--rose) 90%, black);
+  box-shadow: 0 6px 16px -4px color-mix(in srgb, var(--rose) 50%, transparent);
+}
+.btn.btn-danger:disabled {
+  background: color-mix(in srgb, var(--rose) 30%, var(--paper));
+  border-color: transparent;
+  color: color-mix(in srgb, white 60%, transparent);
+  cursor: not-allowed;
+}
