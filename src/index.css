@@ -543,7 +543,13 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .tier-count { font-family: var(--font-mono); font-size: 13px; color: var(--mute); white-space: nowrap; }
 
 /* ---------- CARDS ---------- */
-.card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; }
+/* Default desktop layout — 3 per row gives a denser tier overview than
+   the original 2-up. Admin can override via the Design tab. */
+.card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; }
+:root[data-desktop-tiers-cols="2"] .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+:root[data-desktop-tiers-cols="3"] .card-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+:root[data-desktop-tiers-cols="4"] .card-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+:root[data-desktop-tiers-cols="5"] .card-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 @media (max-width: 720px) { .card-grid { grid-template-columns: 1fr; } }
 
 .card {
@@ -1174,6 +1180,10 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .gmap-legend .swatch.mute { background: var(--mute); }
 
 .pairs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+:root[data-desktop-gmap-cols="1"] .pairs-grid { grid-template-columns: 1fr; }
+:root[data-desktop-gmap-cols="2"] .pairs-grid { grid-template-columns: repeat(2, 1fr); }
+:root[data-desktop-gmap-cols="3"] .pairs-grid { grid-template-columns: repeat(3, 1fr); }
+:root[data-desktop-gmap-cols="4"] .pairs-grid { grid-template-columns: repeat(4, 1fr); }
 .pair {
   display: grid; grid-template-columns: 1fr auto 1fr;
   align-items: center; gap: 18px;
@@ -1245,6 +1255,11 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 
 /* ---------- MOVES ---------- */
 .moves-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+:root[data-desktop-moves-cols="2"] .moves-grid { grid-template-columns: repeat(2, 1fr); }
+:root[data-desktop-moves-cols="3"] .moves-grid { grid-template-columns: repeat(3, 1fr); }
+:root[data-desktop-moves-cols="4"] .moves-grid { grid-template-columns: repeat(4, 1fr); }
+:root[data-desktop-moves-cols="5"] .moves-grid { grid-template-columns: repeat(5, 1fr); }
+:root[data-desktop-moves-cols="6"] .moves-grid { grid-template-columns: repeat(6, 1fr); }
 @media (max-width: 900px) { .moves-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 720px) {
   /* Default moves density is 4-up. Admin can switch via Design tab. */
@@ -1307,6 +1322,41 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 
 /* ---------- EVENTS ---------- */
 .events-list { display: grid; gap: 14px; }
+:root[data-desktop-events-cols="1"] .events-list { grid-template-columns: 1fr; }
+:root[data-desktop-events-cols="2"] .events-list { grid-template-columns: repeat(2, 1fr); }
+:root[data-desktop-events-cols="3"] .events-list { grid-template-columns: repeat(3, 1fr); }
+:root[data-desktop-events-cols="4"] .events-list { grid-template-columns: repeat(4, 1fr); }
+/* When events are placed in a grid (>=2 cols), each card collapses its
+   internal 4-column layout into a stack so date+info+countdown fit. */
+:root[data-desktop-events-cols="2"] .event,
+:root[data-desktop-events-cols="3"] .event,
+:root[data-desktop-events-cols="4"] .event {
+  grid-template-columns: 1fr; gap: 8px; padding: 16px 18px;
+}
+:root[data-desktop-events-cols="2"] .event-date,
+:root[data-desktop-events-cols="3"] .event-date,
+:root[data-desktop-events-cols="4"] .event-date {
+  display: flex; gap: 6px; padding: 0; border-right: 0; align-items: baseline; justify-content: flex-start;
+}
+:root[data-desktop-events-cols="2"] .event-day,
+:root[data-desktop-events-cols="3"] .event-day,
+:root[data-desktop-events-cols="4"] .event-day { font-size: 26px; }
+:root[data-desktop-events-cols="2"] .event-month,
+:root[data-desktop-events-cols="3"] .event-month,
+:root[data-desktop-events-cols="4"] .event-month { font-size: 12px; margin: 0; }
+:root[data-desktop-events-cols="2"] .event-weekday,
+:root[data-desktop-events-cols="3"] .event-weekday,
+:root[data-desktop-events-cols="4"] .event-weekday { font-size: 10px; }
+:root[data-desktop-events-cols="2"] .event-countdown,
+:root[data-desktop-events-cols="3"] .event-countdown,
+:root[data-desktop-events-cols="4"] .event-countdown {
+  grid-column: auto; border-left: 0; border-top: 1px solid var(--line); padding: 8px 0 0;
+  display: flex; align-items: baseline; gap: 8px;
+}
+:root[data-desktop-events-cols="3"] .event-title,
+:root[data-desktop-events-cols="4"] .event-title { font-size: 15px; }
+:root[data-desktop-events-cols="3"] .event-day,
+:root[data-desktop-events-cols="4"] .event-day { font-size: 22px; }
 .event {
   display: grid;
   grid-template-columns: 110px 1fr auto auto;
@@ -2420,17 +2470,14 @@ img, video, svg { max-width: 100%; height: auto; }
   background: color-mix(in srgb, var(--rose) 8%, transparent) !important;
 }
 
-/* Multi-creditor row: stack the recipients on the right side-by-side. */
+/* Multi-creditor row: stack the recipients on the right side-by-side.
+   We keep the same `1fr auto 1fr` grid as single-creditor rows so the
+   debtor stays visually centered in its column on desktop — otherwise
+   the whole row drifts to the left. */
 .lunch-arrow-creditors {
   display: flex; flex-wrap: wrap; gap: 18px;
-  justify-content: flex-end;
-}
-.lunch-arrow-row[data-multi="true"] {
-  /* Make the right column wider when several creditors share one event. */
-  grid-template-columns: auto auto 1fr;
-}
-.lunch-arrow-row[data-multi="true"] .lunch-arrow-creditors {
-  justify-content: flex-start;
+  justify-content: center;
+  align-items: flex-start;
 }
 .lunch-creditor-share {
   font: 600 11px/1 var(--font-mono);
@@ -2441,10 +2488,8 @@ img, video, svg { max-width: 100%; height: auto; }
 }
 
 @media (max-width: 600px) {
-  .lunch-arrow-row[data-multi="true"] {
-    grid-template-columns: 1fr;
-    text-align: center;
-  }
+  /* On phones the 3-column lunch row collapses to 1 column anyway; the
+     creditors row already centers itself via .lunch-arrow-creditors. */
   .lunch-arrow-row[data-multi="true"] .lunch-arrow-creditors {
     justify-content: center;
   }
