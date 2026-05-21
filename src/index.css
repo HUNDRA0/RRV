@@ -2160,3 +2160,83 @@ img, video, svg { max-width: 100%; height: auto; }
   background: color-mix(in srgb, var(--purple) 6%, var(--paper));
   border: 1px solid color-mix(in srgb, var(--purple) 22%, transparent);
 }
+
+/* ── Admin: Lunch debt card (multi-creditor) ─────────────────────── */
+
+.lunch-debt-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  margin-bottom: 12px;
+}
+.lunch-debt-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px dashed var(--line);
+}
+.lunch-debt-debtor {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1; min-width: 0;
+}
+.lunch-debt-label {
+  font: 500 11px/1.2 var(--font-mono);
+  color: var(--mute);
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.lunch-debt-select {
+  flex: 1; min-width: 0;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font: 500 13px/1 var(--font-mono);
+}
+.lunch-debt-remove {
+  width: 28px; height: 28px;
+  background: transparent;
+  border: 1px solid var(--line); border-radius: 7px;
+  cursor: pointer; color: var(--mute);
+  font-size: 14px;
+}
+.lunch-debt-remove:hover { border-color: var(--rose); color: var(--rose); }
+
+.lunch-creditors {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 10px;
+}
+.lunch-creditor-row {
+  display: flex; align-items: center; gap: 8px;
+}
+.lunch-creditor-row .lunch-debt-select { flex: 1; }
+.lunch-debt-amount {
+  width: 60px; text-align: center;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font: 500 13px/1 var(--font-mono);
+}
+.lunch-creditor-remove {
+  width: 26px; height: 26px;
+  background: transparent;
+  border: 1px solid var(--line); border-radius: 6px;
+  cursor: pointer; color: var(--mute);
+  font-size: 12px; flex-shrink: 0;
+}
+.lunch-creditor-remove:hover { border-color: var(--rose); color: var(--rose); }
+
+.lunch-debt-note {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font: 13px var(--font-mono);
+}

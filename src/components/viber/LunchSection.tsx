@@ -1,9 +1,25 @@
 import type { Friend } from '../../data/friends';
 
+// One creditor entry inside a multi-creditor debt.
+// Example: Mario flyttade och fick hjälp av Jacob (1) och Adam (1) →
+// debt.creditors === [{ creditor: 'jacob', amount: 1 }, { creditor: 'adam', amount: 1 }]
+export interface DebtCreditor {
+  creditor: string;
+  amount: number;
+}
+
 export interface LunchDebt {
   id: string;
-  debtor: string;   // friend id — who owes
-  creditor: string; // friend id — who is owed
+  debtor: string;            // friend id — who owes
+  creditors: DebtCreditor[]; // one or more people they owe
+  note: string;
+}
+
+// Old single-creditor shape kept around for the parser to migrate.
+interface LegacyLunchDebt {
+  id: string;
+  debtor: string;
+  creditor: string;
   amount: number;
   note: string;
 }
@@ -16,13 +32,37 @@ export interface LunchData {
 export const LUNCH_EMPTY: LunchData = { balances: {}, debts: [] };
 
 export function parseLunchData(raw: string | undefined): LunchData {
-  if (raw) {
-    try {
-      const p = JSON.parse(raw) as LunchData;
-      if (p && typeof p === 'object') return { balances: p.balances ?? {}, debts: p.debts ?? [] };
-    } catch { /* fall through */ }
+  if (!raw) return LUNCH_EMPTY;
+  try {
+    const p = JSON.parse(raw) as { balances?: Record<string, number>; debts?: unknown[] };
+    if (!p || typeof p !== 'object') return LUNCH_EMPTY;
+    const balances = p.balances ?? {};
+    // Migrate each debt: if it has the old single-creditor shape, wrap it.
+    const debts: LunchDebt[] = (p.debts ?? []).map((raw) => {
+      const d = raw as LunchDebt & LegacyLunchDebt;
+      if (Array.isArray(d.creditors)) {
+        return {
+          id: d.id,
+          debtor: d.debtor,
+          creditors: d.creditors.map((c) => ({
+            creditor: c.creditor,
+            amount: Math.max(1, Number(c.amount) || 1),
+          })),
+          note: d.note ?? '',
+        };
+      }
+      // Legacy: { creditor, amount } → wrap in creditors[].
+      return {
+        id: d.id,
+        debtor: d.debtor,
+        creditors: [{ creditor: d.creditor, amount: Math.max(1, Number(d.amount) || 1) }],
+        note: d.note ?? '',
+      };
+    });
+    return { balances, debts };
+  } catch {
+    return LUNCH_EMPTY;
   }
-  return LUNCH_EMPTY;
 }
 
 function Avatar({ friend }: { friend: Friend }) {
@@ -46,8 +86,10 @@ export function LunchSection({ friends, data }: LunchSectionProps) {
   const net: Record<string, number> = {};
   for (const f of friends) net[f.id] = data.balances[f.id] ?? 0;
   for (const d of data.debts) {
-    net[d.creditor] = (net[d.creditor] ?? 0) + d.amount;
-    net[d.debtor]   = (net[d.debtor]   ?? 0) - d.amount;
+    for (const c of d.creditors) {
+      net[c.creditor] = (net[c.creditor] ?? 0) + c.amount;
+      net[d.debtor]   = (net[d.debtor]   ?? 0) - c.amount;
+    }
   }
 
   const hasAnyData =
@@ -100,40 +142,52 @@ export function LunchSection({ friends, data }: LunchSectionProps) {
             })}
           </div>
 
-          {/* Arrow-style debt rows */}
+          {/* Arrow-style debt rows.
+              One LunchDebt can have many creditors (Mario flyttade och fick hjälp
+              av både Jacob och Adam). We render each (debtor → creditor) pair as
+              its own arrow row, and show the note only on the first of the group
+              so it's clearly "one event, multiple recipients". */}
           {data.debts.length > 0 && (
             <div className="lunch-debts">
               <div className="section-eyebrow" style={{ marginBottom: 20 }}>Aktiva skulder</div>
               <div className="lunch-arrows">
-                {data.debts.map((d, i) => {
-                  const debtor   = byId[d.debtor];
-                  const creditor = byId[d.creditor];
-                  if (!debtor || !creditor) return null;
-                  return (
-                    <div key={d.id} className="lunch-arrow-row reveal" data-d={Math.min(i, 5)}>
-                      {/* Who owes */}
-                      <div className="lunch-arrow-person lunch-arrow-debtor">
-                        <Avatar friend={debtor} />
-                        <span className="lunch-arrow-name">{debtor.name.split(' ')[0]}</span>
-                      </div>
-
-                      {/* Arrow + amount */}
-                      <div className="lunch-arrow-mid">
-                        <div className="lunch-arrow-amount">🎟 ×{d.amount}</div>
-                        <div className="lunch-arrow-line">
-                          <div className="lunch-arrow-track" />
-                          <div className="lunch-arrow-head">›</div>
+                {data.debts.flatMap((d, dIdx) => {
+                  const debtor = byId[d.debtor];
+                  if (!debtor) return [];
+                  return d.creditors.map((c, cIdx) => {
+                    const creditor = byId[c.creditor];
+                    if (!creditor) return null;
+                    return (
+                      <div
+                        key={`${d.id}-${c.creditor}`}
+                        className="lunch-arrow-row reveal"
+                        data-d={Math.min(dIdx + cIdx, 5)}
+                      >
+                        <div className="lunch-arrow-person lunch-arrow-debtor">
+                          <Avatar friend={debtor} />
+                          <span className="lunch-arrow-name">{debtor.name.split(' ')[0]}</span>
                         </div>
-                        {d.note && <div className="lunch-arrow-note">{d.note}</div>}
+                        <div className="lunch-arrow-mid">
+                          <div className="lunch-arrow-amount">🎟 ×{c.amount}</div>
+                          <div className="lunch-arrow-line">
+                            <div className="lunch-arrow-track" />
+                            <div className="lunch-arrow-head">›</div>
+                          </div>
+                          {/* Only show note on the first creditor — same event. */}
+                          {cIdx === 0 && d.note && <div className="lunch-arrow-note">{d.note}</div>}
+                          {cIdx > 0 && d.creditors.length > 1 && (
+                            <div className="lunch-arrow-note" style={{ opacity: 0.6, fontStyle: 'italic' }}>
+                              ↑ samma tillfälle
+                            </div>
+                          )}
+                        </div>
+                        <div className="lunch-arrow-person lunch-arrow-creditor">
+                          <Avatar friend={creditor} />
+                          <span className="lunch-arrow-name">{creditor.name.split(' ')[0]}</span>
+                        </div>
                       </div>
-
-                      {/* Who receives */}
-                      <div className="lunch-arrow-person lunch-arrow-creditor">
-                        <Avatar friend={creditor} />
-                        <span className="lunch-arrow-name">{creditor.name.split(' ')[0]}</span>
-                      </div>
-                    </div>
-                  );
+                    );
+                  });
                 })}
               </div>
             </div>
