@@ -186,6 +186,15 @@ export const api = {
       auth: true,
     }),
 
+  createFriend: (input: { name: string; id?: string; tier?: string; rank?: number; street?: string; postcode?: string; city?: string; bio?: string; currentMove?: string }) =>
+    request<Friend>('/api/friends', { method: 'POST', body: input, auth: true }),
+
+  deleteFriend: (id: string) =>
+    request<{ ok: true; removed: string }>(`/api/friends/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      auth: true,
+    }),
+
   submitPrediction: (input: { guesser: string; friendId: string; text: string }) =>
     request<ApiPrediction>('/api/predictions', { method: 'POST', body: input }),
 

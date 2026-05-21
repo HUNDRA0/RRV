@@ -272,9 +272,25 @@ interface PeopleTabProps {
 
 function PeopleTab({ friends, notes, setNote, updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials }: PeopleTabProps) {
   const sorted = useMemo(() => [...friends].sort((a, b) => a.rank - b.rank), [friends]);
+  const { createFriend, siteContent: sc } = useFriendsList();
+  const [addOpen, setAddOpen] = useState(false);
 
   return (
     <div className="admin-grid">
+      <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 12, justifyContent: 'flex-end', marginBottom: 4 }}>
+        <button className="btn btn-purple" onClick={() => setAddOpen(true)}>
+          + Ny person
+        </button>
+      </div>
+      {addOpen && (
+        <AddFriendModal
+          tierConfig={sc['tier_config']}
+          existingIds={new Set(friends.map(f => f.id))}
+          onClose={() => setAddOpen(false)}
+          onCreate={createFriend}
+          onUploadPhoto={uploadPhoto}
+        />
+      )}
       {sorted.map((f) => {
         const tierMates = sorted.filter(x => x.tier === f.tier);
         const pos = tierMates.findIndex(x => x.id === f.id);
@@ -314,7 +330,7 @@ interface PersonEditorProps {
 }
 
 function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, prevInTier, nextInTier, uploadPhoto, deletePhoto, updateSocials }: PersonEditorProps) {
-  const { siteContent: sc } = useFriendsList();
+  const { siteContent: sc, deleteFriend } = useFriendsList();
   const allTiers = useMemo(() => parseTierConfig(sc['tier_config']), [sc]);
   const [name, setName] = useState(friend.name);
   const [bio, setBio] = useState(friend.bio || '');
@@ -453,6 +469,17 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, p
       </div>
 
       <SocialsEditor friend={friend} updateSocials={updateSocials} />
+
+      <button
+        className="btn btn-ghost admin-delete-friend"
+        onClick={async () => {
+          if (!confirm(`Ta bort ${friend.name} permanent? Allt (bilder, socials, predictions) försvinner.`)) return;
+          try { await deleteFriend(friend.id); }
+          catch { /* surface later */ }
+        }}
+      >
+        🗑 Ta bort {friend.name}
+      </button>
     </div>
   );
 }
@@ -1094,23 +1121,42 @@ interface DesignTabProps {
   updateContent: (key: string, value: string) => Promise<void>;
 }
 
+// All theme keys this tab manages. Reset = empty every key.
+const ALL_THEME_KEYS = [
+  'theme_accent', 'theme_accent2', 'theme_ink', 'theme_paper',
+  'theme_bg_color', 'theme_bg_image_url', 'theme_bg_image_opacity',
+  'theme_font_scale', 'theme_font_preset',
+  'theme_radius', 'theme_spacing',
+  'theme_glass_blur', 'theme_glass_opacity',
+  'theme_shadow_depth', 'theme_motion',
+];
+
+const FONT_OPTIONS: { value: string; label: string }[] = [
+  { value: '',           label: 'Standard (Editorial)' },
+  { value: 'editorial',  label: 'Editorial — Fraunces · Inter' },
+  { value: 'classic',    label: 'Klassiskt — Playfair · Source Sans' },
+  { value: 'modern',     label: 'Modernt — Space Grotesk · Inter' },
+  { value: 'playful',    label: 'Lekfullt — Caveat · Quicksand' },
+  { value: 'newspaper',  label: 'Tidning — Lora · Merriweather' },
+  { value: 'tech',       label: 'Tech — Sora' },
+];
+
 function DesignTab({ siteContent, updateContent }: DesignTabProps) {
-  // Local drafts; saved on blur or via explicit Save.
-  const [accent, setAccent] = useState(siteContent['theme_accent'] || '#8B5CF6');
-  const [fontScale, setFontScale] = useState(siteContent['theme_font_scale'] || '1');
-  const [radius, setRadius] = useState(siteContent['theme_radius'] || '1');
-  const [bgColor, setBgColor] = useState(siteContent['theme_bg_color'] || '');
-  const [bgImageUrl, setBgImageUrl] = useState(siteContent['theme_bg_image_url'] || '');
-  const [bgImageOpacity, setBgImageOpacity] = useState(siteContent['theme_bg_image_opacity'] || '0.5');
+  // Single big state object so we can iterate when resetting / saving all.
+  const [vals, setVals] = useState<Record<string, string>>(() =>
+    Object.fromEntries(ALL_THEME_KEYS.map(k => [k, siteContent[k] ?? ''])),
+  );
   const [saving, setSaving] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  const v = (k: string) => vals[k] ?? '';
+  const setV = (k: string, value: string) => setVals(prev => ({ ...prev, [k]: value }));
 
   function flashSaved(key: string) {
     setSaving(null);
     setSavedAt(key);
     setTimeout(() => setSavedAt(null), 1500);
   }
-
   async function persist(key: string, value: string) {
     setSaving(key);
     try { await updateContent(key, value); flashSaved(key); }
@@ -1119,95 +1165,316 @@ function DesignTab({ siteContent, updateContent }: DesignTabProps) {
 
   async function resetAll() {
     if (!confirm('Återställ all design till original? Detta påverkar alla.')) return;
-    setAccent('#8B5CF6'); setFontScale('1'); setRadius('1');
-    setBgColor(''); setBgImageUrl(''); setBgImageOpacity('0.5');
-    await Promise.all([
-      updateContent('theme_accent', ''),
-      updateContent('theme_font_scale', ''),
-      updateContent('theme_radius', ''),
-      updateContent('theme_bg_color', ''),
-      updateContent('theme_bg_image_url', ''),
-      updateContent('theme_bg_image_opacity', ''),
-    ]).catch(() => { /* surface later */ });
+    setVals(Object.fromEntries(ALL_THEME_KEYS.map(k => [k, ''])));
+    // Also remove the dynamically-loaded font <link> tags so reset is visible
+    // without a refresh.
+    document.querySelectorAll('link[data-theme-font]').forEach(el => el.remove());
+    await Promise.all(ALL_THEME_KEYS.map(k => updateContent(k, ''))).catch(() => {});
+  }
+
+  // Small reusable row renderer
+  function Row({ label, hint, children }: { label: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode }) {
+    return (
+      <div className="design-row">
+        <label className="design-label">{label}{hint && <span className="card-meta"> {hint}</span>}</label>
+        <div className="design-control">{children}</div>
+      </div>
+    );
+  }
+
+  function SaveBtn({ k }: { k: string }) {
+    return (
+      <>
+        <button className="btn btn-ghost" onClick={() => persist(k, v(k))} disabled={saving === k}>
+          {saving === k ? 'Sparar…' : 'Spara'}
+        </button>
+        {savedAt === k && <span className="design-saved">✓</span>}
+      </>
+    );
   }
 
   return (
     <div className="admin-design">
       <p className="card-meta" style={{ marginBottom: 18 }}>
         Ändringar syns omedelbart för dig. När du sparar slår de igenom för alla.
-        Tryck <strong>Återställ till original</strong> om något ser knepigt ut.
+        Tryck <strong>↺ Återställ till original</strong> om något ser knepigt ut.
       </p>
 
-      <div className="design-row">
-        <label className="design-label">Accentfärg</label>
-        <div className="design-control">
-          <input type="color" value={accent} onChange={(e) => setAccent(e.target.value)} />
-          <input type="text" value={accent} onChange={(e) => setAccent(e.target.value)} style={{ width: 110 }} />
-          <button className="btn btn-ghost" onClick={() => persist('theme_accent', accent)} disabled={saving === 'theme_accent'}>
-            {saving === 'theme_accent' ? 'Sparar…' : 'Spara'}
-          </button>
-          {savedAt === 'theme_accent' && <span className="design-saved">✓</span>}
-        </div>
-      </div>
+      <div className="section-eyebrow" style={{ margin: '8px 0 6px' }}>Färger</div>
 
-      <div className="design-row">
-        <label className="design-label">Textstorlek <span className="card-meta">({fontScale}×)</span></label>
-        <div className="design-control">
-          <input type="range" min="0.85" max="1.25" step="0.05" value={fontScale} onChange={(e) => setFontScale(e.target.value)} />
-          <button className="btn btn-ghost" onClick={() => persist('theme_font_scale', fontScale)} disabled={saving === 'theme_font_scale'}>Spara</button>
-          {savedAt === 'theme_font_scale' && <span className="design-saved">✓</span>}
-        </div>
-      </div>
+      <Row label="Accentfärg">
+        <input type="color" value={v('theme_accent') || '#8B5CF6'} onChange={(e) => setV('theme_accent', e.target.value)} />
+        <input type="text" value={v('theme_accent')} onChange={(e) => setV('theme_accent', e.target.value)} placeholder="tom = standard" style={{ width: 110 }} />
+        <SaveBtn k="theme_accent" />
+      </Row>
 
-      <div className="design-row">
-        <label className="design-label">Hörnradius <span className="card-meta">({radius}×)</span></label>
-        <div className="design-control">
-          <input type="range" min="0" max="2" step="0.1" value={radius} onChange={(e) => setRadius(e.target.value)} />
-          <button className="btn btn-ghost" onClick={() => persist('theme_radius', radius)} disabled={saving === 'theme_radius'}>Spara</button>
-          {savedAt === 'theme_radius' && <span className="design-saved">✓</span>}
-        </div>
-      </div>
+      <Row label="Andra accent (gradient)">
+        <input type="color" value={v('theme_accent2') || '#A78BFA'} onChange={(e) => setV('theme_accent2', e.target.value)} />
+        <input type="text" value={v('theme_accent2')} onChange={(e) => setV('theme_accent2', e.target.value)} placeholder="tom = standard" style={{ width: 110 }} />
+        <SaveBtn k="theme_accent2" />
+      </Row>
 
-      <div className="design-row">
-        <label className="design-label">Bakgrundsfärg</label>
-        <div className="design-control">
-          <input type="color" value={bgColor || '#f3ecdf'} onChange={(e) => setBgColor(e.target.value)} />
-          <input type="text" value={bgColor} onChange={(e) => setBgColor(e.target.value)} placeholder="tom = standard" style={{ width: 110 }} />
-          <button className="btn btn-ghost" onClick={() => persist('theme_bg_color', bgColor)} disabled={saving === 'theme_bg_color'}>Spara</button>
-          {savedAt === 'theme_bg_color' && <span className="design-saved">✓</span>}
-        </div>
-      </div>
+      <Row label="Textfärg">
+        <input type="color" value={v('theme_ink') || '#1c1612'} onChange={(e) => setV('theme_ink', e.target.value)} />
+        <input type="text" value={v('theme_ink')} onChange={(e) => setV('theme_ink', e.target.value)} placeholder="tom = standard" style={{ width: 110 }} />
+        <SaveBtn k="theme_ink" />
+      </Row>
 
-      <div className="design-row">
-        <label className="design-label">Bakgrundsbild (URL)</label>
-        <div className="design-control" style={{ gap: 6 }}>
-          <input
-            type="url"
-            value={bgImageUrl}
-            onChange={(e) => setBgImageUrl(e.target.value)}
-            placeholder="https://..."
-            style={{ flex: 1, minWidth: 0 }}
-          />
-          <button className="btn btn-ghost" onClick={() => persist('theme_bg_image_url', bgImageUrl)} disabled={saving === 'theme_bg_image_url'}>Spara</button>
-          {savedAt === 'theme_bg_image_url' && <span className="design-saved">✓</span>}
-        </div>
-      </div>
+      <Row label="Kort-/yta-färg">
+        <input type="color" value={v('theme_paper') || '#fdf9f0'} onChange={(e) => setV('theme_paper', e.target.value)} />
+        <input type="text" value={v('theme_paper')} onChange={(e) => setV('theme_paper', e.target.value)} placeholder="tom = standard" style={{ width: 110 }} />
+        <SaveBtn k="theme_paper" />
+      </Row>
 
-      {bgImageUrl && (
-        <div className="design-row">
-          <label className="design-label">Bild-opacitet <span className="card-meta">({bgImageOpacity})</span></label>
-          <div className="design-control">
-            <input type="range" min="0" max="1" step="0.05" value={bgImageOpacity} onChange={(e) => setBgImageOpacity(e.target.value)} />
-            <button className="btn btn-ghost" onClick={() => persist('theme_bg_image_opacity', bgImageOpacity)} disabled={saving === 'theme_bg_image_opacity'}>Spara</button>
-            {savedAt === 'theme_bg_image_opacity' && <span className="design-saved">✓</span>}
-          </div>
-        </div>
+      <Row label="Bakgrundsfärg">
+        <input type="color" value={v('theme_bg_color') || '#f3ecdf'} onChange={(e) => setV('theme_bg_color', e.target.value)} />
+        <input type="text" value={v('theme_bg_color')} onChange={(e) => setV('theme_bg_color', e.target.value)} placeholder="tom = standard" style={{ width: 110 }} />
+        <SaveBtn k="theme_bg_color" />
+      </Row>
+
+      <Row label="Bakgrundsbild (URL)">
+        <input
+          type="url"
+          value={v('theme_bg_image_url')}
+          onChange={(e) => setV('theme_bg_image_url', e.target.value)}
+          placeholder="https://..."
+          style={{ flex: 1, minWidth: 0 }}
+        />
+        <SaveBtn k="theme_bg_image_url" />
+      </Row>
+
+      {v('theme_bg_image_url') && (
+        <Row label="Bild-opacitet" hint={`(${v('theme_bg_image_opacity') || '0.5'})`}>
+          <input type="range" min="0" max="1" step="0.05" value={v('theme_bg_image_opacity') || '0.5'} onChange={(e) => setV('theme_bg_image_opacity', e.target.value)} />
+          <SaveBtn k="theme_bg_image_opacity" />
+        </Row>
       )}
 
-      <div className="design-row" style={{ marginTop: 24 }}>
+      <div className="section-eyebrow" style={{ margin: '20px 0 6px' }}>Typografi</div>
+
+      <Row label="Font-preset">
+        <select
+          value={v('theme_font_preset')}
+          onChange={(e) => setV('theme_font_preset', e.target.value)}
+          style={{ flex: 1, minWidth: 0 }}
+        >
+          {FONT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <SaveBtn k="theme_font_preset" />
+      </Row>
+
+      <Row label="Textstorlek" hint={`(${v('theme_font_scale') || '1'}×)`}>
+        <input type="range" min="0.85" max="1.25" step="0.05" value={v('theme_font_scale') || '1'} onChange={(e) => setV('theme_font_scale', e.target.value)} />
+        <SaveBtn k="theme_font_scale" />
+      </Row>
+
+      <div className="section-eyebrow" style={{ margin: '20px 0 6px' }}>Form & känsla</div>
+
+      <Row label="Hörnradius" hint={`(${v('theme_radius') || '1'}×)`}>
+        <input type="range" min="0" max="2" step="0.1" value={v('theme_radius') || '1'} onChange={(e) => setV('theme_radius', e.target.value)} />
+        <SaveBtn k="theme_radius" />
+      </Row>
+
+      <Row label="Sektionsavstånd" hint={`(${v('theme_spacing') || '1'}×)`}>
+        <input type="range" min="0.75" max="1.5" step="0.05" value={v('theme_spacing') || '1'} onChange={(e) => setV('theme_spacing', e.target.value)} />
+        <SaveBtn k="theme_spacing" />
+      </Row>
+
+      <Row label="Glaseffekt (blur)" hint={`(${v('theme_glass_blur') || '18'}px)`}>
+        <input type="range" min="0" max="30" step="1" value={v('theme_glass_blur') || '18'} onChange={(e) => setV('theme_glass_blur', e.target.value)} />
+        <SaveBtn k="theme_glass_blur" />
+      </Row>
+
+      <Row label="Glas-opacitet" hint={`(${v('theme_glass_opacity') || '0.55'})`}>
+        <input type="range" min="0.1" max="1" step="0.05" value={v('theme_glass_opacity') || '0.55'} onChange={(e) => setV('theme_glass_opacity', e.target.value)} />
+        <SaveBtn k="theme_glass_opacity" />
+      </Row>
+
+      <Row label="Skuggor">
+        <select value={v('theme_shadow_depth')} onChange={(e) => setV('theme_shadow_depth', e.target.value)} style={{ flex: 1 }}>
+          <option value="">Standard</option>
+          <option value="none">Inga skuggor</option>
+          <option value="soft">Mjuk</option>
+          <option value="normal">Normal</option>
+          <option value="dramatic">Dramatiskt</option>
+        </select>
+        <SaveBtn k="theme_shadow_depth" />
+      </Row>
+
+      <Row label="Animationer">
+        <select value={v('theme_motion')} onChange={(e) => setV('theme_motion', e.target.value)} style={{ flex: 1 }}>
+          <option value="">Fullt (standard)</option>
+          <option value="reduced">Dämpat (för känsliga ögon)</option>
+          <option value="off">Av helt</option>
+        </select>
+        <SaveBtn k="theme_motion" />
+      </Row>
+
+      <div className="design-row" style={{ marginTop: 24, borderTop: '1px solid var(--line)', paddingTop: 18 }}>
         <button className="btn btn-ghost" onClick={resetAll} style={{ color: 'var(--rose)' }}>
-          ↺ Återställ till original
+          ↺ Återställ allt till original
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Add-friend modal — admin creates a new person. Optional first photo
+// is uploaded right after the friend row is created.
+// ─────────────────────────────────────────────────────────────────────
+
+interface AddFriendModalProps {
+  tierConfig: string | undefined;
+  existingIds: Set<string>;
+  onClose: () => void;
+  onCreate: (input: { name: string; id?: string; tier?: string; rank?: number; street?: string; postcode?: string; city?: string; bio?: string; currentMove?: string }) => Promise<Friend>;
+  onUploadPhoto: (id: string, dataUrl: string) => Promise<void>;
+}
+
+function AddFriendModal({ tierConfig, existingIds, onClose, onCreate, onUploadPhoto }: AddFriendModalProps) {
+  const tiers = useMemo(() => parseTierConfig(tierConfig), [tierConfig]);
+
+  const [name, setName] = useState('');
+  const [customId, setCustomId] = useState('');
+  const [tier, setTier] = useState<string>(tiers[0]?.id ?? 'a');
+  const [street, setStreet] = useState('');
+  const [postcode, setPostcode] = useState('');
+  const [city, setCity] = useState('Södertälje');
+  const [bio, setBio] = useState('');
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useLockBody(true);
+  useEsc(onClose, true);
+
+  // Auto-derive id preview from name.
+  const slugPreview = (customId.trim() || name)
+    .toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '')
+    .slice(0, 40);
+  const idTaken = slugPreview.length >= 2 && existingIds.has(slugPreview);
+
+  function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      setErr('Bilden är för stor (max 4 MB).');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setPhotoDataUrl(String(reader.result));
+    reader.readAsDataURL(file);
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    if (!name.trim()) { setErr('Skriv ett namn.'); return; }
+    if (slugPreview.length < 2) { setErr('Kunde inte skapa ett id från namnet — skriv ett manuellt id.'); return; }
+    if (idTaken) { setErr(`Id "${slugPreview}" finns redan. Välj ett annat.`); return; }
+
+    setBusy(true);
+    try {
+      const created = await onCreate({
+        name: name.trim(),
+        id: customId.trim() || undefined,
+        tier,
+        street: street.trim() || undefined,
+        postcode: postcode.trim() || undefined,
+        city: city.trim() || undefined,
+        bio: bio.trim() || undefined,
+      });
+      // If a photo was picked, upload it right away.
+      if (photoDataUrl) {
+        try { await onUploadPhoto(created.id, photoDataUrl); }
+        catch { /* photo failure shouldn't block the create */ }
+      }
+      onClose();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'kunde inte skapa');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal add-friend-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Lägg till person"
+      >
+        <button className="modal-close" onClick={onClose} aria-label="Stäng">✕</button>
+        <form className="modal-info" onSubmit={submit} style={{ padding: '32px 32px 28px' }}>
+          <div className="section-eyebrow">Lägg till</div>
+          <h2 className="modal-name" style={{ fontSize: 26, marginBottom: 16 }}>Ny person</h2>
+
+          <label className="admin-field">
+            <span>Namn *</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} autoFocus placeholder="t.ex. Erik Andersson" />
+          </label>
+
+          <label className="admin-field">
+            <span>Id <span style={{ color: 'var(--mute)' }}>({slugPreview || '—'})</span></span>
+            <input
+              value={customId}
+              onChange={(e) => setCustomId(e.target.value)}
+              placeholder="auto från namnet om tomt"
+            />
+          </label>
+
+          <label className="admin-field">
+            <span>Tier</span>
+            <select value={tier} onChange={(e) => setTier(e.target.value)}>
+              {tiers.map(t => <option key={t.id} value={t.id}>{t.letter} — {t.label}</option>)}
+            </select>
+          </label>
+
+          <div className="admin-field" style={{ display: 'grid', gap: 8 }}>
+            <span>Adress</span>
+            <input value={street} onChange={(e) => setStreet(e.target.value)} placeholder="Gata + nummer" />
+            <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', gap: 8 }}>
+              <input value={postcode} onChange={(e) => setPostcode(e.target.value)} placeholder="Postnr" />
+              <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Stad" />
+            </div>
+          </div>
+
+          <label className="admin-field">
+            <span>Bio (valfri)</span>
+            <textarea value={bio} onChange={(e) => setBio(e.target.value)} rows={3} placeholder="Roligt om personen…" />
+          </label>
+
+          <label className="admin-field">
+            <span>Första bild (valfri)</span>
+            <div className="add-friend-photo">
+              {photoDataUrl ? (
+                <>
+                  <img src={photoDataUrl} alt="" />
+                  <button type="button" className="btn btn-ghost" onClick={() => setPhotoDataUrl(null)} style={{ fontSize: 12 }}>Ta bort</button>
+                </>
+              ) : (
+                <label className="add-friend-photo-pick">
+                  + Välj bild
+                  <input type="file" accept="image/*" hidden onChange={onPickPhoto} />
+                </label>
+              )}
+            </div>
+          </label>
+
+          {err && <div className="login-error">{err}</div>}
+
+          <div className="modal-photo-controls">
+            <button type="submit" className="btn btn-purple" disabled={busy}>
+              {busy ? 'Skapar…' : 'Skapa person'}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Avbryt</button>
+          </div>
+        </form>
       </div>
     </div>
   );
