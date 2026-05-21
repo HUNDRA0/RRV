@@ -143,51 +143,59 @@ export function LunchSection({ friends, data }: LunchSectionProps) {
           </div>
 
           {/* Arrow-style debt rows.
-              One LunchDebt can have many creditors (Mario flyttade och fick hjälp
-              av både Jacob och Adam). We render each (debtor → creditor) pair as
-              its own arrow row, and show the note only on the first of the group
-              so it's clearly "one event, multiple recipients". */}
+              One LunchDebt = one event = one row. Multi-creditor debts show
+              all recipients side-by-side on the right so it's visually clear
+              that Mario is owing both Adam AND Jacob from the same occasion. */}
           {data.debts.length > 0 && (
             <div className="lunch-debts">
               <div className="section-eyebrow" style={{ marginBottom: 20 }}>Aktiva skulder</div>
               <div className="lunch-arrows">
-                {data.debts.flatMap((d, dIdx) => {
+                {data.debts.map((d, dIdx) => {
                   const debtor = byId[d.debtor];
-                  if (!debtor) return [];
-                  return d.creditors.map((c, cIdx) => {
-                    const creditor = byId[c.creditor];
-                    if (!creditor) return null;
-                    return (
-                      <div
-                        key={`${d.id}-${c.creditor}`}
-                        className="lunch-arrow-row reveal"
-                        data-d={Math.min(dIdx + cIdx, 5)}
-                      >
-                        <div className="lunch-arrow-person lunch-arrow-debtor">
-                          <Avatar friend={debtor} />
-                          <span className="lunch-arrow-name">{debtor.name.split(' ')[0]}</span>
-                        </div>
-                        <div className="lunch-arrow-mid">
-                          <div className="lunch-arrow-amount">🎟 ×{c.amount}</div>
-                          <div className="lunch-arrow-line">
-                            <div className="lunch-arrow-track" />
-                            <div className="lunch-arrow-head">›</div>
-                          </div>
-                          {/* Only show note on the first creditor — same event. */}
-                          {cIdx === 0 && d.note && <div className="lunch-arrow-note">{d.note}</div>}
-                          {cIdx > 0 && d.creditors.length > 1 && (
-                            <div className="lunch-arrow-note" style={{ opacity: 0.6, fontStyle: 'italic' }}>
-                              ↑ samma tillfälle
-                            </div>
-                          )}
-                        </div>
-                        <div className="lunch-arrow-person lunch-arrow-creditor">
-                          <Avatar friend={creditor} />
-                          <span className="lunch-arrow-name">{creditor.name.split(' ')[0]}</span>
-                        </div>
+                  if (!debtor) return null;
+                  const validCreditors = d.creditors
+                    .map(c => ({ ...c, friend: byId[c.creditor] }))
+                    .filter(c => c.friend);
+                  if (validCreditors.length === 0) return null;
+
+                  // If every creditor gets the same amount, show one label
+                  // (e.g. "🎟 ×1 var"). Otherwise list amounts per person.
+                  const amounts = validCreditors.map(c => c.amount);
+                  const allSame = amounts.every(a => a === amounts[0]);
+                  const amountLabel = allSame
+                    ? `🎟 ×${amounts[0]}${validCreditors.length > 1 ? ' var' : ''}`
+                    : `🎟 ${validCreditors.map(c => `×${c.amount} ${c.friend!.name.split(' ')[0]}`).join(', ')}`;
+
+                  return (
+                    <div
+                      key={d.id}
+                      className="lunch-arrow-row reveal"
+                      data-d={Math.min(dIdx, 5)}
+                      data-multi={validCreditors.length > 1 ? 'true' : 'false'}
+                    >
+                      <div className="lunch-arrow-person lunch-arrow-debtor">
+                        <Avatar friend={debtor} />
+                        <span className="lunch-arrow-name">{debtor.name.split(' ')[0]}</span>
                       </div>
-                    );
-                  });
+                      <div className="lunch-arrow-mid">
+                        <div className="lunch-arrow-amount">{amountLabel}</div>
+                        <div className="lunch-arrow-line">
+                          <div className="lunch-arrow-track" />
+                          <div className="lunch-arrow-head">›</div>
+                        </div>
+                        {d.note && <div className="lunch-arrow-note">{d.note}</div>}
+                      </div>
+                      <div className="lunch-arrow-creditors">
+                        {validCreditors.map((c) => (
+                          <div className="lunch-arrow-person lunch-arrow-creditor" key={c.creditor}>
+                            <Avatar friend={c.friend!} />
+                            <span className="lunch-arrow-name">{c.friend!.name.split(' ')[0]}</span>
+                            {!allSame && <span className="lunch-creditor-share">×{c.amount}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
                 })}
               </div>
             </div>
