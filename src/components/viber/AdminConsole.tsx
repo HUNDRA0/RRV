@@ -1274,6 +1274,8 @@ const ALL_THEME_KEYS = [
   'theme_radius', 'theme_spacing',
   'theme_glass_blur', 'theme_glass_opacity',
   'theme_shadow_depth', 'theme_motion',
+  'theme_mobile_tiers_cols', 'theme_mobile_moves_cols',
+  'theme_mobile_gmap_cols', 'theme_mobile_events_cols',
 ];
 
 const FONT_OPTIONS: { value: string; label: string }[] = [
@@ -1317,26 +1319,11 @@ function DesignTab({ siteContent, updateContent }: DesignTabProps) {
     await Promise.all(ALL_THEME_KEYS.map(k => updateContent(k, ''))).catch(() => {});
   }
 
-  // Small reusable row renderer
-  function Row({ label, hint, children }: { label: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode }) {
-    return (
-      <div className="design-row">
-        <label className="design-label">{label}{hint && <span className="card-meta"> {hint}</span>}</label>
-        <div className="design-control">{children}</div>
-      </div>
-    );
-  }
-
-  function SaveBtn({ k }: { k: string }) {
-    return (
-      <>
-        <button className="btn btn-ghost" onClick={() => persist(k, v(k))} disabled={saving === k}>
-          {saving === k ? 'Sparar…' : 'Spara'}
-        </button>
-        {savedAt === k && <span className="design-saved">✓</span>}
-      </>
-    );
-  }
+  // Row + SaveBtn are stable module-level components (see end of file).
+  // Defining them inline here would give them a new identity every
+  // keystroke; React would then unmount + remount the whole form, which
+  // resets the admin shell's scroll position back to the top. That was
+  // the bug behind "jag skickas till toppen direkt".
 
   return (
     <div className="admin-design">
@@ -1350,31 +1337,31 @@ function DesignTab({ siteContent, updateContent }: DesignTabProps) {
       <Row label="Accentfärg">
         <input type="color" value={v('theme_accent') || '#8B5CF6'} onChange={(e) => setV('theme_accent', e.target.value)} />
         <input type="text" value={v('theme_accent')} onChange={(e) => setV('theme_accent', e.target.value)} placeholder="tom = standard" style={{ width: 110 }} />
-        <SaveBtn k="theme_accent" />
+        <SaveBtn k="theme_accent" saving={saving} savedAt={savedAt} onSave={() => persist("theme_accent", v("theme_accent"))} />
       </Row>
 
       <Row label="Andra accent (gradient)">
         <input type="color" value={v('theme_accent2') || '#A78BFA'} onChange={(e) => setV('theme_accent2', e.target.value)} />
         <input type="text" value={v('theme_accent2')} onChange={(e) => setV('theme_accent2', e.target.value)} placeholder="tom = standard" style={{ width: 110 }} />
-        <SaveBtn k="theme_accent2" />
+        <SaveBtn k="theme_accent2" saving={saving} savedAt={savedAt} onSave={() => persist("theme_accent2", v("theme_accent2"))} />
       </Row>
 
       <Row label="Textfärg">
         <input type="color" value={v('theme_ink') || '#1c1612'} onChange={(e) => setV('theme_ink', e.target.value)} />
         <input type="text" value={v('theme_ink')} onChange={(e) => setV('theme_ink', e.target.value)} placeholder="tom = standard" style={{ width: 110 }} />
-        <SaveBtn k="theme_ink" />
+        <SaveBtn k="theme_ink" saving={saving} savedAt={savedAt} onSave={() => persist("theme_ink", v("theme_ink"))} />
       </Row>
 
       <Row label="Kort-/yta-färg">
         <input type="color" value={v('theme_paper') || '#fdf9f0'} onChange={(e) => setV('theme_paper', e.target.value)} />
         <input type="text" value={v('theme_paper')} onChange={(e) => setV('theme_paper', e.target.value)} placeholder="tom = standard" style={{ width: 110 }} />
-        <SaveBtn k="theme_paper" />
+        <SaveBtn k="theme_paper" saving={saving} savedAt={savedAt} onSave={() => persist("theme_paper", v("theme_paper"))} />
       </Row>
 
       <Row label="Bakgrundsfärg">
         <input type="color" value={v('theme_bg_color') || '#f3ecdf'} onChange={(e) => setV('theme_bg_color', e.target.value)} />
         <input type="text" value={v('theme_bg_color')} onChange={(e) => setV('theme_bg_color', e.target.value)} placeholder="tom = standard" style={{ width: 110 }} />
-        <SaveBtn k="theme_bg_color" />
+        <SaveBtn k="theme_bg_color" saving={saving} savedAt={savedAt} onSave={() => persist("theme_bg_color", v("theme_bg_color"))} />
       </Row>
 
       <Row label="Bakgrundsbild (URL)">
@@ -1385,13 +1372,13 @@ function DesignTab({ siteContent, updateContent }: DesignTabProps) {
           placeholder="https://..."
           style={{ flex: 1, minWidth: 0 }}
         />
-        <SaveBtn k="theme_bg_image_url" />
+        <SaveBtn k="theme_bg_image_url" saving={saving} savedAt={savedAt} onSave={() => persist("theme_bg_image_url", v("theme_bg_image_url"))} />
       </Row>
 
       {v('theme_bg_image_url') && (
         <Row label="Bild-opacitet" hint={`(${v('theme_bg_image_opacity') || '0.5'})`}>
           <input type="range" min="0" max="1" step="0.05" value={v('theme_bg_image_opacity') || '0.5'} onChange={(e) => setV('theme_bg_image_opacity', e.target.value)} />
-          <SaveBtn k="theme_bg_image_opacity" />
+          <SaveBtn k="theme_bg_image_opacity" saving={saving} savedAt={savedAt} onSave={() => persist("theme_bg_image_opacity", v("theme_bg_image_opacity"))} />
         </Row>
       )}
 
@@ -1405,34 +1392,34 @@ function DesignTab({ siteContent, updateContent }: DesignTabProps) {
         >
           {FONT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <SaveBtn k="theme_font_preset" />
+        <SaveBtn k="theme_font_preset" saving={saving} savedAt={savedAt} onSave={() => persist("theme_font_preset", v("theme_font_preset"))} />
       </Row>
 
       <Row label="Textstorlek" hint={`(${v('theme_font_scale') || '1'}×)`}>
         <input type="range" min="0.85" max="1.25" step="0.05" value={v('theme_font_scale') || '1'} onChange={(e) => setV('theme_font_scale', e.target.value)} />
-        <SaveBtn k="theme_font_scale" />
+        <SaveBtn k="theme_font_scale" saving={saving} savedAt={savedAt} onSave={() => persist("theme_font_scale", v("theme_font_scale"))} />
       </Row>
 
       <div className="section-eyebrow" style={{ margin: '20px 0 6px' }}>Form & känsla</div>
 
       <Row label="Hörnradius" hint={`(${v('theme_radius') || '1'}×)`}>
         <input type="range" min="0" max="2" step="0.1" value={v('theme_radius') || '1'} onChange={(e) => setV('theme_radius', e.target.value)} />
-        <SaveBtn k="theme_radius" />
+        <SaveBtn k="theme_radius" saving={saving} savedAt={savedAt} onSave={() => persist("theme_radius", v("theme_radius"))} />
       </Row>
 
       <Row label="Sektionsavstånd" hint={`(${v('theme_spacing') || '1'}×)`}>
         <input type="range" min="0.75" max="1.5" step="0.05" value={v('theme_spacing') || '1'} onChange={(e) => setV('theme_spacing', e.target.value)} />
-        <SaveBtn k="theme_spacing" />
+        <SaveBtn k="theme_spacing" saving={saving} savedAt={savedAt} onSave={() => persist("theme_spacing", v("theme_spacing"))} />
       </Row>
 
       <Row label="Glaseffekt (blur)" hint={`(${v('theme_glass_blur') || '18'}px)`}>
         <input type="range" min="0" max="30" step="1" value={v('theme_glass_blur') || '18'} onChange={(e) => setV('theme_glass_blur', e.target.value)} />
-        <SaveBtn k="theme_glass_blur" />
+        <SaveBtn k="theme_glass_blur" saving={saving} savedAt={savedAt} onSave={() => persist("theme_glass_blur", v("theme_glass_blur"))} />
       </Row>
 
       <Row label="Glas-opacitet" hint={`(${v('theme_glass_opacity') || '0.55'})`}>
         <input type="range" min="0.1" max="1" step="0.05" value={v('theme_glass_opacity') || '0.55'} onChange={(e) => setV('theme_glass_opacity', e.target.value)} />
-        <SaveBtn k="theme_glass_opacity" />
+        <SaveBtn k="theme_glass_opacity" saving={saving} savedAt={savedAt} onSave={() => persist("theme_glass_opacity", v("theme_glass_opacity"))} />
       </Row>
 
       <Row label="Skuggor">
@@ -1443,7 +1430,7 @@ function DesignTab({ siteContent, updateContent }: DesignTabProps) {
           <option value="normal">Normal</option>
           <option value="dramatic">Dramatiskt</option>
         </select>
-        <SaveBtn k="theme_shadow_depth" />
+        <SaveBtn k="theme_shadow_depth" saving={saving} savedAt={savedAt} onSave={() => persist("theme_shadow_depth", v("theme_shadow_depth"))} />
       </Row>
 
       <Row label="Animationer">
@@ -1452,7 +1439,50 @@ function DesignTab({ siteContent, updateContent }: DesignTabProps) {
           <option value="reduced">Dämpat (för känsliga ögon)</option>
           <option value="off">Av helt</option>
         </select>
-        <SaveBtn k="theme_motion" />
+        <SaveBtn k="theme_motion" saving={saving} savedAt={savedAt} onSave={() => persist("theme_motion", v("theme_motion"))} />
+      </Row>
+
+      <div className="section-eyebrow" style={{ margin: '20px 0 6px' }}>Mobil-layout</div>
+
+      <Row label="Tier-kort per rad (mobil)">
+        <select value={v('theme_mobile_tiers_cols')} onChange={(e) => setV('theme_mobile_tiers_cols', e.target.value)} style={{ flex: 1 }}>
+          <option value="">3 per rad (standard)</option>
+          <option value="2">2 per rad — större kort</option>
+          <option value="3">3 per rad</option>
+          <option value="4">4 per rad — kompakt</option>
+        </select>
+        <SaveBtn k="theme_mobile_tiers_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_mobile_tiers_cols", v("theme_mobile_tiers_cols"))} />
+      </Row>
+
+      <Row label="Moves-kort per rad (mobil)">
+        <select value={v('theme_mobile_moves_cols')} onChange={(e) => setV('theme_mobile_moves_cols', e.target.value)} style={{ flex: 1 }}>
+          <option value="">4 per rad (standard)</option>
+          <option value="2">2 per rad — större kort</option>
+          <option value="3">3 per rad</option>
+          <option value="4">4 per rad</option>
+          <option value="5">5 per rad — kompakt</option>
+        </select>
+        <SaveBtn k="theme_mobile_moves_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_mobile_moves_cols", v("theme_mobile_moves_cols"))} />
+      </Row>
+
+      <Row label="G Map-par per rad (mobil)">
+        <select value={v('theme_mobile_gmap_cols')} onChange={(e) => setV('theme_mobile_gmap_cols', e.target.value)} style={{ flex: 1 }}>
+          <option value="">2 per rad (standard)</option>
+          <option value="1">1 per rad — bred layout</option>
+          <option value="2">2 per rad</option>
+          <option value="3">3 per rad — kompakt</option>
+        </select>
+        <SaveBtn k="theme_mobile_gmap_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_mobile_gmap_cols", v("theme_mobile_gmap_cols"))} />
+      </Row>
+
+      <Row label="Events per rad (mobil)">
+        <select value={v('theme_mobile_events_cols')} onChange={(e) => setV('theme_mobile_events_cols', e.target.value)} style={{ flex: 1 }}>
+          <option value="">1 per rad (standard, bred)</option>
+          <option value="1">1 per rad</option>
+          <option value="2">2 per rad — kort blir kompakta</option>
+          <option value="3">3 per rad — kompakt</option>
+        </select>
+        <SaveBtn k="theme_mobile_events_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_mobile_events_cols", v("theme_mobile_events_cols"))} />
       </Row>
 
       <div className="design-row" style={{ marginTop: 24, borderTop: '1px solid var(--line)', paddingTop: 18 }}>
@@ -1639,5 +1669,39 @@ function AddFriendModal({ tierConfig, existingIds, onClose, onCreate, onUploadPh
         />
       )}
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Stable helpers for DesignTab. MUST live at module scope so React keeps
+// the same component identity across DesignTab re-renders — otherwise
+// every keystroke unmounts and remounts these and the admin-shell
+// scrolls back to top.
+// ─────────────────────────────────────────────────────────────────────
+
+function Row({ label, hint, children }: { label: React.ReactNode; hint?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="design-row">
+      <label className="design-label">{label}{hint && <span className="card-meta"> {hint}</span>}</label>
+      <div className="design-control">{children}</div>
+    </div>
+  );
+}
+
+function SaveBtn({
+  k, saving, savedAt, onSave,
+}: {
+  k: string;
+  saving: string | null;
+  savedAt: string | null;
+  onSave: () => void;
+}) {
+  return (
+    <>
+      <button className="btn btn-ghost" onClick={onSave} disabled={saving === k}>
+        {saving === k ? 'Sparar…' : 'Spara'}
+      </button>
+      {savedAt === k && <span className="design-saved">✓</span>}
+    </>
   );
 }
