@@ -938,15 +938,15 @@ function LunchTab({ friends, siteContent, updateContent }: LunchTabProps) {
         <div key={d.id} className="lunch-debt-card">
           <div className="lunch-debt-head">
             <div className="lunch-debt-debtor">
-              <span className="lunch-debt-label">är skyldig 🎟 till:</span>
               <select
                 value={d.debtor}
                 onChange={(e) => updateDebt(d.id, { debtor: e.target.value })}
-                className="lunch-debt-select"
+                className="lunch-debt-select lunch-debt-debtor-select"
                 aria-label="Vem är skyldig"
               >
                 {friends.map((f) => <option key={f.id} value={f.id}>{f.name.split(' ')[0]}</option>)}
               </select>
+              <span className="lunch-debt-label">är skyldig 🎟 till:</span>
             </div>
             <button
               onClick={() => removeDebt(d.id)}
