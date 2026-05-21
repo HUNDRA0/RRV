@@ -6,6 +6,7 @@ import { parseTierConfig, getTierCss, type TierConfig } from './tier-map';
 import { QUOTES_SEED } from './QuoteTicker';
 import { EVENTS_SEED, type EventItem } from './EventsSection';
 import { parseLunchData, type LunchData, type LunchDebt } from './LunchSection';
+import { PhotoCropModal } from './PhotoCropModal';
 
 type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'events' | 'lunch' | 'tiers' | 'design' | 'data';
 
@@ -332,6 +333,7 @@ interface PersonEditorProps {
 function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, prevInTier, nextInTier, uploadPhoto, deletePhoto, updateSocials }: PersonEditorProps) {
   const { siteContent: sc, deleteFriend } = useFriendsList();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [pendingCropDataUrl, setPendingCropDataUrl] = useState<string | null>(null);
   const allTiers = useMemo(() => parseTierConfig(sc['tier_config']), [sc]);
   const [name, setName] = useState(friend.name);
   const [bio, setBio] = useState(friend.bio || '');
@@ -365,9 +367,16 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, p
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      alert('Bilden är för stor (max 8 MB).');
+      e.target.value = '';
+      return;
+    }
     const r = new FileReader();
     r.onload = () => {
-      uploadPhoto(friend.id, String(r.result)).catch(() => { /* surface later */ });
+      // Open the crop editor instead of uploading raw. The crop result
+      // is what we actually persist.
+      setPendingCropDataUrl(String(r.result));
     };
     r.readAsDataURL(file);
     e.target.value = '';
@@ -404,9 +413,33 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, p
 
       <div className="admin-field">
         <span>Plats i tier</span>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <button className="lb-arrow" disabled={!prevInTier} onClick={() => prevInTier && void swapFriends(friend.id, prevInTier.id)}>◀ {prevInTier?.name ?? '–'}</button>
-          <button className="lb-arrow" disabled={!nextInTier} onClick={() => nextInTier && void swapFriends(friend.id, nextInTier.id)}>{nextInTier?.name ?? '–'} ▶</button>
+        <div className="tier-swap">
+          <button
+            type="button"
+            className="tier-swap-btn"
+            disabled={!prevInTier}
+            onClick={() => prevInTier && void swapFriends(friend.id, prevInTier.id)}
+            aria-label={prevInTier ? `Byt plats med ${prevInTier.name}` : 'Redan först i tier'}
+          >
+            <span className="tier-swap-arrow" aria-hidden="true">←</span>
+            <span className="tier-swap-meta">
+              <span className="tier-swap-action">Byt med</span>
+              <span className="tier-swap-name">{prevInTier?.name ?? '— först'}</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            className="tier-swap-btn"
+            disabled={!nextInTier}
+            onClick={() => nextInTier && void swapFriends(friend.id, nextInTier.id)}
+            aria-label={nextInTier ? `Byt plats med ${nextInTier.name}` : 'Redan sist i tier'}
+          >
+            <span className="tier-swap-meta tier-swap-meta-right">
+              <span className="tier-swap-action">Byt med</span>
+              <span className="tier-swap-name">{nextInTier?.name ?? '— sist'}</span>
+            </span>
+            <span className="tier-swap-arrow" aria-hidden="true">→</span>
+          </button>
         </div>
       </div>
 
@@ -485,6 +518,17 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, p
           onConfirm={async () => {
             try { await deleteFriend(friend.id); }
             catch { /* surface later */ }
+          }}
+        />
+      )}
+
+      {pendingCropDataUrl && (
+        <PhotoCropModal
+          sourceDataUrl={pendingCropDataUrl}
+          onCancel={() => setPendingCropDataUrl(null)}
+          onAccept={(dataUrl) => {
+            setPendingCropDataUrl(null);
+            uploadPhoto(friend.id, dataUrl).catch(() => { /* surface later */ });
           }}
         />
       )}
@@ -1458,17 +1502,23 @@ function AddFriendModal({ tierConfig, existingIds, onClose, onCreate, onUploadPh
     .slice(0, 40);
   const idTaken = slugPreview.length >= 2 && existingIds.has(slugPreview);
 
+  // After the user picks a file we stash the raw data URL for the crop
+  // modal to consume. photoDataUrl holds the FINAL (cropped) result that
+  // gets uploaded post-create.
+  const [pendingCropRaw, setPendingCropRaw] = useState<string | null>(null);
+
   function onPickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) {
-      setErr('Bilden är för stor (max 4 MB).');
+    if (file.size > 8 * 1024 * 1024) {
+      setErr('Bilden är för stor (max 8 MB).');
       e.target.value = '';
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => setPhotoDataUrl(String(reader.result));
+    reader.onload = () => setPendingCropRaw(String(reader.result));
     reader.readAsDataURL(file);
+    e.target.value = '';
   }
 
   async function submit(e: React.FormEvent) {
@@ -1577,6 +1627,17 @@ function AddFriendModal({ tierConfig, existingIds, onClose, onCreate, onUploadPh
           </div>
         </form>
       </div>
+
+      {pendingCropRaw && (
+        <PhotoCropModal
+          sourceDataUrl={pendingCropRaw}
+          onCancel={() => setPendingCropRaw(null)}
+          onAccept={(dataUrl) => {
+            setPhotoDataUrl(dataUrl);
+            setPendingCropRaw(null);
+          }}
+        />
+      )}
     </div>
   );
 }
