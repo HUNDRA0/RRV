@@ -8,19 +8,20 @@ import { EVENTS_SEED, type EventItem } from './EventsSection';
 import { parseLunchData, type LunchData, type LunchDebt } from './LunchSection';
 import { PhotoCropModal } from './PhotoCropModal';
 
-type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'events' | 'lunch' | 'tiers' | 'design' | 'data';
+type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'events' | 'lunch' | 'tiers' | 'design' | 'desktop-design' | 'data';
 
 const TABS: [Tab, string][] = [
-  ['people',      'Personer'],
-  ['leaderboard', 'Jobblistan'],
-  ['moves',       'Moves'],
-  ['quotes',      'Citat'],
-  ['gmap',        'G Map'],
-  ['events',      'Events'],
-  ['lunch',       'Lunch 🎟'],
-  ['tiers',       'Tiers'],
-  ['design',      'Design'],
-  ['data',        'Data'],
+  ['people',         'Personer'],
+  ['leaderboard',    'Jobblistan'],
+  ['moves',          'Moves'],
+  ['quotes',         'Citat'],
+  ['gmap',           'G Map'],
+  ['events',         'Events'],
+  ['lunch',          'Lunch 🎟'],
+  ['tiers',          'Tiers'],
+  ['design',         'Design'],
+  ['desktop-design', 'Desktop design'],
+  ['data',           'Data'],
 ];
 
 interface AdminConsoleProps {
@@ -231,6 +232,10 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
 
           {tab === 'design' && (
             <DesignTab siteContent={siteContent} updateContent={updateContent} />
+          )}
+
+          {tab === 'desktop-design' && (
+            <DesktopDesignTab siteContent={siteContent} updateContent={updateContent} />
           )}
 
           {tab === 'data' && (
@@ -1487,52 +1492,9 @@ function DesignTab({ siteContent, updateContent }: DesignTabProps) {
         <SaveBtn k="theme_mobile_events_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_mobile_events_cols", v("theme_mobile_events_cols"))} />
       </Row>
 
-      <div className="section-eyebrow" style={{ margin: '20px 0 6px' }}>Desktop-layout</div>
-
-      <Row label="Tier-kort per rad (desktop)">
-        <select value={v('theme_desktop_tiers_cols')} onChange={(e) => setV('theme_desktop_tiers_cols', e.target.value)} style={{ flex: 1 }}>
-          <option value="">3 per rad (standard)</option>
-          <option value="2">2 per rad — stora kort</option>
-          <option value="3">3 per rad</option>
-          <option value="4">4 per rad</option>
-          <option value="5">5 per rad — kompakt</option>
-        </select>
-        <SaveBtn k="theme_desktop_tiers_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_desktop_tiers_cols", v("theme_desktop_tiers_cols"))} />
-      </Row>
-
-      <Row label="Moves-kort per rad (desktop)">
-        <select value={v('theme_desktop_moves_cols')} onChange={(e) => setV('theme_desktop_moves_cols', e.target.value)} style={{ flex: 1 }}>
-          <option value="">3 per rad (standard)</option>
-          <option value="2">2 per rad</option>
-          <option value="3">3 per rad</option>
-          <option value="4">4 per rad</option>
-          <option value="5">5 per rad</option>
-          <option value="6">6 per rad</option>
-        </select>
-        <SaveBtn k="theme_desktop_moves_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_desktop_moves_cols", v("theme_desktop_moves_cols"))} />
-      </Row>
-
-      <Row label="G Map-par per rad (desktop)">
-        <select value={v('theme_desktop_gmap_cols')} onChange={(e) => setV('theme_desktop_gmap_cols', e.target.value)} style={{ flex: 1 }}>
-          <option value="">2 per rad (standard)</option>
-          <option value="1">1 per rad — bred</option>
-          <option value="2">2 per rad</option>
-          <option value="3">3 per rad</option>
-          <option value="4">4 per rad</option>
-        </select>
-        <SaveBtn k="theme_desktop_gmap_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_desktop_gmap_cols", v("theme_desktop_gmap_cols"))} />
-      </Row>
-
-      <Row label="Events per rad (desktop)">
-        <select value={v('theme_desktop_events_cols')} onChange={(e) => setV('theme_desktop_events_cols', e.target.value)} style={{ flex: 1 }}>
-          <option value="">1 per rad (standard, bred)</option>
-          <option value="1">1 per rad</option>
-          <option value="2">2 per rad</option>
-          <option value="3">3 per rad</option>
-          <option value="4">4 per rad — kompakt</option>
-        </select>
-        <SaveBtn k="theme_desktop_events_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_desktop_events_cols", v("theme_desktop_events_cols"))} />
-      </Row>
+      <p className="card-meta" style={{ marginTop: 20, padding: '12px 14px', background: 'color-mix(in srgb, var(--purple) 5%, transparent)', borderRadius: 10 }}>
+        Letar du efter desktop-kolumninställningar? De ligger i fliken <strong>Desktop design</strong>.
+      </p>
 
       <div className="design-row" style={{ marginTop: 24, borderTop: '1px solid var(--line)', paddingTop: 18 }}>
         <button className="btn btn-ghost" onClick={resetAll} style={{ color: 'var(--rose)' }}>
@@ -1752,5 +1714,109 @@ function SaveBtn({
       </button>
       {savedAt === k && <span className="design-saved">✓</span>}
     </>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Desktop design tab — column counts for tiers / moves / G Map / events
+// at desktop widths. Mirrors the mobile-layout block on the main Design
+// tab but lives in its own tab so the desktop knobs are easy to find.
+// ─────────────────────────────────────────────────────────────────────
+
+const DESKTOP_THEME_KEYS = [
+  'theme_desktop_tiers_cols', 'theme_desktop_moves_cols',
+  'theme_desktop_gmap_cols', 'theme_desktop_events_cols',
+];
+
+interface DesktopDesignTabProps {
+  siteContent: Record<string, string>;
+  updateContent: (key: string, value: string) => Promise<void>;
+}
+
+function DesktopDesignTab({ siteContent, updateContent }: DesktopDesignTabProps) {
+  const [vals, setVals] = useState<Record<string, string>>(() =>
+    Object.fromEntries(DESKTOP_THEME_KEYS.map(k => [k, siteContent[k] ?? ''])),
+  );
+  const [saving, setSaving] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<string | null>(null);
+
+  const v = (k: string) => vals[k] ?? '';
+  const setV = (k: string, value: string) => setVals(prev => ({ ...prev, [k]: value }));
+
+  function flashSaved(k: string) {
+    setSaving(null);
+    setSavedAt(k);
+    setTimeout(() => setSavedAt(null), 1500);
+  }
+  async function persist(key: string, value: string) {
+    setSaving(key);
+    try { await updateContent(key, value); flashSaved(key); }
+    catch { setSaving(null); }
+  }
+  async function resetAll() {
+    if (!confirm('Återställ desktop-layouten till standardvärden?')) return;
+    setVals(Object.fromEntries(DESKTOP_THEME_KEYS.map(k => [k, ''])));
+    await Promise.all(DESKTOP_THEME_KEYS.map(k => updateContent(k, ''))).catch(() => {});
+  }
+
+  return (
+    <div className="admin-design">
+      <p className="card-meta" style={{ marginBottom: 18 }}>
+        Justera hur kompakta sektionerna ser ut på dator. Färger, fonter och
+        andra övergripande designvärden ligger kvar i fliken <strong>Design</strong>.
+        Mobil-layouten styrs där också.
+      </p>
+
+      <Row label="Tier-kort per rad">
+        <select value={v('theme_desktop_tiers_cols')} onChange={(e) => setV('theme_desktop_tiers_cols', e.target.value)} style={{ flex: 1 }}>
+          <option value="">3 per rad (standard)</option>
+          <option value="2">2 per rad — stora kort</option>
+          <option value="3">3 per rad</option>
+          <option value="4">4 per rad</option>
+          <option value="5">5 per rad — kompakt</option>
+        </select>
+        <SaveBtn k="theme_desktop_tiers_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_desktop_tiers_cols", v("theme_desktop_tiers_cols"))} />
+      </Row>
+
+      <Row label="Moves-kort per rad">
+        <select value={v('theme_desktop_moves_cols')} onChange={(e) => setV('theme_desktop_moves_cols', e.target.value)} style={{ flex: 1 }}>
+          <option value="">3 per rad (standard)</option>
+          <option value="2">2 per rad</option>
+          <option value="3">3 per rad</option>
+          <option value="4">4 per rad</option>
+          <option value="5">5 per rad</option>
+          <option value="6">6 per rad</option>
+        </select>
+        <SaveBtn k="theme_desktop_moves_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_desktop_moves_cols", v("theme_desktop_moves_cols"))} />
+      </Row>
+
+      <Row label="G Map-par per rad">
+        <select value={v('theme_desktop_gmap_cols')} onChange={(e) => setV('theme_desktop_gmap_cols', e.target.value)} style={{ flex: 1 }}>
+          <option value="">2 per rad (standard)</option>
+          <option value="1">1 per rad — bred</option>
+          <option value="2">2 per rad</option>
+          <option value="3">3 per rad</option>
+          <option value="4">4 per rad</option>
+        </select>
+        <SaveBtn k="theme_desktop_gmap_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_desktop_gmap_cols", v("theme_desktop_gmap_cols"))} />
+      </Row>
+
+      <Row label="Events per rad">
+        <select value={v('theme_desktop_events_cols')} onChange={(e) => setV('theme_desktop_events_cols', e.target.value)} style={{ flex: 1 }}>
+          <option value="">1 per rad (standard, bred)</option>
+          <option value="1">1 per rad</option>
+          <option value="2">2 per rad</option>
+          <option value="3">3 per rad</option>
+          <option value="4">4 per rad — kompakt</option>
+        </select>
+        <SaveBtn k="theme_desktop_events_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_desktop_events_cols", v("theme_desktop_events_cols"))} />
+      </Row>
+
+      <div className="design-row" style={{ marginTop: 24, borderTop: '1px solid var(--line)', paddingTop: 18 }}>
+        <button className="btn btn-ghost" onClick={resetAll} style={{ color: 'var(--rose)' }}>
+          ↺ Återställ desktop-layout
+        </button>
+      </div>
+    </div>
   );
 }
