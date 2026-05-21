@@ -32,6 +32,15 @@ export interface ThemeOverrides {
   glassOpacity?: string; // background opacity behind blur (0-1)
   shadowDepth?: string;  // 'none' | 'soft' | 'normal' | 'dramatic'
   motion?: string;       // 'full' | 'reduced' | 'off'
+
+  // ── Mobile layout ──────────────────────────────────────────────
+  // How many cards per row at mobile widths. CSS reads these via
+  // :root[data-mobile-tiers-cols="N"] etc and scales typography for
+  // each value.
+  mobileTiersCols?: string;   // '2' | '3' | '4'
+  mobileMovesCols?: string;   // '2' | '3' | '4' | '5'
+  mobileGmapCols?: string;    // '1' | '2' | '3'
+  mobileEventsCols?: string;  // '1' | '2' | '3'
 }
 
 export type FontPreset =
@@ -116,6 +125,10 @@ export const THEME_KEYS = {
   glassOpacity: 'theme_glass_opacity',
   shadowDepth: 'theme_shadow_depth',
   motion: 'theme_motion',
+  mobileTiersCols: 'theme_mobile_tiers_cols',
+  mobileMovesCols: 'theme_mobile_moves_cols',
+  mobileGmapCols: 'theme_mobile_gmap_cols',
+  mobileEventsCols: 'theme_mobile_events_cols',
 } as const;
 
 export function readThemeFromContent(content: Record<string, string>): ThemeOverrides {
@@ -135,6 +148,10 @@ export function readThemeFromContent(content: Record<string, string>): ThemeOver
     glassOpacity: content[THEME_KEYS.glassOpacity] || undefined,
     shadowDepth: content[THEME_KEYS.shadowDepth] || undefined,
     motion: content[THEME_KEYS.motion] || undefined,
+    mobileTiersCols: content[THEME_KEYS.mobileTiersCols] || undefined,
+    mobileMovesCols: content[THEME_KEYS.mobileMovesCols] || undefined,
+    mobileGmapCols: content[THEME_KEYS.mobileGmapCols] || undefined,
+    mobileEventsCols: content[THEME_KEYS.mobileEventsCols] || undefined,
   };
 }
 
@@ -194,6 +211,29 @@ export function applyTheme(t: ThemeOverrides) {
     root.dataset.motion = 'reduced';
   } else {
     delete root.dataset.motion;
+  }
+
+  // Mobile column counts — CSS uses data-mobile-tiers-cols / data-mobile-moves-cols
+  // attribute selectors to switch grid-template-columns + typography.
+  if (t.mobileTiersCols && /^[2-4]$/.test(t.mobileTiersCols)) {
+    root.dataset.mobileTiersCols = t.mobileTiersCols;
+  } else {
+    delete root.dataset.mobileTiersCols;
+  }
+  if (t.mobileMovesCols && /^[2-5]$/.test(t.mobileMovesCols)) {
+    root.dataset.mobileMovesCols = t.mobileMovesCols;
+  } else {
+    delete root.dataset.mobileMovesCols;
+  }
+  if (t.mobileGmapCols && /^[1-3]$/.test(t.mobileGmapCols)) {
+    root.dataset.mobileGmapCols = t.mobileGmapCols;
+  } else {
+    delete root.dataset.mobileGmapCols;
+  }
+  if (t.mobileEventsCols && /^[1-3]$/.test(t.mobileEventsCols)) {
+    root.dataset.mobileEventsCols = t.mobileEventsCols;
+  } else {
+    delete root.dataset.mobileEventsCols;
   }
 
   // Background image (with safe URL check)
