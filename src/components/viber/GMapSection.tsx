@@ -1,8 +1,13 @@
 import { useMemo } from 'react';
 import type { Friend } from '../../data/friends';
-import { getTierCss } from './tier-map';
+import { getTierCss, parseTierConfig } from './tier-map';
+import { useFriendsList } from '../../lib/state';
 
-const TIER_SHORT: Record<string, string> = { s: 'Eliten', a: 'NPT', i: 'IDT' };
+// Fallback labels for the original three tiers (in case siteContent.tier_config
+// is missing). Migration 012 made tiers admin-editable, so the source of truth
+// is the parsed tier_config — we use it to label any custom tier the admin
+// added (e.g. "Iraqi tier") rather than rendering an empty pill.
+const TIER_SHORT_FALLBACK: Record<string, string> = { s: 'Eliten', a: 'NPT', i: 'IDT' };
 
 interface GMapSectionProps {
   friends: Friend[];
@@ -52,6 +57,17 @@ function pairFriends(friends: Array<Friend & { lat: number; lon: number }>) {
 }
 
 export function GMapSection({ friends, manualPairs }: GMapSectionProps) {
+  const { siteContent } = useFriendsList();
+  // Look up the (possibly custom) label for any tier id present on a friend.
+  // Falls back to TIER_SHORT_FALLBACK and finally to the tier id itself so
+  // we always render something rather than an empty pill.
+  const tierLabel = useMemo(() => {
+    const tiers = parseTierConfig(siteContent['tier_config']);
+    const map = new Map<string, string>();
+    for (const t of tiers) map.set(t.id, t.label);
+    return (id: string) => map.get(id) ?? TIER_SHORT_FALLBACK[id] ?? id;
+  }, [siteContent]);
+
   const geo = friends.filter(
     (f): f is Friend & { lat: number; lon: number } => f.lat != null && f.lon != null,
   );
@@ -173,7 +189,7 @@ export function GMapSection({ friends, manualPairs }: GMapSectionProps) {
           return (
             <div className="pair reveal" data-d={Math.min(i, 8)} key={i}>
               <div className="pair-side">
-                <div className="pair-tier">{TIER_SHORT[a.tier]}</div>
+                <div className="pair-tier">{tierLabel(a.tier)}</div>
                 <div className="pair-name">{a.name}</div>
               </div>
               <div className="pair-link">
@@ -182,7 +198,7 @@ export function GMapSection({ friends, manualPairs }: GMapSectionProps) {
                 <div className="line" />
               </div>
               <div className="pair-side" data-align="right">
-                <div className="pair-tier">{TIER_SHORT[b.tier]}</div>
+                <div className="pair-tier">{tierLabel(b.tier)}</div>
                 <div className="pair-name">{b.name}</div>
               </div>
             </div>
