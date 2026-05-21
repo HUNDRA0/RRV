@@ -1276,6 +1276,8 @@ const ALL_THEME_KEYS = [
   'theme_shadow_depth', 'theme_motion',
   'theme_mobile_tiers_cols', 'theme_mobile_moves_cols',
   'theme_mobile_gmap_cols', 'theme_mobile_events_cols',
+  'theme_desktop_tiers_cols', 'theme_desktop_moves_cols',
+  'theme_desktop_gmap_cols', 'theme_desktop_events_cols',
 ];
 
 const FONT_OPTIONS: { value: string; label: string }[] = [
@@ -1483,6 +1485,53 @@ function DesignTab({ siteContent, updateContent }: DesignTabProps) {
           <option value="3">3 per rad — kompakt</option>
         </select>
         <SaveBtn k="theme_mobile_events_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_mobile_events_cols", v("theme_mobile_events_cols"))} />
+      </Row>
+
+      <div className="section-eyebrow" style={{ margin: '20px 0 6px' }}>Desktop-layout</div>
+
+      <Row label="Tier-kort per rad (desktop)">
+        <select value={v('theme_desktop_tiers_cols')} onChange={(e) => setV('theme_desktop_tiers_cols', e.target.value)} style={{ flex: 1 }}>
+          <option value="">3 per rad (standard)</option>
+          <option value="2">2 per rad — stora kort</option>
+          <option value="3">3 per rad</option>
+          <option value="4">4 per rad</option>
+          <option value="5">5 per rad — kompakt</option>
+        </select>
+        <SaveBtn k="theme_desktop_tiers_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_desktop_tiers_cols", v("theme_desktop_tiers_cols"))} />
+      </Row>
+
+      <Row label="Moves-kort per rad (desktop)">
+        <select value={v('theme_desktop_moves_cols')} onChange={(e) => setV('theme_desktop_moves_cols', e.target.value)} style={{ flex: 1 }}>
+          <option value="">3 per rad (standard)</option>
+          <option value="2">2 per rad</option>
+          <option value="3">3 per rad</option>
+          <option value="4">4 per rad</option>
+          <option value="5">5 per rad</option>
+          <option value="6">6 per rad</option>
+        </select>
+        <SaveBtn k="theme_desktop_moves_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_desktop_moves_cols", v("theme_desktop_moves_cols"))} />
+      </Row>
+
+      <Row label="G Map-par per rad (desktop)">
+        <select value={v('theme_desktop_gmap_cols')} onChange={(e) => setV('theme_desktop_gmap_cols', e.target.value)} style={{ flex: 1 }}>
+          <option value="">2 per rad (standard)</option>
+          <option value="1">1 per rad — bred</option>
+          <option value="2">2 per rad</option>
+          <option value="3">3 per rad</option>
+          <option value="4">4 per rad</option>
+        </select>
+        <SaveBtn k="theme_desktop_gmap_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_desktop_gmap_cols", v("theme_desktop_gmap_cols"))} />
+      </Row>
+
+      <Row label="Events per rad (desktop)">
+        <select value={v('theme_desktop_events_cols')} onChange={(e) => setV('theme_desktop_events_cols', e.target.value)} style={{ flex: 1 }}>
+          <option value="">1 per rad (standard, bred)</option>
+          <option value="1">1 per rad</option>
+          <option value="2">2 per rad</option>
+          <option value="3">3 per rad</option>
+          <option value="4">4 per rad — kompakt</option>
+        </select>
+        <SaveBtn k="theme_desktop_events_cols" saving={saving} savedAt={savedAt} onSave={() => persist("theme_desktop_events_cols", v("theme_desktop_events_cols"))} />
       </Row>
 
       <div className="design-row" style={{ marginTop: 24, borderTop: '1px solid var(--line)', paddingTop: 18 }}>

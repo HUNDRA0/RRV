@@ -41,6 +41,10 @@ export interface ThemeOverrides {
   mobileMovesCols?: string;   // '2' | '3' | '4' | '5'
   mobileGmapCols?: string;    // '1' | '2' | '3'
   mobileEventsCols?: string;  // '1' | '2' | '3'
+  desktopTiersCols?: string;  // '2' | '3' | '4' | '5'
+  desktopMovesCols?: string;  // '2' | '3' | '4' | '5' | '6'
+  desktopGmapCols?: string;   // '1' | '2' | '3' | '4'
+  desktopEventsCols?: string; // '1' | '2' | '3' | '4'
 }
 
 export type FontPreset =
@@ -129,6 +133,10 @@ export const THEME_KEYS = {
   mobileMovesCols: 'theme_mobile_moves_cols',
   mobileGmapCols: 'theme_mobile_gmap_cols',
   mobileEventsCols: 'theme_mobile_events_cols',
+  desktopTiersCols: 'theme_desktop_tiers_cols',
+  desktopMovesCols: 'theme_desktop_moves_cols',
+  desktopGmapCols: 'theme_desktop_gmap_cols',
+  desktopEventsCols: 'theme_desktop_events_cols',
 } as const;
 
 export function readThemeFromContent(content: Record<string, string>): ThemeOverrides {
@@ -152,6 +160,10 @@ export function readThemeFromContent(content: Record<string, string>): ThemeOver
     mobileMovesCols: content[THEME_KEYS.mobileMovesCols] || undefined,
     mobileGmapCols: content[THEME_KEYS.mobileGmapCols] || undefined,
     mobileEventsCols: content[THEME_KEYS.mobileEventsCols] || undefined,
+    desktopTiersCols: content[THEME_KEYS.desktopTiersCols] || undefined,
+    desktopMovesCols: content[THEME_KEYS.desktopMovesCols] || undefined,
+    desktopGmapCols: content[THEME_KEYS.desktopGmapCols] || undefined,
+    desktopEventsCols: content[THEME_KEYS.desktopEventsCols] || undefined,
   };
 }
 
@@ -234,6 +246,27 @@ export function applyTheme(t: ThemeOverrides) {
     root.dataset.mobileEventsCols = t.mobileEventsCols;
   } else {
     delete root.dataset.mobileEventsCols;
+  }
+  // Desktop counterparts.
+  if (t.desktopTiersCols && /^[2-5]$/.test(t.desktopTiersCols)) {
+    root.dataset.desktopTiersCols = t.desktopTiersCols;
+  } else {
+    delete root.dataset.desktopTiersCols;
+  }
+  if (t.desktopMovesCols && /^[2-6]$/.test(t.desktopMovesCols)) {
+    root.dataset.desktopMovesCols = t.desktopMovesCols;
+  } else {
+    delete root.dataset.desktopMovesCols;
+  }
+  if (t.desktopGmapCols && /^[1-4]$/.test(t.desktopGmapCols)) {
+    root.dataset.desktopGmapCols = t.desktopGmapCols;
+  } else {
+    delete root.dataset.desktopGmapCols;
+  }
+  if (t.desktopEventsCols && /^[1-4]$/.test(t.desktopEventsCols)) {
+    root.dataset.desktopEventsCols = t.desktopEventsCols;
+  } else {
+    delete root.dataset.desktopEventsCols;
   }
 
   // Background image (with safe URL check)
