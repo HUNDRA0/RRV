@@ -13,7 +13,7 @@ interface PersonCardProps {
 }
 
 export function PersonCard({ friend, edit, onOpen, rankWithinTier, onRemovePhoto }: PersonCardProps) {
-  const { siteContent } = useFriendsList();
+  const { siteContent, isAdmin } = useFriendsList();
   const tiers = useMemo(() => parseTierConfig(siteContent['tier_config']), [siteContent]);
   const tierInfo = findTier(tiers, friend.tier);
   const bio = friend.bio || '';
@@ -31,7 +31,12 @@ export function PersonCard({ friend, edit, onOpen, rankWithinTier, onRemovePhoto
         onRemovePhoto={onRemovePhoto}
       />
       <div className="card-body">
-        <div className="card-rank">#{rankWithinTier} · {tierInfo.label}</div>
+        {/* The "#N · Tier" rank pill is admin-only — visitors don't need
+            to see the explicit ordering, but admin uses it as a reference
+            when reordering people inside a tier. */}
+        {isAdmin && (
+          <div className="card-rank">#{rankWithinTier} · {tierInfo.label}</div>
+        )}
         <div className="card-name">{friend.name}</div>
         <div className="card-meta">
           {friend.address.street} · {friend.address.postcode} {friend.address.city}
