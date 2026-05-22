@@ -987,7 +987,6 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .admin-quotes textarea { min-height: 240px; font-family: var(--font-mono); font-size: 13px; }
 
 .admin-data h3 { font-size: 22px; margin-bottom: 8px; }
-.admin-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .admin-stats { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-family: var(--font-mono); font-size: 13px; color: var(--ink-soft); }
 .admin-stats b { color: var(--purple-2); font-weight: 700; }
 
@@ -1060,12 +1059,6 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
   background: rgba(var(--paper-rgb), 0.78);
   transform: translateX(4px);
   box-shadow: 0 1px 0 rgba(255,255,255,0.6) inset, 0 14px 30px -14px rgba(76,40,176,0.28);
-}
-.lb-row.dragging { opacity: 0.4; cursor: grabbing; }
-.lb-row.drop-target {
-  border-color: var(--purple);
-  box-shadow: 0 0 0 2px rgba(139,92,246,0.25), 0 14px 30px -14px rgba(76,40,176,0.28);
-  transform: translateX(4px);
 }
 .lb-rank { font-family: var(--font-display); font-weight: 500; font-size: 38px; line-height: 1; text-align: center; letter-spacing: -0.04em; color: var(--ink); }
 .lb-row[data-rank="1"] .lb-rank { background: linear-gradient(150deg, #f4d684, var(--gold-2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -1648,7 +1641,6 @@ footer.foot {
   .admin-tab { font-size: 10px; padding: 6px 10px; }
   .admin-body { padding: 12px 12px; -webkit-overflow-scrolling: touch; }
   .admin-tiers-row { grid-template-columns: 44px 1fr 28px auto auto !important; flex-wrap: wrap; }
-  .admin-tiers-row .admin-tiers-sublabel { grid-column: 2 / -3; }
   .admin-move-row { grid-template-columns: 1fr auto auto !important; }
   .admin-gmap-row { grid-template-columns: 1fr 1fr auto !important; }
   .admin-gmap-name { display: none; }
@@ -1709,7 +1701,6 @@ footer.foot {
 }
 [data-theme="dark"] .lunch-debt-row { border-bottom-color: rgba(255,255,255,0.05); }
 .lunch-debt-debtor  { font-weight: 700; color: #c93232; }
-.lunch-debt-creditor { font-weight: 700; color: var(--purple-2); }
 .lunch-debt-amount  { font-weight: 600; }
 .lunch-debt-owed    { color: var(--mute); font-size: 13px; }
 .lunch-debt-note    { color: var(--mute); font-size: 13px; }
