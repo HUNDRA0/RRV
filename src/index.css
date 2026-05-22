@@ -555,6 +555,11 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .card {
   display: grid; grid-template-columns: 168px 1fr;
   gap: 20px; padding: 18px;
+  /* Pin photo + body to the top of the card. Cards in a row stretch to
+     match the tallest one (grid default), and without this the extra
+     vertical space distributes between auto-tracks — Jacob's "Antigoes"
+     bio left a 14px gap above his name compared to siblings. */
+  align-content: start;
   background: rgba(var(--paper-rgb), 0.55);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255,255,255,0.55);
@@ -998,6 +1003,10 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
     font-size: 10.5px; line-height: 1.35;
     padding: 2px 4px; margin-left: -4px; margin-top: 4px;
     display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    /* Reserve 3 lines of vertical space so cards with very short bios
+       (e.g. "Antigoes") still stand the same height as cards with full
+       3-line bios. line-height 1.35 × 3 ≈ 4.05em. */
+    min-height: 4.05em;
   }
   .card-photo-remove { width: 22px; height: 22px; font-size: 11px; top: 4px; right: 4px; }
   .card:hover { transform: none; }
