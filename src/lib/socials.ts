@@ -146,10 +146,6 @@ export const PLATFORMS: Record<SocialPlatform, PlatformMeta> = {
   },
 };
 
-export function platformsList(): SocialPlatform[] {
-  return Object.keys(PLATFORMS) as SocialPlatform[];
-}
-
 // Decide whether to use the app deep-link or web URL.
 // On mobile, prefer the deep-link if it exists. Fall back to web after a delay
 // in case the app isn't installed (handled by the link click handler).
