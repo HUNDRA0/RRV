@@ -134,9 +134,9 @@ export function LunchSection({ friends, data }: LunchSectionProps) {
                   {netVal > 0 && (
                     <div className="lunch-net" data-pos="true">+{netVal} luncher</div>
                   )}
-                  {netVal < 0 && (
-                    <div className="lunch-sad" title={`Skyldig ${Math.abs(netVal)} lunch${Math.abs(netVal) !== 1 ? 'er' : ''}`}>😔</div>
-                  )}
+                  {/* Negative-net smiley removed on purpose — having physical
+                      tickets while still owing somebody is a normal state,
+                      and the 😔 made it look like the person was unhappy. */}
                 </div>
               );
             })}
