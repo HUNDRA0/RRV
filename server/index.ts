@@ -42,10 +42,16 @@ app.use((_req, res, next) => {
       // Admin can set an external bg-image URL; we allow https: globally
       // since the value comes from a logged-in admin in our own DB.
       "img-src 'self' data: blob: https:",
+      // Native <video> on Hall of Fame posts streams from /hall/blob/:id
+      // (same origin) — no extra allowance needed. blob: would only matter
+      // if we used createObjectURL.
+      "media-src 'self' blob:",
       // Google Fonts woff/woff2 files.
       "font-src 'self' data: https://fonts.gstatic.com",
       "connect-src 'self'",
+      // We embed our own page nowhere; YouTube iframes are allowed via frame-src.
       "frame-ancestors 'none'",
+      "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
       "base-uri 'self'",
       "form-action 'self'",
     ].join('; '),

@@ -10,6 +10,7 @@ const TABS: [string, string][] = [
   ['moves', 'Making Moves'],
   ['events', 'Events'],
   ['lunch', 'Lunch 🎟'],
+  ['hall', 'Hall of Fame 🏆'],
   ['spel', 'Catan 🎲'],
 ];
 
@@ -113,6 +114,11 @@ export function StickyNav({
   const jump = (id: string) => {
     if (id === 'spel') {
       window.location.hash = 'catan';
+      setMenuOpen(false);
+      return;
+    }
+    if (id === 'hall') {
+      window.location.hash = 'hall-of-fame';
       setMenuOpen(false);
       return;
     }
