@@ -2203,12 +2203,19 @@ footer.foot {
 .nav-wrap { padding-top: env(safe-area-inset-top, 0); }
 .foot { padding-bottom: max(env(safe-area-inset-bottom, 0), 16px); }
 
-/* Ensure modals never overflow viewport on small screens */
+/* Ensure modals never overflow viewport on small screens. The cap on
+   max-width MUST stay inside a mobile media query — PersonModal's
+   desktop layout wants its native 1100px and would otherwise be
+   squeezed to 640px. */
 .modal {
-  max-width: min(640px, calc(100vw - 24px));
   max-height: calc(100dvh - 32px);
-  overflow-y: auto;
-  margin: 16px;
+}
+@media (max-width: 700px) {
+  .modal {
+    max-width: min(640px, calc(100vw - 24px));
+    overflow-y: auto;
+    margin: 16px;
+  }
 }
 @supports (-webkit-touch-callout: none) {
   /* iOS — use dvh aware sizing */
