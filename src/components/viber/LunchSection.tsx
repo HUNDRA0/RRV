@@ -82,21 +82,36 @@ interface LunchSectionProps {
 export function LunchSection({ friends, data }: LunchSectionProps) {
   const byId = Object.fromEntries(friends.map((f) => [f.id, f]));
 
-  // Net per person: physical tickets + credits - debts
-  const net: Record<string, number> = {};
-  for (const f of friends) net[f.id] = data.balances[f.id] ?? 0;
+  // Compute three separate quantities per person:
+  //   held      = physical tickets in wallet (data.balances)
+  //   credit    = total tickets other people owe THEM (they're creditor)
+  //   debt      = total tickets THEY owe to others (they're debtor)
+  //   net       = held + credit - debt
+  // Cards show the held + credit + debt breakdown so a person can be
+  // "+6 luncher & skyldig 2" simultaneously — net positive while still
+  // having outstanding obligations.
+  const held: Record<string, number> = {};
+  const credit: Record<string, number> = {};
+  const debt: Record<string, number> = {};
+  for (const f of friends) {
+    held[f.id] = data.balances[f.id] ?? 0;
+    credit[f.id] = 0;
+    debt[f.id] = 0;
+  }
   for (const d of data.debts) {
     for (const c of d.creditors) {
-      net[c.creditor] = (net[c.creditor] ?? 0) + c.amount;
-      net[d.debtor]   = (net[d.debtor]   ?? 0) - c.amount;
+      credit[c.creditor] = (credit[c.creditor] ?? 0) + c.amount;
+      debt[d.debtor]     = (debt[d.debtor]     ?? 0) + c.amount;
     }
   }
+  const net: Record<string, number> = {};
+  for (const f of friends) net[f.id] = held[f.id] + credit[f.id] - debt[f.id];
 
   const hasAnyData =
     Object.values(data.balances).some((v) => v !== 0) || data.debts.length > 0;
 
   const relevantFriends = friends.filter(
-    (f) => (data.balances[f.id] ?? 0) !== 0 || net[f.id] !== 0,
+    (f) => held[f.id] !== 0 || credit[f.id] !== 0 || debt[f.id] !== 0,
   );
   const displayFriends = relevantFriends.length > 0 ? relevantFriends : friends;
 
@@ -122,21 +137,25 @@ export function LunchSection({ friends, data }: LunchSectionProps) {
           {/* Per-person ticket count cards */}
           <div className="lunch-grid">
             {displayFriends.map((f, i) => {
-              const held = data.balances[f.id] ?? 0;
-              const netVal = net[f.id] ?? 0;
+              const h = held[f.id] ?? 0;
+              const cr = credit[f.id] ?? 0;
+              const db = debt[f.id] ?? 0;
+              // The positive chip combines physical tickets and what others
+              // owe this person — that's "luncher tillgängliga" for them.
+              const positive = h + cr;
               return (
                 <div key={f.id} className="lunch-card reveal" data-d={Math.min(i, 7)}>
                   <Avatar friend={f} />
                   <div className="lunch-name">{f.name.split(' ')[0]}</div>
                   <div className="lunch-held">
-                    {held > 0 ? `🎟 ×${held}` : '—'}
+                    {h > 0 ? `🎟 ×${h}` : '—'}
                   </div>
-                  {netVal > 0 && (
-                    <div className="lunch-net" data-pos="true">+{netVal} luncher</div>
+                  {positive > 0 && (
+                    <div className="lunch-net" data-pos="true">+{positive} luncher</div>
                   )}
-                  {/* Negative-net smiley removed on purpose — having physical
-                      tickets while still owing somebody is a normal state,
-                      and the 😔 made it look like the person was unhappy. */}
+                  {db > 0 && (
+                    <div className="lunch-net" data-pos="false">skyldig {db}</div>
+                  )}
                 </div>
               );
             })}
