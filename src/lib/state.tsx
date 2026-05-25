@@ -70,6 +70,9 @@ interface FriendsListState {
   recoverStart: (username: string) => Promise<string | null>;
   recoverFinish: (input: { username: string; securityAnswer: string; newPassword: string }) => Promise<boolean>;
 
+  setMyAvatar: (dataUrl: string) => Promise<void>;
+  clearMyAvatar: () => Promise<void>;
+
   // Polls.
   polls: ApiPoll[];
   refreshPolls: () => Promise<void>;
@@ -366,6 +369,16 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const setMyAvatar = useCallback(async (dataUrl: string) => {
+    const { avatarUrl } = await api.setMyAvatar(dataUrl);
+    setCurrentUser(prev => (prev ? { ...prev, avatarUrl } : prev));
+  }, []);
+
+  const clearMyAvatar = useCallback(async () => {
+    await api.clearMyAvatar();
+    setCurrentUser(prev => (prev ? { ...prev, avatarUrl: null } : prev));
+  }, []);
+
   // ── Polls ───────────────────────────────────────────────────────────
 
   const createPoll = useCallback(
@@ -396,7 +409,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
       updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials, createFriend, deleteFriend,
-      currentUser, userAuthError, registerUser, loginUser, loginWithPasskey, signupWithPasskey, logoutUser, recoverStart, recoverFinish,
+      currentUser, userAuthError, registerUser, loginUser, loginWithPasskey, signupWithPasskey, logoutUser, recoverStart, recoverFinish, setMyAvatar, clearMyAvatar,
       polls, refreshPolls, createPoll, votePoll, deletePoll,
     }),
     [
@@ -407,7 +420,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
       updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials, createFriend, deleteFriend,
-      currentUser, userAuthError, registerUser, loginUser, loginWithPasskey, signupWithPasskey, logoutUser, recoverStart, recoverFinish,
+      currentUser, userAuthError, registerUser, loginUser, loginWithPasskey, signupWithPasskey, logoutUser, recoverStart, recoverFinish, setMyAvatar, clearMyAvatar,
       polls, refreshPolls, createPoll, votePoll, deletePoll,
     ],
   );

@@ -235,6 +235,19 @@ export const api = {
   recoverFinish: (input: { username: string; securityAnswer: string; newPassword: string }) =>
     request<AuthResponse>('/api/auth/recover/finish', { method: 'POST', body: input }),
 
+  setMyAvatar: (dataUrl: string) =>
+    request<{ ok: true; avatarUrl: string }>('/api/auth/me/avatar', {
+      method: 'PUT',
+      body: { dataUrl },
+      requireUser: true,
+    }),
+
+  clearMyAvatar: () =>
+    request<{ ok: true }>('/api/auth/me/avatar', {
+      method: 'DELETE',
+      requireUser: true,
+    }),
+
   // ── Polls ────────────────────────────────────────────────────────────
 
   fetchPolls: () => request<{ polls: ApiPoll[] }>('/api/polls', { userAuth: true }),
@@ -266,6 +279,7 @@ export interface ApiUser {
   id: string;
   username: string;
   role: 'user' | 'admin';
+  avatarUrl: string | null;
 }
 
 export interface AuthResponse {
