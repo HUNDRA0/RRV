@@ -2664,3 +2664,137 @@ img, video, svg { max-width: 100%; height: auto; }
   font-family: var(--font-mono); font-size: 12px; font-weight: 500;
   color: var(--mute);
 }
+
+/* ── Hall of Fame page ────────────────────────────────────────────── */
+
+.hof-page {
+  min-height: 100dvh;
+  padding: env(safe-area-inset-top, 16px) 16px 40px;
+  background: var(--bg);
+}
+
+.hof-page-header {
+  display: flex; align-items: center; gap: 14px;
+  max-width: 700px; margin: 0 auto 24px;
+  position: relative;
+}
+.hof-page-title {
+  flex: 1; text-align: center;
+  font: 600 32px/1 var(--font-display);
+  margin: 0;
+}
+.hof-page-title em {
+  font-style: italic;
+  background: linear-gradient(150deg, var(--purple), var(--purple-3));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.hof-upload-btn { white-space: nowrap; }
+
+.hof-login-hint {
+  text-align: center;
+  color: var(--mute);
+  font: 500 13px/1.4 var(--font-mono);
+  margin: 0 auto 24px;
+}
+
+.hof-feed {
+  display: grid; gap: 20px;
+  max-width: 600px; margin: 0 auto;
+}
+.hof-empty {
+  text-align: center; color: var(--mute);
+  font-family: var(--font-mono); font-size: 14px;
+  padding: 40px 16px;
+}
+
+.hof-card {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--depth-card);
+}
+.hof-card-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+.hof-author-bubble {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(150deg, var(--purple), var(--purple-3));
+  color: white;
+  display: grid; place-items: center;
+  font: 700 14px/1 var(--font-display);
+  flex-shrink: 0;
+}
+.hof-meta { flex: 1; min-width: 0; }
+.hof-author { font: 600 14px/1.2 var(--font-display); }
+.hof-date { font: 400 11px/1.2 var(--font-mono); color: var(--mute); margin-top: 2px; }
+.hof-delete {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--mute); cursor: pointer;
+  font-size: 13px;
+  transition: all 180ms var(--ease-out);
+}
+.hof-delete:hover { border-color: var(--rose); color: var(--rose); }
+
+.hof-media {
+  display: block;
+  background: #0c0c0c;
+  position: relative;
+}
+.hof-media img, .hof-media video {
+  display: block;
+  width: 100%; height: auto;
+  max-height: 80vh;
+  object-fit: contain;
+}
+.hof-youtube {
+  aspect-ratio: 16 / 9; width: 100%;
+}
+.hof-youtube iframe {
+  width: 100%; height: 100%;
+  border: 0; display: block;
+}
+
+.hof-caption {
+  margin: 0; padding: 12px 14px 16px;
+  font: 400 14px/1.45 var(--font-body);
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* Upload modal */
+.hof-upload-modal {
+  grid-template-columns: 1fr;
+  max-width: 480px;
+}
+.hof-file-pick {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 28px 18px;
+  border: 2px dashed var(--line);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--purple) 4%, var(--paper));
+  text-align: center;
+  cursor: pointer;
+  transition: all 180ms var(--ease-out);
+}
+.hof-file-pick:hover { border-color: var(--purple); background: color-mix(in srgb, var(--purple) 8%, var(--paper)); }
+.hof-file-pick-icon { font-size: 28px; }
+.hof-file-preview {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.hof-file-preview img, .hof-file-preview video {
+  max-width: 100%; max-height: 280px;
+  border-radius: 12px;
+  background: #0c0c0c;
+}
+
+@media (max-width: 600px) {
+  .hof-page-title { font-size: 24px; }
+  .hof-page-header { gap: 8px; }
+}
