@@ -41,8 +41,38 @@ const MIN_OPTIONS = 2;
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_.-]+$/;
 
-function userDto(u: { id: string; username: string; role: 'user' | 'admin' }) {
-  return { id: u.id, username: u.username, role: u.role };
+// Avatar upload constraints. 2 MB is plenty for a 512-px JPEG, and keeps
+// the users-row size predictable. Mime allowlist plus magic-byte sniff
+// keeps non-image uploads (renamed .php etc) from sneaking through.
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+const AVATAR_ALLOWED_MIMES = new Set([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+]);
+
+function sniffImageMime(buf: Uint8Array): string | null {
+  if (buf.length < 12) return null;
+  if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return 'image/jpeg';
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) return 'image/png';
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) return 'image/gif';
+  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+      buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return 'image/webp';
+  return null;
+}
+
+// Avatar URL is built from avatar_updated_at — when it's null the user has
+// no avatar yet and the client renders the initial letter instead.
+function avatarUrlFor(userId: string, avatarUpdatedAt: string | null | undefined): string | null {
+  if (!avatarUpdatedAt) return null;
+  return `/api/auth/avatar/${encodeURIComponent(userId)}?v=${encodeURIComponent(avatarUpdatedAt)}`;
+}
+
+function userDto(u: { id: string; username: string; role: 'user' | 'admin'; avatar_updated_at?: string | null }) {
+  return {
+    id: u.id,
+    username: u.username,
+    role: u.role,
+    avatarUrl: avatarUrlFor(u.id, u.avatar_updated_at ?? null),
+  };
 }
 
 async function issueSession(userId: string) {
@@ -157,8 +187,9 @@ export function addAuthRoutes(router: Router): void {
       username: string;
       password_hash: string;
       role: 'user' | 'admin';
+      avatar_updated_at: string | null;
     }>(
-      `SELECT id, username, password_hash, role FROM users WHERE username = ? COLLATE NOCASE`,
+      `SELECT id, username, password_hash, role, avatar_updated_at FROM users WHERE username = ? COLLATE NOCASE`,
       [username],
     );
     if (!row || !verifyPassword(password, row.password_hash)) {
@@ -172,6 +203,63 @@ export function addAuthRoutes(router: Router): void {
   // ── Me ────────────────────────────────────────────────────────────────
   router.get('/auth/me', requireUser, (req, res) => {
     res.json({ user: userDto(req.user!) });
+  });
+
+  // ── Avatar (profile picture) ─────────────────────────────────────────
+  // GET is public (anyone can render someone's avatar in a feed); PUT/DELETE
+  // are scoped to /me so users can only manage their own. Mime allowlist +
+  // magic-byte sniff mirror Hall of Fame's image checks. 2 MB cap is plenty
+  // for an avatar and keeps the row size sane.
+
+  router.get<{ userId: string }>('/auth/avatar/:userId', async (req, res) => {
+    const row = await queryOne<{ avatar_data: Uint8Array | null; avatar_mime: string | null }>(
+      `SELECT avatar_data, avatar_mime FROM users WHERE id = ?`,
+      [req.params.userId],
+    );
+    if (!row || !row.avatar_data) { res.status(404).end(); return; }
+    res.setHeader('Content-Type', row.avatar_mime ?? 'application/octet-stream');
+    res.setHeader('Cache-Control', 'public, max-age=86400, immutable');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.end(Buffer.from(row.avatar_data));
+  });
+
+  router.put('/auth/me/avatar', requireUser, async (req, res) => {
+    const body = req.body as Record<string, unknown>;
+    const dataUrl = typeof body.dataUrl === 'string' ? body.dataUrl : '';
+    if (!dataUrl) { res.status(400).json({ error: 'bild saknas' }); return; }
+    const match = /^data:([^;,]+);base64,(.+)$/.exec(dataUrl);
+    if (!match) { res.status(400).json({ error: 'ogiltig data-URL' }); return; }
+    const declaredMime = match[1].toLowerCase();
+    if (!AVATAR_ALLOWED_MIMES.has(declaredMime)) {
+      res.status(415).json({ error: `${declaredMime || 'okänt format'} stöds inte` });
+      return;
+    }
+    let bytes: Uint8Array;
+    try { bytes = new Uint8Array(Buffer.from(match[2], 'base64')); }
+    catch { res.status(400).json({ error: 'kunde inte avkoda bilden' }); return; }
+    if (bytes.length > AVATAR_MAX_BYTES) {
+      res.status(413).json({ error: `bilden är för stor (max ${Math.round(AVATAR_MAX_BYTES / 1024 / 1024)} MB)` });
+      return;
+    }
+    const actualMime = sniffImageMime(bytes);
+    if (!actualMime || !AVATAR_ALLOWED_MIMES.has(actualMime)) {
+      res.status(415).json({ error: 'filen är inte en giltig bild' });
+      return;
+    }
+    const now = new Date().toISOString();
+    await exec(
+      `UPDATE users SET avatar_data = ?, avatar_mime = ?, avatar_updated_at = ?, updated_at = datetime('now') WHERE id = ?`,
+      [Buffer.from(bytes), actualMime, now, req.user!.id],
+    );
+    res.json({ ok: true, avatarUrl: avatarUrlFor(req.user!.id, now) });
+  });
+
+  router.delete('/auth/me/avatar', requireUser, async (req, res) => {
+    await exec(
+      `UPDATE users SET avatar_data = NULL, avatar_mime = NULL, avatar_updated_at = NULL, updated_at = datetime('now') WHERE id = ?`,
+      [req.user!.id],
+    );
+    res.json({ ok: true });
   });
 
   // ── Logout ────────────────────────────────────────────────────────────
@@ -228,8 +316,9 @@ export function addAuthRoutes(router: Router): void {
       username: string;
       role: 'user' | 'admin';
       security_answer_hash: string;
+      avatar_updated_at: string | null;
     }>(
-      `SELECT id, username, role, security_answer_hash FROM users WHERE username = ? COLLATE NOCASE`,
+      `SELECT id, username, role, security_answer_hash, avatar_updated_at FROM users WHERE username = ? COLLATE NOCASE`,
       [username],
     );
     if (!row || !verifyPassword(normalizeAnswer(answer), row.security_answer_hash)) {

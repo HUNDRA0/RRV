@@ -2798,3 +2798,50 @@ img, video, svg { max-width: 100%; height: auto; }
   .hof-page-title { font-size: 24px; }
   .hof-page-header { gap: 8px; }
 }
+
+/* ── User avatar overlays ─────────────────────────────────────────── */
+
+/* The nav trigger renders an avatar <img> instead of the silhouette
+   SVG when one is set; keep the outer circle, just fill it. */
+.user-menu-avatar {
+  width: 100%; height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+  display: block;
+}
+
+/* Author bubble in Hall of Fame cards switches between an initial and
+   an <img> based on whether authorAvatarUrl is set. */
+.hof-author-bubble {
+  overflow: hidden;
+  background: linear-gradient(150deg, var(--purple), var(--purple-3));
+}
+.hof-author-bubble img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Profile settings modal */
+.profile-settings-modal { grid-template-columns: 1fr; max-width: 460px; }
+.profile-avatar-row {
+  display: flex; align-items: center; gap: 16px;
+  margin-top: 8px;
+}
+.profile-avatar-preview {
+  width: 80px; height: 80px; border-radius: 50%;
+  border: 1px solid var(--line);
+  overflow: hidden; flex-shrink: 0;
+  background: linear-gradient(150deg, var(--purple), var(--purple-3));
+  color: white;
+  display: grid; place-items: center;
+  font: 700 32px/1 var(--font-display);
+}
+.profile-avatar-preview img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.profile-avatar-actions {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.profile-avatar-pick {
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}

@@ -7,6 +7,7 @@ export interface HallPost {
   id: string;
   userId: string;
   author: string;
+  authorAvatarUrl: string | null;
   kind: 'image' | 'video' | 'youtube';
   blobUrl: string | null;
   blobMime: string | null;

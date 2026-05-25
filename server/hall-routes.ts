@@ -136,6 +136,7 @@ interface PostRow {
   caption: string;
   created_at: string;
   author_username: string;
+  author_avatar_updated_at: string | null;
 }
 
 function postDto(row: PostRow) {
@@ -143,6 +144,9 @@ function postDto(row: PostRow) {
     id: row.id,
     userId: row.user_id,
     author: row.author_username,
+    authorAvatarUrl: row.author_avatar_updated_at
+      ? `/api/auth/avatar/${encodeURIComponent(row.user_id)}?v=${encodeURIComponent(row.author_avatar_updated_at)}`
+      : null,
     kind: row.kind,
     blobUrl: row.kind === 'youtube' ? null : `/hall/blob/${encodeURIComponent(row.id)}`,
     blobMime: row.blob_mime,
@@ -157,7 +161,7 @@ export function addHallRoutes(router: Router): void {
   router.get('/hall/posts', async (_req, res) => {
     const rows = await queryAll<PostRow>(
       `SELECT p.id, p.user_id, p.kind, p.blob_mime, p.youtube_id, p.caption,
-              p.created_at, u.username AS author_username
+              p.created_at, u.username AS author_username, u.avatar_updated_at AS author_avatar_updated_at
        FROM hall_of_fame_posts p
        JOIN users u ON u.id = p.user_id
        ORDER BY p.created_at DESC`,
@@ -260,7 +264,7 @@ export function addHallRoutes(router: Router): void {
 async function fetchPost(id: string) {
   const row = await queryOne<PostRow>(
     `SELECT p.id, p.user_id, p.kind, p.blob_mime, p.youtube_id, p.caption,
-            p.created_at, u.username AS author_username
+            p.created_at, u.username AS author_username, u.avatar_updated_at AS author_avatar_updated_at
      FROM hall_of_fame_posts p
      JOIN users u ON u.id = p.user_id
      WHERE p.id = ?`,

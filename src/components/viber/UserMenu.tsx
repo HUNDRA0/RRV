@@ -21,6 +21,7 @@ interface UserMenuProps {
   onRegisterClick: () => void;
   onRecoverClick: () => void;
   onOpenAdminConsole: () => void;
+  onOpenProfile: () => void;
   onLogoutUser: () => Promise<void> | void;
   onLogoutAdmin: () => Promise<void> | void;
 }
@@ -28,7 +29,7 @@ interface UserMenuProps {
 export function UserMenu({
   isAdmin, currentUser,
   onLoginClick, onRegisterClick, onRecoverClick,
-  onOpenAdminConsole, onLogoutUser, onLogoutAdmin,
+  onOpenAdminConsole, onOpenProfile, onLogoutUser, onLogoutAdmin,
 }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLDivElement | null>(null);
@@ -84,7 +85,9 @@ export function UserMenu({
         title={currentUser ? `Inloggad som ${currentUser.username}` : 'Logga in / skapa konto'}
         data-state={isAdmin ? 'admin' : currentUser ? 'user' : 'guest'}
       >
-        <PersonIcon />
+        {currentUser?.avatarUrl
+          ? <img className="user-menu-avatar" src={currentUser.avatarUrl} alt="" />
+          : <PersonIcon />}
         {currentUser && <span className="user-menu-dot" aria-hidden="true" />}
       </button>
       {open && (
@@ -108,6 +111,12 @@ export function UserMenu({
           {isAdmin && (
             <button className="user-menu-item" onClick={() => { close(); onOpenAdminConsole(); }}>
               <span className="user-menu-ico">⚙</span> Admin Console
+            </button>
+          )}
+
+          {currentUser && (
+            <button className="user-menu-item" onClick={() => { close(); onOpenProfile(); }}>
+              <span className="user-menu-ico">👤</span> Mitt konto
             </button>
           )}
 

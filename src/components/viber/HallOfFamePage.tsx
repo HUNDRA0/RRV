@@ -108,7 +108,11 @@ function HofCard({ post, canDelete, onDelete }: { post: HallPost; canDelete: boo
   return (
     <article className="hof-card">
       <header className="hof-card-head">
-        <div className="hof-author-bubble" aria-hidden="true">{post.author[0]?.toUpperCase() ?? '?'}</div>
+        <div className="hof-author-bubble" aria-hidden="true">
+          {post.authorAvatarUrl
+            ? <img src={post.authorAvatarUrl} alt="" />
+            : <span>{post.author[0]?.toUpperCase() ?? '?'}</span>}
+        </div>
         <div className="hof-meta">
           <div className="hof-author">{post.author}</div>
           <div className="hof-date">{relativeTime(post.createdAt)}</div>

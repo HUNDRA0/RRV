@@ -19,6 +19,7 @@ export interface UserRow {
   id: string;
   username: string;
   role: 'user' | 'admin';
+  avatar_updated_at?: string | null;
 }
 
 declare global {
@@ -73,8 +74,9 @@ export async function loadUserBySessionToken(token: string): Promise<UserRow | n
     expires_at: string;
     username: string;
     role: 'user' | 'admin';
+    avatar_updated_at: string | null;
   }>(
-    `SELECT s.user_id, s.expires_at, u.username, u.role
+    `SELECT s.user_id, s.expires_at, u.username, u.role, u.avatar_updated_at
      FROM user_sessions s
      JOIN users u ON u.id = s.user_id
      WHERE s.token = ?`,
@@ -85,7 +87,10 @@ export async function loadUserBySessionToken(token: string): Promise<UserRow | n
     await exec('DELETE FROM user_sessions WHERE token = ?', [token]);
     return null;
   }
-  return { id: row.user_id, username: row.username, role: row.role };
+  return {
+    id: row.user_id, username: row.username, role: row.role,
+    avatar_updated_at: row.avatar_updated_at,
+  };
 }
 
 export async function requireUser(
