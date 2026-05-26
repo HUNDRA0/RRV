@@ -2674,13 +2674,21 @@ img, video, svg { max-width: 100%; height: auto; }
 }
 
 .hof-page-header {
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; justify-content: center;
   max-width: 700px; margin: 0 auto 28px;
   position: relative;
   min-height: 44px;
 }
+.hof-page-header .catan-back-btn {
+  position: absolute; left: 0; top: 50%;
+  transform: translateY(-50%);
+}
+.hof-page-header .hof-upload-btn {
+  position: absolute; right: 0; top: 50%;
+  transform: translateY(-50%);
+}
 .hof-page-title {
-  flex: 1; text-align: center;
+  text-align: center;
   font: 600 32px/1 var(--font-display);
   margin: 0;
 }
