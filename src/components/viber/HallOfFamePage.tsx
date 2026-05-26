@@ -11,7 +11,7 @@
 // The page is lazy-loaded from Root.tsx; this file is the heavy one
 // (modal + feed) so we keep it out of the main bundle.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useEsc, useLockBody } from '../../hooks/useViberHooks';
 import { useFriendsList } from '../../lib/state';
 import {
@@ -32,6 +32,7 @@ export function HallOfFamePage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FeedFilter>('all');
+  const [lightboxPost, setLightboxPost] = useState<HallPost | null>(null);
 
   const refresh = useCallback(async () => {
     try { setPosts(await fetchHallPosts()); }
@@ -130,7 +131,15 @@ export function HallOfFamePage() {
         )}
         {visiblePosts?.map((p) => {
           const canDelete = !!currentUser && (currentUser.id === p.userId || isAdmin || currentUser.role === 'admin');
-          return <HofCard key={p.id} post={p} canDelete={canDelete} onDelete={() => onDelete(p.id)} />;
+          return (
+            <HofCard
+              key={p.id}
+              post={p}
+              canDelete={canDelete}
+              onDelete={() => onDelete(p.id)}
+              onOpenImage={() => setLightboxPost(p)}
+            />
+          );
         })}
       </main>
 
@@ -143,6 +152,8 @@ export function HallOfFamePage() {
           }}
         />
       )}
+
+      {lightboxPost && <ImageLightbox post={lightboxPost} onClose={() => setLightboxPost(null)} />}
     </div>
   );
 }
@@ -151,7 +162,7 @@ export function HallOfFamePage() {
 // Feed card
 // ─────────────────────────────────────────────────────────────────────
 
-function HofCard({ post, canDelete, onDelete }: { post: HallPost; canDelete: boolean; onDelete: () => void }) {
+function HofCard({ post, canDelete, onDelete, onOpenImage }: { post: HallPost; canDelete: boolean; onDelete: () => void; onOpenImage: () => void }) {
   return (
     <article className="hof-card">
       <header className="hof-card-head">
@@ -171,7 +182,14 @@ function HofCard({ post, canDelete, onDelete }: { post: HallPost; canDelete: boo
 
       <div className="hof-media">
         {post.kind === 'image' && post.blobUrl && (
-          <img src={post.blobUrl} alt={post.caption || 'Hall of Fame-bild'} loading="lazy" />
+          <button
+            type="button"
+            className="hof-image-btn"
+            onClick={onOpenImage}
+            aria-label="Visa bilden i fullskärm"
+          >
+            <img src={post.blobUrl} alt={post.caption || 'Hall of Fame-bild'} loading="lazy" />
+          </button>
         )}
         {post.kind === 'video' && post.blobUrl && (
           <video src={post.blobUrl} controls preload="metadata" playsInline />
@@ -192,6 +210,75 @@ function HofCard({ post, canDelete, onDelete }: { post: HallPost; canDelete: boo
 
       {post.caption && <p className="hof-caption">{post.caption}</p>}
     </article>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Image lightbox — tap to open, pinch / mouse-wheel to zoom, drag to pan
+// ─────────────────────────────────────────────────────────────────────
+
+function ImageLightbox({ post, onClose }: { post: HallPost; onClose: () => void }) {
+  const [scale, setScale] = useState(1);
+  const [tx, setTx] = useState(0);
+  const [ty, setTy] = useState(0);
+  const dragRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+
+  useLockBody(true);
+  useEsc(onClose, true);
+
+  const reset = () => { setScale(1); setTx(0); setTy(0); };
+
+  function onWheel(e: React.WheelEvent) {
+    e.preventDefault();
+    const next = Math.min(5, Math.max(1, scale + (e.deltaY < 0 ? 0.2 : -0.2)));
+    if (next === 1) { setTx(0); setTy(0); }
+    setScale(next);
+  }
+
+  function onPointerDown(e: React.PointerEvent) {
+    if (scale <= 1) return;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    dragRef.current = { x: e.clientX, y: e.clientY, tx, ty };
+  }
+  function onPointerMove(e: React.PointerEvent) {
+    if (!dragRef.current) return;
+    setTx(dragRef.current.tx + (e.clientX - dragRef.current.x));
+    setTy(dragRef.current.ty + (e.clientY - dragRef.current.y));
+  }
+  function onPointerUp() { dragRef.current = null; }
+
+  return (
+    <div className="hof-lightbox" onClick={onClose} role="dialog" aria-modal="true" aria-label="Bildvisning">
+      <button className="hof-lightbox-close" onClick={onClose} aria-label="Stäng">✕</button>
+      <div className="hof-lightbox-zoom">
+        <button onClick={(e) => { e.stopPropagation(); setScale(s => Math.min(5, s + 0.4)); }} aria-label="Zooma in">+</button>
+        <button onClick={(e) => { e.stopPropagation(); reset(); }} aria-label="Återställ zoom">1:1</button>
+        <button onClick={(e) => { e.stopPropagation(); const n = Math.max(1, scale - 0.4); if (n === 1) { setTx(0); setTy(0); } setScale(n); }} aria-label="Zooma ut">−</button>
+      </div>
+      <div
+        className="hof-lightbox-stage"
+        onClick={(e) => e.stopPropagation()}
+        onWheel={onWheel}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onDoubleClick={() => (scale === 1 ? setScale(2) : reset())}
+      >
+        {post.blobUrl && (
+          <img
+            src={post.blobUrl}
+            alt={post.caption || 'Hall of Fame-bild'}
+            draggable={false}
+            style={{
+              transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
+              cursor: scale > 1 ? 'grab' : 'zoom-in',
+            }}
+          />
+        )}
+      </div>
+      {post.caption && <p className="hof-lightbox-caption" onClick={(e) => e.stopPropagation()}>{post.caption}</p>}
+    </div>
   );
 }
 
