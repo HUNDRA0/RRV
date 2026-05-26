@@ -24,11 +24,14 @@ import {
   type HallPost,
 } from '../../lib/hallApi';
 
+type FeedFilter = 'all' | 'images' | 'videos';
+
 export function HallOfFamePage() {
   const { currentUser, isAdmin } = useFriendsList();
   const [posts, setPosts] = useState<HallPost[] | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FeedFilter>('all');
 
   const refresh = useCallback(async () => {
     try { setPosts(await fetchHallPosts()); }
@@ -46,6 +49,16 @@ export function HallOfFamePage() {
       alert(e instanceof Error ? e.message : 'kunde inte radera');
     }
   }
+
+  // Counts for tab labels — YouTube embeds count as videos so we don't
+  // burn a third tab on something that's identical from the viewer's POV.
+  const imageCount = posts?.filter(p => p.kind === 'image').length ?? 0;
+  const videoCount = posts?.filter(p => p.kind === 'video' || p.kind === 'youtube').length ?? 0;
+  const visiblePosts = posts?.filter(p => {
+    if (filter === 'all') return true;
+    if (filter === 'images') return p.kind === 'image';
+    return p.kind === 'video' || p.kind === 'youtube';
+  });
 
   return (
     <div className="hof-page">
@@ -76,12 +89,46 @@ export function HallOfFamePage() {
 
       {error && <p className="login-error" style={{ margin: '0 auto', maxWidth: 600 }}>{error}</p>}
 
+      {posts && posts.length > 0 && (
+        <div className="hof-tabs" role="tablist" aria-label="Filtrera inlägg">
+          <button
+            role="tab"
+            aria-selected={filter === 'all'}
+            className={filter === 'all' ? 'active' : ''}
+            onClick={() => setFilter('all')}
+          >
+            Alla <span className="hof-tab-count">{posts.length}</span>
+          </button>
+          <button
+            role="tab"
+            aria-selected={filter === 'images'}
+            className={filter === 'images' ? 'active' : ''}
+            onClick={() => setFilter('images')}
+          >
+            Bilder <span className="hof-tab-count">{imageCount}</span>
+          </button>
+          <button
+            role="tab"
+            aria-selected={filter === 'videos'}
+            className={filter === 'videos' ? 'active' : ''}
+            onClick={() => setFilter('videos')}
+          >
+            Videor <span className="hof-tab-count">{videoCount}</span>
+          </button>
+        </div>
+      )}
+
       <main className="hof-feed">
         {posts === null && <p className="hof-empty">Laddar…</p>}
         {posts && posts.length === 0 && (
           <p className="hof-empty">Inga inlägg ännu. Bli först!</p>
         )}
-        {posts?.map((p) => {
+        {posts && posts.length > 0 && visiblePosts && visiblePosts.length === 0 && (
+          <p className="hof-empty">
+            {filter === 'images' ? 'Inga bilder ännu.' : 'Inga videor ännu.'}
+          </p>
+        )}
+        {visiblePosts?.map((p) => {
           const canDelete = !!currentUser && (currentUser.id === p.userId || isAdmin || currentUser.role === 'admin');
           return <HofCard key={p.id} post={p} canDelete={canDelete} onDelete={() => onDelete(p.id)} />;
         })}
