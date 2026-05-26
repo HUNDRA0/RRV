@@ -20,7 +20,9 @@
 import express, { type Router } from 'express';
 import { randomBytes } from 'node:crypto';
 import { exec, queryAll, queryOne } from './db.js';
-import { requireUser } from './auth.js';
+import { attachUser, requireUser } from './auth.js';
+
+const MAX_COMMENT = 500;
 
 const MAX_BYTES = 16 * 1024 * 1024;     // 16 MB after decoding
 const MAX_CAPTION = 300;
@@ -137,6 +139,10 @@ interface PostRow {
   created_at: string;
   author_username: string;
   author_avatar_updated_at: string | null;
+  like_count?: number;
+  dislike_count?: number;
+  comment_count?: number;
+  my_reaction?: 'like' | 'dislike' | null;
 }
 
 function postDto(row: PostRow) {
@@ -153,21 +159,156 @@ function postDto(row: PostRow) {
     youtubeId: row.youtube_id,
     caption: row.caption,
     createdAt: row.created_at,
+    likeCount: Number(row.like_count ?? 0),
+    dislikeCount: Number(row.dislike_count ?? 0),
+    commentCount: Number(row.comment_count ?? 0),
+    myReaction: row.my_reaction ?? null,
+  };
+}
+
+interface CommentRow {
+  id: string;
+  post_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+  author_username: string;
+  author_avatar_updated_at: string | null;
+}
+
+function commentDto(row: CommentRow) {
+  return {
+    id: row.id,
+    postId: row.post_id,
+    userId: row.user_id,
+    author: row.author_username,
+    authorAvatarUrl: row.author_avatar_updated_at
+      ? `/api/auth/avatar/${encodeURIComponent(row.user_id)}?v=${encodeURIComponent(row.author_avatar_updated_at)}`
+      : null,
+    body: row.body,
+    createdAt: row.created_at,
   };
 }
 
 export function addHallRoutes(router: Router): void {
-  // List the entire feed. Public — anyone can view.
-  router.get('/hall/posts', async (_req, res) => {
+  // List the entire feed. Public — anyone can view. If a session token is
+  // present we also populate `myReaction` so the UI can highlight buttons.
+  router.get('/hall/posts', attachUser, async (req, res) => {
+    const me = req.user?.id ?? null;
     const rows = await queryAll<PostRow>(
       `SELECT p.id, p.user_id, p.kind, p.blob_mime, p.youtube_id, p.caption,
-              p.created_at, u.username AS author_username, u.avatar_updated_at AS author_avatar_updated_at
+              p.created_at, u.username AS author_username, u.avatar_updated_at AS author_avatar_updated_at,
+              (SELECT COUNT(*) FROM hall_of_fame_reactions r WHERE r.post_id = p.id AND r.kind = 'like') AS like_count,
+              (SELECT COUNT(*) FROM hall_of_fame_reactions r WHERE r.post_id = p.id AND r.kind = 'dislike') AS dislike_count,
+              (SELECT COUNT(*) FROM hall_of_fame_comments c WHERE c.post_id = p.id) AS comment_count,
+              (SELECT r.kind FROM hall_of_fame_reactions r WHERE r.post_id = p.id AND r.user_id = ?) AS my_reaction
        FROM hall_of_fame_posts p
        JOIN users u ON u.id = p.user_id
        ORDER BY p.created_at DESC`,
+      [me ?? ''],
     );
-    res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=60');
+    // Personalized field → no shared cache.
+    res.setHeader('Cache-Control', me ? 'private, no-store' : 'public, max-age=15, stale-while-revalidate=60');
     res.json({ posts: rows.map(postDto) });
+  });
+
+  // List comments for one post. Public.
+  router.get<{ id: string }>('/hall/posts/:id/comments', async (req, res) => {
+    const rows = await queryAll<CommentRow>(
+      `SELECT c.id, c.post_id, c.user_id, c.body, c.created_at,
+              u.username AS author_username, u.avatar_updated_at AS author_avatar_updated_at
+       FROM hall_of_fame_comments c
+       JOIN users u ON u.id = c.user_id
+       WHERE c.post_id = ?
+       ORDER BY c.created_at ASC`,
+      [req.params.id],
+    );
+    res.json({ comments: rows.map(commentDto) });
+  });
+
+  // Add a comment. Requires login.
+  router.post<{ id: string }>('/hall/posts/:id/comments', requireUser, async (req, res) => {
+    const body = req.body as Record<string, unknown>;
+    const text = typeof body.body === 'string' ? body.body.trim().slice(0, MAX_COMMENT) : '';
+    if (!text) { res.status(400).json({ error: 'kommentaren är tom' }); return; }
+    const exists = await queryOne<{ id: string }>(`SELECT id FROM hall_of_fame_posts WHERE id = ?`, [req.params.id]);
+    if (!exists) { res.status(404).json({ error: 'okänt inlägg' }); return; }
+    const id = newId();
+    await exec(
+      `INSERT INTO hall_of_fame_comments (id, post_id, user_id, body) VALUES (?, ?, ?, ?)`,
+      [id, req.params.id, req.user!.id, text],
+    );
+    const row = await queryOne<CommentRow>(
+      `SELECT c.id, c.post_id, c.user_id, c.body, c.created_at,
+              u.username AS author_username, u.avatar_updated_at AS author_avatar_updated_at
+       FROM hall_of_fame_comments c JOIN users u ON u.id = c.user_id
+       WHERE c.id = ?`,
+      [id],
+    );
+    res.status(201).json(row ? commentDto(row) : { id });
+  });
+
+  // Delete a comment — owner or admin.
+  router.delete<{ id: string }>('/hall/comments/:id', requireUser, async (req, res) => {
+    const row = await queryOne<{ user_id: string }>(
+      `SELECT user_id FROM hall_of_fame_comments WHERE id = ?`,
+      [req.params.id],
+    );
+    if (!row) { res.status(404).json({ error: 'okänd kommentar' }); return; }
+    if (row.user_id !== req.user!.id && req.user!.role !== 'admin') {
+      res.status(403).json({ error: 'inte din kommentar' });
+      return;
+    }
+    await exec(`DELETE FROM hall_of_fame_comments WHERE id = ?`, [req.params.id]);
+    res.json({ ok: true });
+  });
+
+  // Set, change, or clear my reaction on a post. body { kind: 'like'|'dislike'|null }
+  // Tapping the same kind twice clears it (toggle). Tapping the other kind
+  // replaces. Requires login.
+  router.post<{ id: string }>('/hall/posts/:id/reaction', requireUser, async (req, res) => {
+    const body = req.body as Record<string, unknown>;
+    const wanted = body.kind === 'like' || body.kind === 'dislike' ? body.kind : null;
+    const exists = await queryOne<{ id: string }>(`SELECT id FROM hall_of_fame_posts WHERE id = ?`, [req.params.id]);
+    if (!exists) { res.status(404).json({ error: 'okänt inlägg' }); return; }
+
+    const existing = await queryOne<{ kind: 'like' | 'dislike' }>(
+      `SELECT kind FROM hall_of_fame_reactions WHERE post_id = ? AND user_id = ?`,
+      [req.params.id, req.user!.id],
+    );
+    if (wanted === null || existing?.kind === wanted) {
+      // Clear (explicit null or toggle-off)
+      await exec(
+        `DELETE FROM hall_of_fame_reactions WHERE post_id = ? AND user_id = ?`,
+        [req.params.id, req.user!.id],
+      );
+    } else if (existing) {
+      await exec(
+        `UPDATE hall_of_fame_reactions SET kind = ?, created_at = datetime('now') WHERE post_id = ? AND user_id = ?`,
+        [wanted, req.params.id, req.user!.id],
+      );
+    } else {
+      await exec(
+        `INSERT INTO hall_of_fame_reactions (post_id, user_id, kind) VALUES (?, ?, ?)`,
+        [req.params.id, req.user!.id, wanted],
+      );
+    }
+
+    const counts = await queryOne<{ likes: number; dislikes: number }>(
+      `SELECT
+         (SELECT COUNT(*) FROM hall_of_fame_reactions WHERE post_id = ? AND kind = 'like')    AS likes,
+         (SELECT COUNT(*) FROM hall_of_fame_reactions WHERE post_id = ? AND kind = 'dislike') AS dislikes`,
+      [req.params.id, req.params.id],
+    );
+    const finalRow = await queryOne<{ kind: 'like' | 'dislike' } | null>(
+      `SELECT kind FROM hall_of_fame_reactions WHERE post_id = ? AND user_id = ?`,
+      [req.params.id, req.user!.id],
+    );
+    res.json({
+      likeCount: Number(counts?.likes ?? 0),
+      dislikeCount: Number(counts?.dislikes ?? 0),
+      myReaction: finalRow?.kind ?? null,
+    });
   });
 
   // Create — requires user session (admin's synthetic user counts). 16 MB

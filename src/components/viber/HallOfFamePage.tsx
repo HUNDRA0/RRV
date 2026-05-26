@@ -18,9 +18,14 @@ import {
   CLIENT_ALLOWED_IMAGE,
   CLIENT_ALLOWED_VIDEO,
   CLIENT_MAX_BYTES,
+  addHallComment,
   createHallPost,
+  deleteHallComment,
   deleteHallPost,
+  fetchHallComments,
   fetchHallPosts,
+  setHallReaction,
+  type HallComment,
   type HallPost,
 } from '../../lib/hallApi';
 
@@ -136,8 +141,14 @@ export function HallOfFamePage() {
               key={p.id}
               post={p}
               canDelete={canDelete}
+              canEngage={!!currentUser}
+              isAdmin={isAdmin}
+              currentUserId={currentUser?.id ?? null}
               onDelete={() => onDelete(p.id)}
               onOpenImage={() => setLightboxPost(p)}
+              onPatch={(patch) => {
+                setPosts(prev => prev?.map(x => x.id === p.id ? { ...x, ...patch } : x) ?? null);
+              }}
             />
           );
         })}
@@ -162,7 +173,51 @@ export function HallOfFamePage() {
 // Feed card
 // ─────────────────────────────────────────────────────────────────────
 
-function HofCard({ post, canDelete, onDelete, onOpenImage }: { post: HallPost; canDelete: boolean; onDelete: () => void; onOpenImage: () => void }) {
+interface HofCardProps {
+  post: HallPost;
+  canDelete: boolean;
+  canEngage: boolean;
+  isAdmin: boolean;
+  currentUserId: string | null;
+  onDelete: () => void;
+  onOpenImage: () => void;
+  onPatch: (patch: Partial<HallPost>) => void;
+}
+
+function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete, onOpenImage, onPatch }: HofCardProps) {
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [busyReaction, setBusyReaction] = useState(false);
+
+  async function toggleReaction(kind: 'like' | 'dislike') {
+    if (!canEngage || busyReaction) return;
+    setBusyReaction(true);
+    // Optimistic: predict the result instantly, then reconcile.
+    const prev = { likeCount: post.likeCount, dislikeCount: post.dislikeCount, myReaction: post.myReaction };
+    let nextMine: 'like' | 'dislike' | null;
+    let likeDelta = 0, dislikeDelta = 0;
+    if (post.myReaction === kind) {
+      nextMine = null;
+      if (kind === 'like') likeDelta = -1; else dislikeDelta = -1;
+    } else {
+      nextMine = kind;
+      if (kind === 'like') { likeDelta = +1; if (post.myReaction === 'dislike') dislikeDelta = -1; }
+      else { dislikeDelta = +1; if (post.myReaction === 'like') likeDelta = -1; }
+    }
+    onPatch({
+      likeCount: post.likeCount + likeDelta,
+      dislikeCount: post.dislikeCount + dislikeDelta,
+      myReaction: nextMine,
+    });
+    try {
+      const r = await setHallReaction(post.id, nextMine);
+      onPatch({ likeCount: r.likeCount, dislikeCount: r.dislikeCount, myReaction: r.myReaction });
+    } catch {
+      onPatch(prev); // rollback
+    } finally {
+      setBusyReaction(false);
+    }
+  }
+
   return (
     <article className="hof-card">
       <header className="hof-card-head">
@@ -209,7 +264,177 @@ function HofCard({ post, canDelete, onDelete, onOpenImage }: { post: HallPost; c
       </div>
 
       {post.caption && <p className="hof-caption">{post.caption}</p>}
+
+      <div className="hof-actions">
+        <button
+          type="button"
+          className="hof-react"
+          data-active={post.myReaction === 'like'}
+          disabled={!canEngage || busyReaction}
+          onClick={() => toggleReaction('like')}
+          aria-pressed={post.myReaction === 'like'}
+          title={canEngage ? '' : 'Logga in för att gilla'}
+        >
+          <span className="hof-react-ico">👍</span>
+          <span className="hof-react-count">{post.likeCount}</span>
+        </button>
+        <button
+          type="button"
+          className="hof-react"
+          data-active={post.myReaction === 'dislike'}
+          disabled={!canEngage || busyReaction}
+          onClick={() => toggleReaction('dislike')}
+          aria-pressed={post.myReaction === 'dislike'}
+          title={canEngage ? '' : 'Logga in för att ogilla'}
+        >
+          <span className="hof-react-ico">👎</span>
+          <span className="hof-react-count">{post.dislikeCount}</span>
+        </button>
+        <button
+          type="button"
+          className="hof-react hof-comments-toggle"
+          data-active={commentsOpen}
+          onClick={() => setCommentsOpen(v => !v)}
+          aria-expanded={commentsOpen}
+        >
+          <span className="hof-react-ico">💬</span>
+          <span className="hof-react-count">{post.commentCount}</span>
+          <span className="hof-react-label">{commentsOpen ? 'Stäng' : 'Kommentarer'}</span>
+        </button>
+      </div>
+
+      {commentsOpen && (
+        <Comments
+          post={post}
+          canEngage={canEngage}
+          isAdmin={isAdmin}
+          currentUserId={currentUserId}
+          onCountChange={(c) => onPatch({ commentCount: c })}
+        />
+      )}
     </article>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Comments section — inline list below a card
+// ─────────────────────────────────────────────────────────────────────
+
+interface CommentsProps {
+  post: HallPost;
+  canEngage: boolean;
+  isAdmin: boolean;
+  currentUserId: string | null;
+  onCountChange: (count: number) => void;
+}
+
+function Comments({ post, canEngage, isAdmin, currentUserId, onCountChange }: CommentsProps) {
+  const [list, setList] = useState<HallComment[] | null>(null);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const c = await fetchHallComments(post.id);
+        if (!cancelled) setList(c);
+      } catch (e) {
+        if (!cancelled) setErr(e instanceof Error ? e.message : 'fel');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [post.id]);
+
+  async function submit() {
+    const text = draft.trim();
+    if (!text || busy) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const c = await addHallComment(post.id, text);
+      setList(prev => (prev ? [...prev, c] : [c]));
+      onCountChange(post.commentCount + 1);
+      setDraft('');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'kunde inte kommentera');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove(c: HallComment) {
+    if (!confirm('Ta bort kommentaren?')) return;
+    try {
+      await deleteHallComment(c.id);
+      setList(prev => prev?.filter(x => x.id !== c.id) ?? null);
+      onCountChange(Math.max(0, post.commentCount - 1));
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'kunde inte radera');
+    }
+  }
+
+  return (
+    <div className="hof-comments">
+      {list === null ? (
+        <p className="hof-comments-empty">Laddar…</p>
+      ) : list.length === 0 ? (
+        <p className="hof-comments-empty">Inga kommentarer ännu.</p>
+      ) : (
+        <ul className="hof-comment-list">
+          {list.map(c => (
+            <li key={c.id} className="hof-comment">
+              <div className="hof-author-bubble hof-comment-bubble" aria-hidden="true">
+                {c.authorAvatarUrl
+                  ? <img src={c.authorAvatarUrl} alt="" />
+                  : <span>{c.author[0]?.toUpperCase() ?? '?'}</span>}
+              </div>
+              <div className="hof-comment-body">
+                <div className="hof-comment-head">
+                  <span className="hof-comment-author">{c.author}</span>
+                  <span className="hof-comment-date">{relativeTime(c.createdAt)}</span>
+                </div>
+                <p className="hof-comment-text">{c.body}</p>
+              </div>
+              {(currentUserId === c.userId || isAdmin) && (
+                <button
+                  type="button"
+                  className="hof-comment-delete"
+                  onClick={() => remove(c)}
+                  aria-label="Ta bort kommentar"
+                >✕</button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {err && <p className="login-error" style={{ marginTop: 8 }}>{err}</p>}
+
+      {canEngage ? (
+        <form
+          className="hof-comment-form"
+          onSubmit={(e) => { e.preventDefault(); void submit(); }}
+        >
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="Skriv en kommentar…"
+            rows={2}
+            maxLength={500}
+            disabled={busy}
+          />
+          <button type="submit" className="btn btn-purple" disabled={busy || !draft.trim()}>
+            {busy ? 'Skickar…' : 'Skicka'}
+          </button>
+        </form>
+      ) : (
+        <p className="hof-comments-empty" style={{ marginTop: 10 }}>
+          Logga in för att kommentera.
+        </p>
+      )}
+    </div>
   );
 }
 
