@@ -2669,14 +2669,15 @@ img, video, svg { max-width: 100%; height: auto; }
 
 .hof-page {
   min-height: 100dvh;
-  padding: env(safe-area-inset-top, 16px) 16px 40px;
+  padding: calc(env(safe-area-inset-top, 0px) + 32px) 16px 40px;
   background: var(--bg);
 }
 
 .hof-page-header {
   display: flex; align-items: center; gap: 14px;
-  max-width: 700px; margin: 0 auto 24px;
+  max-width: 700px; margin: 0 auto 28px;
   position: relative;
+  min-height: 44px;
 }
 .hof-page-title {
   flex: 1; text-align: center;
