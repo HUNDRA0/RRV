@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useEsc, useLockBody } from '../../hooks/useViberHooks';
 import { useFriendsList } from '../../lib/state';
+import { LoginModal } from './LoginModal';
 import {
   CLIENT_ALLOWED_IMAGE,
   CLIENT_ALLOWED_VIDEO,
@@ -38,6 +39,8 @@ export function HallOfFamePage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FeedFilter>('all');
   const [lightboxPost, setLightboxPost] = useState<HallPost | null>(null);
+  const [loginTab, setLoginTab] = useState<'login' | 'register' | 'recover' | null>(null);
+  const requireLogin = useCallback(() => setLoginTab('login'), []);
 
   const refresh = useCallback(async () => {
     try { setPosts(await fetchHallPosts()); }
@@ -89,7 +92,8 @@ export function HallOfFamePage() {
 
       {!currentUser && (
         <p className="hof-login-hint">
-          Logga in för att ladda upp bilder, videor eller YouTube-klipp.
+          <button type="button" className="link-btn" onClick={requireLogin}>Logga in</button>
+          {' '}för att ladda upp, gilla eller kommentera.
         </p>
       )}
 
@@ -146,6 +150,7 @@ export function HallOfFamePage() {
               currentUserId={currentUser?.id ?? null}
               onDelete={() => onDelete(p.id)}
               onOpenImage={() => setLightboxPost(p)}
+              onRequireLogin={requireLogin}
               onPatch={(patch) => {
                 setPosts(prev => prev?.map(x => x.id === p.id ? { ...x, ...patch } : x) ?? null);
               }}
@@ -165,6 +170,10 @@ export function HallOfFamePage() {
       )}
 
       {lightboxPost && <ImageLightbox post={lightboxPost} onClose={() => setLightboxPost(null)} />}
+
+      {loginTab && (
+        <LoginModal onClose={() => setLoginTab(null)} initialTab={loginTab} />
+      )}
     </div>
   );
 }
@@ -181,15 +190,17 @@ interface HofCardProps {
   currentUserId: string | null;
   onDelete: () => void;
   onOpenImage: () => void;
+  onRequireLogin: () => void;
   onPatch: (patch: Partial<HallPost>) => void;
 }
 
-function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete, onOpenImage, onPatch }: HofCardProps) {
+function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete, onOpenImage, onRequireLogin, onPatch }: HofCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [busyReaction, setBusyReaction] = useState(false);
 
   async function toggleReaction(kind: 'like' | 'dislike') {
-    if (!canEngage || busyReaction) return;
+    if (!canEngage) { onRequireLogin(); return; }
+    if (busyReaction) return;
     setBusyReaction(true);
     // Optimistic: predict the result instantly, then reconcile.
     const prev = { likeCount: post.likeCount, dislikeCount: post.dislikeCount, myReaction: post.myReaction };
@@ -270,10 +281,10 @@ function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete,
           type="button"
           className="hof-react"
           data-active={post.myReaction === 'like'}
-          disabled={!canEngage || busyReaction}
+          disabled={busyReaction}
           onClick={() => toggleReaction('like')}
           aria-pressed={post.myReaction === 'like'}
-          title={canEngage ? '' : 'Logga in för att gilla'}
+          title={canEngage ? 'Gilla' : 'Logga in för att gilla'}
         >
           <span className="hof-react-ico">👍</span>
           <span className="hof-react-count">{post.likeCount}</span>
@@ -282,10 +293,10 @@ function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete,
           type="button"
           className="hof-react"
           data-active={post.myReaction === 'dislike'}
-          disabled={!canEngage || busyReaction}
+          disabled={busyReaction}
           onClick={() => toggleReaction('dislike')}
           aria-pressed={post.myReaction === 'dislike'}
-          title={canEngage ? '' : 'Logga in för att ogilla'}
+          title={canEngage ? 'Ogilla' : 'Logga in för att ogilla'}
         >
           <span className="hof-react-ico">👎</span>
           <span className="hof-react-count">{post.dislikeCount}</span>
@@ -309,6 +320,7 @@ function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete,
           canEngage={canEngage}
           isAdmin={isAdmin}
           currentUserId={currentUserId}
+          onRequireLogin={onRequireLogin}
           onCountChange={(c) => onPatch({ commentCount: c })}
         />
       )}
@@ -325,10 +337,11 @@ interface CommentsProps {
   canEngage: boolean;
   isAdmin: boolean;
   currentUserId: string | null;
+  onRequireLogin: () => void;
   onCountChange: (count: number) => void;
 }
 
-function Comments({ post, canEngage, isAdmin, currentUserId, onCountChange }: CommentsProps) {
+function Comments({ post, canEngage, isAdmin, currentUserId, onRequireLogin, onCountChange }: CommentsProps) {
   const [list, setList] = useState<HallComment[] | null>(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -430,9 +443,13 @@ function Comments({ post, canEngage, isAdmin, currentUserId, onCountChange }: Co
           </button>
         </form>
       ) : (
-        <p className="hof-comments-empty" style={{ marginTop: 10 }}>
-          Logga in för att kommentera.
-        </p>
+        <button
+          type="button"
+          className="btn btn-purple hof-comment-login-cta"
+          onClick={onRequireLogin}
+        >
+          Logga in för att kommentera
+        </button>
       )}
     </div>
   );
