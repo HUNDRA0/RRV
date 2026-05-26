@@ -112,3 +112,20 @@ export async function requireUser(
   req.user = user;
   next();
 }
+
+// Soft variant — attaches req.user when a valid token is present, but lets
+// anonymous requests through. Used by endpoints that personalize the
+// response (e.g. "did I like this?") but don't require login to read.
+export async function attachUser(
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const header = req.header('authorization') ?? '';
+  const match = /^Bearer\s+(.+)$/i.exec(header);
+  if (match) {
+    const user = await loadUserBySessionToken(match[1].trim());
+    if (user) req.user = user;
+  }
+  next();
+}
