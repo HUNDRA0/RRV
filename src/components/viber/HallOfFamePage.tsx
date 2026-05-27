@@ -44,7 +44,31 @@ export function HallOfFamePage() {
   const [filter, setFilter] = useState<FeedFilter>('all');
   const [lightboxPost, setLightboxPost] = useState<HallPost | null>(null);
   const [loginTab, setLoginTab] = useState<'login' | 'register' | 'recover' | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
   const requireLogin = useCallback(() => setLoginTab('login'), []);
+
+  // Toast that auto-clears. Used for "länken kopierad" after share fallback.
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(prev => (prev === msg ? null : prev)), 2400);
+  }, []);
+
+  // Deep link from another tab: #hall-of-fame?post=ID. Scroll to + briefly
+  // highlight the matching card once the feed has loaded.
+  useEffect(() => {
+    if (!posts || posts.length === 0) return;
+    const hash = window.location.hash;
+    const q = hash.indexOf('?');
+    if (q < 0) return;
+    const params = new URLSearchParams(hash.slice(q + 1));
+    const target = params.get('post');
+    if (!target) return;
+    const el = document.getElementById(`hof-post-${target}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('hof-card-flash');
+    window.setTimeout(() => el.classList.remove('hof-card-flash'), 2000);
+  }, [posts]);
 
   const refresh = useCallback(async () => {
     try { setPosts(await fetchHallPosts()); }
@@ -155,6 +179,7 @@ export function HallOfFamePage() {
               onDelete={() => onDelete(p.id)}
               onOpenImage={() => setLightboxPost(p)}
               onRequireLogin={requireLogin}
+              onShareCopied={() => showToast('Länken är kopierad')}
               onPatch={(patch) => {
                 setPosts(prev => prev?.map(x => x.id === p.id ? { ...x, ...patch } : x) ?? null);
               }}
@@ -178,6 +203,8 @@ export function HallOfFamePage() {
       {loginTab && (
         <LoginModal onClose={() => setLoginTab(null)} initialTab={loginTab} />
       )}
+
+      {toast && <div className="hof-toast" role="status" aria-live="polite">{toast}</div>}
     </div>
   );
 }
@@ -195,12 +222,41 @@ interface HofCardProps {
   onDelete: () => void;
   onOpenImage: () => void;
   onRequireLogin: () => void;
+  onShareCopied: () => void;
   onPatch: (patch: Partial<HallPost>) => void;
 }
 
-function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete, onOpenImage, onRequireLogin, onPatch }: HofCardProps) {
+function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete, onOpenImage, onRequireLogin, onShareCopied, onPatch }: HofCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [busyReaction, setBusyReaction] = useState(false);
+
+  async function share() {
+    const url = `${location.origin}/#hall-of-fame?post=${encodeURIComponent(post.id)}`;
+    const text = post.caption
+      ? `${post.author}: ${post.caption}`
+      : `${post.author} på Hall of Fame`;
+    // Web Share API is the gold path on phones — uses the native sheet.
+    const nav = navigator as Navigator & {
+      share?: (data: { title?: string; text?: string; url?: string }) => Promise<void>;
+    };
+    if (typeof nav.share === 'function') {
+      try {
+        await nav.share({ title: 'Hall of Fame', text, url });
+        return;
+      } catch (e) {
+        // User dismissed the sheet — that's a no-op, not an error.
+        if (e instanceof Error && e.name === 'AbortError') return;
+        // Fall through to clipboard on other errors.
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      onShareCopied();
+    } catch {
+      // Very old browser without clipboard API — last-resort prompt.
+      window.prompt('Kopiera länken:', url);
+    }
+  }
 
   async function toggleReaction(kind: 'like' | 'dislike') {
     if (!canEngage) { onRequireLogin(); return; }
@@ -234,7 +290,7 @@ function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete,
   }
 
   return (
-    <article className="hof-card">
+    <article className="hof-card" id={`hof-post-${post.id}`}>
       <header className="hof-card-head">
         <div className="hof-author-bubble" aria-hidden="true">
           {post.authorAvatarUrl
@@ -304,6 +360,16 @@ function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete,
         >
           <span className="hof-react-ico">👎</span>
           <span className="hof-react-count">{post.dislikeCount}</span>
+        </button>
+        <button
+          type="button"
+          className="hof-react"
+          onClick={() => void share()}
+          aria-label="Dela inlägget"
+          title="Dela"
+        >
+          <span className="hof-react-ico">↗</span>
+          <span className="hof-react-label">Dela</span>
         </button>
         <button
           type="button"
