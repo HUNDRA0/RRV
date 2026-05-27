@@ -2735,6 +2735,33 @@ img, video, svg { max-width: 100%; height: auto; }
   margin: 0 auto 24px;
 }
 
+.hof-sort {
+  max-width: 600px; margin: -8px auto 18px;
+  display: flex; align-items: center; gap: 10px;
+  font: 500 12px/1 var(--font-mono);
+  color: var(--mute);
+}
+.hof-sort label { letter-spacing: .04em; text-transform: uppercase; }
+.hof-sort select {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 8px;
+  font: 600 13px/1 var(--font-mono);
+  color: var(--ink);
+  cursor: pointer;
+}
+.hof-sort select:focus {
+  outline: none; border-color: var(--purple);
+}
+
+/* Views chip — non-interactive, just shows the count */
+.hof-views {
+  cursor: default;
+}
+.hof-views:hover { color: var(--mute); border-color: var(--line); }
+
 .hof-tabs {
   display: flex; gap: 6px;
   max-width: 600px; margin: 0 auto 18px;
