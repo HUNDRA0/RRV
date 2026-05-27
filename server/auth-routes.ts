@@ -66,12 +66,13 @@ function avatarUrlFor(userId: string, avatarUpdatedAt: string | null | undefined
   return `/api/auth/avatar/${encodeURIComponent(userId)}?v=${encodeURIComponent(avatarUpdatedAt)}`;
 }
 
-function userDto(u: { id: string; username: string; role: 'user' | 'admin'; avatar_updated_at?: string | null }) {
+function userDto(u: { id: string; username: string; role: string; avatar_updated_at?: string | null; linked_friend_id?: string | null }) {
   return {
     id: u.id,
     username: u.username,
     role: u.role,
     avatarUrl: avatarUrlFor(u.id, u.avatar_updated_at ?? null),
+    linkedFriendId: u.linked_friend_id ?? null,
   };
 }
 
@@ -186,10 +187,11 @@ export function addAuthRoutes(router: Router): void {
       id: string;
       username: string;
       password_hash: string;
-      role: 'user' | 'admin';
+      role: string;
       avatar_updated_at: string | null;
+      linked_friend_id: string | null;
     }>(
-      `SELECT id, username, password_hash, role, avatar_updated_at FROM users WHERE username = ? COLLATE NOCASE`,
+      `SELECT id, username, password_hash, role, avatar_updated_at, linked_friend_id FROM users WHERE username = ? COLLATE NOCASE`,
       [username],
     );
     if (!row || !verifyPassword(password, row.password_hash)) {
@@ -314,11 +316,12 @@ export function addAuthRoutes(router: Router): void {
     const row = await queryOne<{
       id: string;
       username: string;
-      role: 'user' | 'admin';
+      role: string;
       security_answer_hash: string;
       avatar_updated_at: string | null;
+      linked_friend_id: string | null;
     }>(
-      `SELECT id, username, role, security_answer_hash, avatar_updated_at FROM users WHERE username = ? COLLATE NOCASE`,
+      `SELECT id, username, role, security_answer_hash, avatar_updated_at, linked_friend_id FROM users WHERE username = ? COLLATE NOCASE`,
       [username],
     );
     if (!row || !verifyPassword(normalizeAnswer(answer), row.security_answer_hash)) {

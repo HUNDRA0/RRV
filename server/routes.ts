@@ -19,7 +19,14 @@ import { addCatanRoutes } from './catan-routes.js';
 import { addAuthRoutes } from './auth-routes.js';
 import { addPasskeyRoutes } from './passkey-routes.js';
 import { addHallRoutes, addHallBlobRoute } from './hall-routes.js';
-import { USER_SESSION_TTL_MS, hashPassword, newSessionToken } from './auth.js';
+import {
+  USER_SESSION_TTL_MS,
+  canEditFriend,
+  canEditFriendAddress,
+  hashPassword,
+  loadUserBySessionToken,
+  newSessionToken,
+} from './auth.js';
 
 // Synthetic user record backing the admin password flow. Lets admins create,
 // vote on, and delete polls without having to register a separate account —
@@ -198,6 +205,46 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// Combined auth for actions that admin OR a privileged user role can do.
+// Bearer can be either:
+//   - an admin session token (legacy ADMIN_PASSWORD flow), or
+//   - a user session token where the user has one of `allowedRoles`.
+// On success: sets req.admin = true for admin tokens, otherwise sets
+// req.user to the loaded UserRow. Callers branch on that to apply
+// field-level restrictions (e.g. address is admin-only).
+function requireAdminOrRole(allowedRoles: ReadonlySet<string>) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const header = req.header('authorization') ?? '';
+    const match = /^Bearer\s+(.+)$/i.exec(header);
+    if (!match) { res.status(401).json({ error: 'missing bearer token' }); return; }
+    const token = match[1].trim();
+    // Try admin path first — cheapest and the common case for the existing
+    // admin Edit-mode flow.
+    const adminRow = await queryOne<{ expires_at: string }>(
+      `SELECT expires_at FROM admin_sessions WHERE token = ?`,
+      [token],
+    );
+    if (adminRow) {
+      if (new Date(adminRow.expires_at).getTime() < Date.now()) {
+        await exec('DELETE FROM admin_sessions WHERE token = ?', [token]);
+        res.status(401).json({ error: 'token expired' }); return;
+      }
+      (req as Request & { admin?: true }).admin = true;
+      next();
+      return;
+    }
+    // Fall through to user session.
+    const user = await loadUserBySessionToken(token);
+    if (!user) { res.status(401).json({ error: 'invalid token' }); return; }
+    if (!allowedRoles.has(user.role)) {
+      res.status(403).json({ error: 'din roll har inte behörighet' });
+      return;
+    }
+    req.user = user;
+    next();
+  };
+}
+
 // ── Routes ────────────────────────────────────────────────────────────
 
 export const router: Router = Router();
@@ -206,6 +253,93 @@ addCatanRoutes(router);
 addAuthRoutes(router);
 addPasskeyRoutes(router);
 addHallRoutes(router);
+
+// ── User role management (admin only) ────────────────────────────────
+// Admin sees the full list of accounts and can assign one of the role
+// values plus a `linked_friend_id` so Stronk knows which friend record
+// is "theirs". The synthetic __admin__ row is filtered out — it's not
+// a real account.
+const ALLOWED_ROLES = new Set(['user', 'admin', 'court', 'stronk', 'peasant']);
+
+router.get('/users', requireAdmin, async (_req, res) => {
+  const rows = await queryAll<{
+    id: string;
+    username: string;
+    role: string;
+    linked_friend_id: string | null;
+    created_at: string;
+  }>(
+    `SELECT id, username, role, linked_friend_id, created_at
+     FROM users
+     WHERE id != '__admin__'
+     ORDER BY created_at`,
+  );
+  res.json({
+    users: rows.map(r => ({
+      id: r.id,
+      username: r.username,
+      role: r.role,
+      linkedFriendId: r.linked_friend_id,
+      createdAt: r.created_at,
+    })),
+  });
+});
+
+router.patch<{ id: string }>('/users/:id', requireAdmin, async (req, res) => {
+  const body = req.body as { role?: unknown; linkedFriendId?: unknown };
+  const updates: string[] = [];
+  const args: (string | null)[] = [];
+
+  if (body.role !== undefined) {
+    if (typeof body.role !== 'string' || !ALLOWED_ROLES.has(body.role)) {
+      res.status(400).json({ error: 'okänd roll' });
+      return;
+    }
+    updates.push('role = ?'); args.push(body.role);
+  }
+  if (body.linkedFriendId !== undefined) {
+    if (body.linkedFriendId === null || body.linkedFriendId === '') {
+      updates.push('linked_friend_id = NULL');
+    } else if (typeof body.linkedFriendId === 'string') {
+      const friend = await queryOne<{ id: string }>(
+        'SELECT id FROM friends WHERE id = ?',
+        [body.linkedFriendId],
+      );
+      if (!friend) { res.status(400).json({ error: 'okänd friend-id' }); return; }
+      updates.push('linked_friend_id = ?'); args.push(body.linkedFriendId);
+    } else {
+      res.status(400).json({ error: 'linkedFriendId måste vara sträng eller null' });
+      return;
+    }
+  }
+  if (updates.length === 0) { res.status(400).json({ error: 'inget att uppdatera' }); return; }
+
+  // Don't let admin accidentally lock themselves out by demoting the
+  // synthetic admin account from outside. (The query above already
+  // skips it, this is just belt-and-suspenders.)
+  if (req.params.id === '__admin__') {
+    res.status(403).json({ error: 'admin-kontot kan inte ändras härifrån' });
+    return;
+  }
+
+  updates.push(`updated_at = datetime('now')`);
+  args.push(req.params.id);
+  const result = await exec(
+    `UPDATE users SET ${updates.join(', ')} WHERE id = ?`,
+    args,
+  );
+  if (result.changes === 0) { res.status(404).json({ error: 'okänd användare' }); return; }
+  const row = await queryOne<{ id: string; username: string; role: string; linked_friend_id: string | null; created_at: string }>(
+    `SELECT id, username, role, linked_friend_id, created_at FROM users WHERE id = ?`,
+    [req.params.id],
+  );
+  res.json({
+    user: row && {
+      id: row.id, username: row.username, role: row.role,
+      linkedFriendId: row.linked_friend_id, createdAt: row.created_at,
+    },
+  });
+});
 
 // Per-IP login rate limiter: 5 attempts / 15 min, then 429.
 // In-memory map is fine for this scale; on serverless cold start it resets,
@@ -428,14 +562,34 @@ router.delete<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => 
   res.json({ ok: true, removed: id });
 });
 
-router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
+router.put<{ id: string }>(
+  '/friends/:id',
+  requireAdminOrRole(new Set(['admin', 'court', 'stronk'])),
+  async (req, res) => {
   const id = req.params.id;
   const friend = await getFriendDto(id);
   if (!friend) {
     res.status(404).json({ error: 'friend not found' });
     return;
   }
+  // Stronk only edits their own linked friend. Court has full reach
+  // across friends but still gets blocked from address fields below.
+  const reqAdmin = (req as Request & { admin?: true }).admin === true;
+  const editor = req.user;
+  if (!reqAdmin && editor && !canEditFriend(editor, id)) {
+    res.status(403).json({ error: 'du kan bara redigera ditt eget kort' });
+    return;
+  }
   const body = req.body as { name?: unknown; note?: unknown; bio?: unknown; currentMove?: unknown; lat?: unknown; lon?: unknown; tier?: unknown; rank?: unknown; street?: unknown; postcode?: unknown; city?: unknown };
+  // Address is admin-only. Reject the entire request if Court or Stronk
+  // tries to sneak street/postcode/city/lat/lon through.
+  const touchesAddress =
+    body.street !== undefined || body.postcode !== undefined ||
+    body.city !== undefined || body.lat !== undefined || body.lon !== undefined;
+  if (touchesAddress && !reqAdmin && !(editor && canEditFriendAddress(editor.role))) {
+    res.status(403).json({ error: 'adressfält får bara ändras av admin' });
+    return;
+  }
   const updates: string[] = [];
   const args: (string | number | null)[] = [];
   let coordsChanged = false;
@@ -528,14 +682,24 @@ router.put<{ id: string }>('/friends/:id', requireAdmin, async (req, res) => {
   }
 
   res.json(await getFriendDto(id));
-});
+  },
+);
 
 // Append a new photo to the friend's carousel. Returns the updated friend DTO.
-router.post<{ id: string }>('/friends/:id/photo', requireAdmin, async (req, res) => {
+router.post<{ id: string }>(
+  '/friends/:id/photo',
+  requireAdminOrRole(new Set(['admin', 'court', 'stronk'])),
+  async (req, res) => {
   const id = req.params.id;
   const friend = await queryOne<{ id: string }>('SELECT id FROM friends WHERE id = ?', [id]);
   if (!friend) {
     res.status(404).json({ error: 'friend not found' });
+    return;
+  }
+  const reqAdmin = (req as Request & { admin?: true }).admin === true;
+  const editor = req.user;
+  if (!reqAdmin && editor && !canEditFriend(editor, id)) {
+    res.status(403).json({ error: 'du kan bara redigera ditt eget kort' });
     return;
   }
   const dataUrl = typeof req.body?.dataUrl === 'string' ? req.body.dataUrl : '';
@@ -556,14 +720,21 @@ router.post<{ id: string }>('/friends/:id/photo', requireAdmin, async (req, res)
     [id, position, new Uint8Array(decoded.bytes), mime],
   );
   res.json(await getFriendDto(id));
-});
+  },
+);
 
 // Delete one photo and re-pack remaining positions so they stay 1..N.
 router.delete<{ id: string; position: string }>(
   '/friends/:id/photos/:position',
-  requireAdmin,
+  requireAdminOrRole(new Set(['admin', 'court', 'stronk'])),
   async (req, res) => {
     const id = req.params.id;
+    const reqAdmin = (req as Request & { admin?: true }).admin === true;
+    const editor = req.user;
+    if (!reqAdmin && editor && !canEditFriend(editor, id)) {
+      res.status(403).json({ error: 'du kan bara redigera ditt eget kort' });
+      return;
+    }
     const position = Number(req.params.position);
     if (!Number.isFinite(position) || position < 1) {
       res.status(400).json({ error: 'invalid position' });

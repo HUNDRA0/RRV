@@ -42,12 +42,21 @@ interface FetchOptions {
   auth?: boolean;       // admin bearer
   userAuth?: boolean;   // user bearer (optional; if no token, header is just omitted)
   requireUser?: boolean; // user bearer, throw if missing
+  adminOrUser?: boolean; // prefer admin token, fall back to user token
 }
 
 async function request<T>(path: string, opts: FetchOptions = {}): Promise<T> {
   const headers: Record<string, string> = {};
   if (opts.body !== undefined) headers['content-type'] = 'application/json';
-  if (opts.auth) {
+  if (opts.adminOrUser) {
+    // Friend edit endpoints accept either auth source; prefer admin if
+    // present, fall back to the logged-in user's bearer otherwise.
+    const adminTok = tokenStore.get();
+    const userTok = userTokenStore.get();
+    const tok = adminTok ?? userTok;
+    if (!tok) throw new ApiError('not logged in', 401);
+    headers['authorization'] = `Bearer ${tok}`;
+  } else if (opts.auth) {
     const token = tokenStore.get();
     if (!token) throw new ApiError('not logged in', 401);
     headers['authorization'] = `Bearer ${token}`;
@@ -152,11 +161,11 @@ export const api = {
       auth: true,
     }),
 
-  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number; tier?: string; rank?: number }) =>
+  updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number; tier?: string; rank?: number; street?: string; postcode?: string; city?: string }) =>
     request<Friend>(`/api/friends/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: patch,
-      auth: true,
+      adminOrUser: true,
     }),
 
   swapFriends: (idA: string, idB: string) =>
@@ -169,14 +178,14 @@ export const api = {
   deletePhoto: (id: string, position: number) =>
     request<Friend>(`/api/friends/${encodeURIComponent(id)}/photos/${position}`, {
       method: 'DELETE',
-      auth: true,
+      adminOrUser: true,
     }),
 
   uploadPhoto: (id: string, dataUrl: string) =>
     request<Friend>(`/api/friends/${encodeURIComponent(id)}/photo`, {
       method: 'POST',
       body: { dataUrl },
-      auth: true,
+      adminOrUser: true,
     }),
 
   updateSocials: (id: string, socials: { platform: string; handle: string }[]) =>
@@ -275,11 +284,37 @@ export const api = {
 
 // ── DTOs for new endpoints ─────────────────────────────────────────────
 
+export type ApiUserRole = 'user' | 'admin' | 'court' | 'stronk' | 'peasant';
+
 export interface ApiUser {
   id: string;
   username: string;
-  role: 'user' | 'admin';
+  role: ApiUserRole;
   avatarUrl: string | null;
+  linkedFriendId: string | null;
+}
+
+export interface ApiAdminUserRow {
+  id: string;
+  username: string;
+  role: ApiUserRole;
+  linkedFriendId: string | null;
+  createdAt: string;
+}
+
+export async function listUsers(): Promise<ApiAdminUserRow[]> {
+  const r = await request<{ users: ApiAdminUserRow[] }>('/api/users', { auth: true });
+  return r.users;
+}
+
+export async function updateUserRoleLink(
+  id: string,
+  patch: { role?: ApiUserRole; linkedFriendId?: string | null },
+): Promise<ApiAdminUserRow> {
+  const r = await request<{ user: ApiAdminUserRow }>(`/api/users/${encodeURIComponent(id)}`, {
+    method: 'PATCH', body: patch, auth: true,
+  });
+  return r.user;
 }
 
 export interface AuthResponse {

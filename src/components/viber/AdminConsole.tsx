@@ -2,16 +2,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Friend } from '../../data/friends';
 import { useEsc, useLockBody, useLocalState, dayOfYear } from '../../hooks/useViberHooks';
 import { useFriendsList } from '../../lib/state';
+import { listUsers, updateUserRoleLink, type ApiAdminUserRow, type ApiUserRole } from '../../lib/api';
 import { parseTierConfig, getTierCss, type TierConfig } from './tier-map';
 import { QUOTES_SEED } from './QuoteTicker';
 import { EVENTS_SEED, type EventItem } from './EventsSection';
 import { parseLunchData, type LunchData, type LunchDebt } from './LunchSection';
 import { PhotoCropModal } from './PhotoCropModal';
 
-type Tab = 'people' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'events' | 'lunch' | 'tiers' | 'design' | 'desktop-design' | 'data';
+type Tab = 'people' | 'roles' | 'leaderboard' | 'moves' | 'quotes' | 'gmap' | 'events' | 'lunch' | 'tiers' | 'design' | 'desktop-design' | 'data';
 
 const TABS: [Tab, string][] = [
   ['people',         'Personer'],
+  ['roles',          'Roller'],
   ['leaderboard',    'Jobblistan'],
   ['moves',          'Moves'],
   ['quotes',         'Citat'],
@@ -123,6 +125,8 @@ export function AdminConsole({ onClose }: AdminConsoleProps) {
               updateSocials={updateSocials}
             />
           )}
+
+          {tab === 'roles' && <RolesTab friends={friends} />}
 
           {tab === 'leaderboard' && (
             <div className="admin-list">
@@ -1817,6 +1821,100 @@ function DesktopDesignTab({ siteContent, updateContent }: DesktopDesignTabProps)
           ↺ Återställ desktop-layout
         </button>
       </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Roles tab — admin assigns role + linked friend to user accounts
+// ─────────────────────────────────────────────────────────────────────
+
+const ROLE_OPTIONS: [ApiUserRole, string, string][] = [
+  ['admin',   'Admin',   'Full kontroll'],
+  ['court',   'Court',   'Kan ändra allas bio/bild + radera HoF-inlägg'],
+  ['stronk',  'Stronk',  'Kan bara redigera sitt eget kort'],
+  ['peasant', 'Peasant', 'Inga extra rättigheter'],
+  ['user',    'User',    'Vanlig användare (kommentera/gilla)'],
+];
+
+function RolesTab({ friends }: { friends: Friend[] }) {
+  const [rows, setRows] = useState<ApiAdminUserRow[] | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try { setRows(await listUsers()); }
+      catch (e) { setErr(e instanceof Error ? e.message : 'fel'); }
+    })();
+  }, []);
+
+  async function patch(id: string, body: { role?: ApiUserRole; linkedFriendId?: string | null }) {
+    setSavingId(id);
+    setErr(null);
+    try {
+      const updated = await updateUserRoleLink(id, body);
+      setRows(prev => prev?.map(r => r.id === id ? updated : r) ?? null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'kunde inte spara');
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  if (err && !rows) return <div className="login-error">{err}</div>;
+  if (!rows) return <div className="card-meta">Laddar…</div>;
+  if (rows.length === 0) return <div className="card-meta">Inga registrerade användare ännu.</div>;
+
+  return (
+    <div className="admin-list admin-roles">
+      <p className="card-meta" style={{ marginTop: 0 }}>
+        Tilldela en roll till varje konto. Court och Admin kan redigera alla kort
+        (utom adress, som är admin-bara). Stronk får bara redigera sitt egna
+        länkade kort. Peasant och User har inga extra rättigheter på korten.
+      </p>
+      {err && <div className="login-error" style={{ marginBottom: 12 }}>{err}</div>}
+      <table className="admin-roles-table">
+        <thead>
+          <tr>
+            <th>Användare</th>
+            <th>Roll</th>
+            <th>Länkad person</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.id}>
+              <td>
+                <strong>{r.username}</strong>
+              </td>
+              <td>
+                <select
+                  value={r.role}
+                  disabled={savingId === r.id}
+                  onChange={(e) => void patch(r.id, { role: e.target.value as ApiUserRole })}
+                >
+                  {ROLE_OPTIONS.map(([v, label, hint]) => (
+                    <option key={v} value={v} title={hint}>{label}</option>
+                  ))}
+                </select>
+              </td>
+              <td>
+                <select
+                  value={r.linkedFriendId ?? ''}
+                  disabled={savingId === r.id}
+                  onChange={(e) => void patch(r.id, { linkedFriendId: e.target.value || null })}
+                >
+                  <option value="">— ingen —</option>
+                  {friends.map(f => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
