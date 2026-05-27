@@ -89,6 +89,7 @@ interface StickyNavProps {
   active: string;
   edit: boolean;
   isAdmin: boolean;
+  canEdit: boolean;
   currentUser: ApiUser | null;
   onToggleEdit: () => void;
   onOpenLogin: (tab?: 'login' | 'register' | 'recover') => void;
@@ -101,7 +102,7 @@ interface StickyNavProps {
 }
 
 export function StickyNav({
-  active, edit, isAdmin, currentUser,
+  active, edit, isAdmin, canEdit, currentUser,
   onToggleEdit, onOpenLogin, onOpenAdminConsole, onOpenProfile, onLogoutUser, onLogoutAdmin,
   theme, onToggleTheme,
 }: StickyNavProps) {
@@ -156,7 +157,7 @@ export function StickyNav({
         <span className="nav-active-label">{activeLabel}</span>
 
         <div className="nav-actions">
-          {isAdmin && (
+          {(isAdmin || canEdit) && (
             <button
               className="nav-edit"
               data-on={edit}

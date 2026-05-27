@@ -20,7 +20,7 @@
 import express, { type Router } from 'express';
 import { randomBytes } from 'node:crypto';
 import { exec, queryAll, queryOne } from './db.js';
-import { attachUser, requireUser } from './auth.js';
+import { attachUser, canDeleteAnyHallPost, requireUser } from './auth.js';
 
 const MAX_COMMENT = 500;
 
@@ -447,7 +447,8 @@ export function addHallRoutes(router: Router): void {
       [req.params.id],
     );
     if (!row) { res.status(404).json({ error: 'okänt inlägg' }); return; }
-    if (row.user_id !== req.user!.id && req.user!.role !== 'admin') {
+    // Owner can delete their own; admin and Court can delete anything.
+    if (row.user_id !== req.user!.id && !canDeleteAnyHallPost(req.user!.role)) {
       res.status(403).json({ error: 'inte ditt inlägg' });
       return;
     }

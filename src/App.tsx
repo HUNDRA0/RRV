@@ -28,7 +28,7 @@ export function App() {
   const {
     loading, loadError, refresh,
     friends, findFriend,
-    isAdmin, isEditing, toggleEditMode,
+    isAdmin, isEditing, toggleEditMode, canEditAnyFriend,
     siteContent, updateContent, dailyQuote,
     updateFriend, uploadPhoto, deletePhoto,
     currentUser, logoutUser, logout: logoutAdmin,
@@ -92,7 +92,10 @@ export function App() {
   const openFriend = openId ? findFriend(openId) : null;
 
   const onToggleEdit = () => {
-    if (!isAdmin) { setLoginInitialTab('login'); setLoginOpen(true); return; }
+    // Admin can always toggle. Logged-in Court/Stronk can too (their role
+    // determines which fields they can actually save). Guests get the
+    // login modal.
+    if (!canEditAnyFriend) { setLoginInitialTab('login'); setLoginOpen(true); return; }
     toggleEditMode();
   };
   const onOpenLogin = (tab: 'login' | 'register' | 'recover' = 'login') => {
@@ -146,6 +149,7 @@ export function App() {
         active={active}
         edit={isEditing}
         isAdmin={isAdmin}
+        canEdit={canEditAnyFriend}
         currentUser={currentUser}
         onToggleEdit={onToggleEdit}
         onOpenLogin={onOpenLogin}

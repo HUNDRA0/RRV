@@ -37,7 +37,7 @@ import { compressVideoToTargetSize } from '../../lib/compressVideo';
 type FeedFilter = 'all' | 'images' | 'videos';
 
 export function HallOfFamePage() {
-  const { currentUser, isAdmin } = useFriendsList();
+  const { currentUser, isAdmin, canDeleteAnyHallPost } = useFriendsList();
   const [posts, setPosts] = useState<HallPost[] | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -167,7 +167,7 @@ export function HallOfFamePage() {
           </p>
         )}
         {visiblePosts?.map((p) => {
-          const canDelete = !!currentUser && (currentUser.id === p.userId || isAdmin || currentUser.role === 'admin');
+          const canDelete = !!currentUser && (currentUser.id === p.userId || isAdmin || canDeleteAnyHallPost);
           return (
             <HofCard
               key={p.id}

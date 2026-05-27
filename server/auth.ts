@@ -15,11 +15,38 @@ export const USER_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const SCRYPT_KEYLEN = 64;
 const SCRYPT_N = 16384;
 
+export type UserRole = 'user' | 'admin' | 'court' | 'stronk' | 'peasant';
+
 export interface UserRow {
   id: string;
   username: string;
-  role: 'user' | 'admin';
+  role: UserRole;
   avatar_updated_at?: string | null;
+  linked_friend_id?: string | null;
+}
+
+// True when this role has admin-equivalent reach on friend records.
+// Court can edit any friend (except address); admin can do everything.
+export function canEditAnyFriend(role: UserRole): boolean {
+  return role === 'admin' || role === 'court';
+}
+
+// True when the role can edit THIS specific friend record.
+// Stronk only gets through if they're linked to that friend.
+export function canEditFriend(user: UserRow, friendId: string): boolean {
+  if (canEditAnyFriend(user.role)) return true;
+  if (user.role === 'stronk' && user.linked_friend_id === friendId) return true;
+  return false;
+}
+
+// Address-related fields stay admin-only — Court and Stronk can't touch them.
+export function canEditFriendAddress(role: UserRole): boolean {
+  return role === 'admin';
+}
+
+// HOF post deletion. Owner always can; admin + court can wipe anything.
+export function canDeleteAnyHallPost(role: UserRole): boolean {
+  return role === 'admin' || role === 'court';
 }
 
 declare global {
@@ -73,10 +100,11 @@ export async function loadUserBySessionToken(token: string): Promise<UserRow | n
     user_id: string;
     expires_at: string;
     username: string;
-    role: 'user' | 'admin';
+    role: UserRole;
     avatar_updated_at: string | null;
+    linked_friend_id: string | null;
   }>(
-    `SELECT s.user_id, s.expires_at, u.username, u.role, u.avatar_updated_at
+    `SELECT s.user_id, s.expires_at, u.username, u.role, u.avatar_updated_at, u.linked_friend_id
      FROM user_sessions s
      JOIN users u ON u.id = s.user_id
      WHERE s.token = ?`,
@@ -90,6 +118,7 @@ export async function loadUserBySessionToken(token: string): Promise<UserRow | n
   return {
     id: row.user_id, username: row.username, role: row.role,
     avatar_updated_at: row.avatar_updated_at,
+    linked_friend_id: row.linked_friend_id,
   };
 }
 

@@ -47,8 +47,15 @@ interface FriendsListState {
 
   // Edit mode — separate from isAdmin so admin can browse without affordances.
   isEditMode: boolean;
-  isEditing: boolean;  // convenience: isAdmin && isEditMode
+  isEditing: boolean;  // convenience: canEditAnyFriend && isEditMode
   toggleEditMode: () => void;
+
+  // Role-derived permission flags. Components use these to gate per-card
+  // edit affordances and address fields.
+  canEditAnyFriend: boolean;
+  canEditFriendById: (friendId: string) => boolean;
+  canEditAddress: boolean;
+  canDeleteAnyHallPost: boolean;
 
   // Admin mutations against friends.
   updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number; tier?: string; rank?: number }) => Promise<void>;
@@ -163,9 +170,33 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     }
   }, [refresh, refreshPolls]);
 
+  // Anyone whose role grants friend-card editing reach: admin (full), court
+  // (any friend, no address), stronk (own linked friend only). The Edit
+  // toggle and per-card affordances key off these.
+  const role = currentUser?.role ?? null;
+  const canEditAnyFriend =
+    isAdmin || role === 'admin' || role === 'court' || role === 'stronk';
+  const canEditFriendById = useCallback(
+    (friendId: string): boolean => {
+      if (isAdmin) return true;
+      if (!currentUser) return false;
+      if (currentUser.role === 'admin' || currentUser.role === 'court') return true;
+      if (currentUser.role === 'stronk' && currentUser.linkedFriendId === friendId) return true;
+      return false;
+    },
+    [isAdmin, currentUser],
+  );
+  // Address (street/postcode/city/lat/lon) stays admin-only — Court and
+  // Stronk can't touch it.
+  const canEditAddress = isAdmin || role === 'admin';
+  // HOF post deletion: admin + court can wipe anything; owner deletes own
+  // (already handled per-post elsewhere).
+  const canDeleteAnyHallPost =
+    isAdmin || role === 'admin' || role === 'court';
+
   // admin-mode body class drives all edit affordances — only active when
   // logged in AND the edit mode toggle is on.
-  const isEditing = isAdmin && isEditMode;
+  const isEditing = canEditAnyFriend && isEditMode;
   useEffect(() => {
     document.body.classList.toggle('admin-mode', isEditing);
     return () => document.body.classList.remove('admin-mode');
@@ -408,6 +439,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       gmap,
       siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
+      canEditAnyFriend, canEditFriendById, canEditAddress, canDeleteAnyHallPost,
       updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials, createFriend, deleteFriend,
       currentUser, userAuthError, registerUser, loginUser, loginWithPasskey, signupWithPasskey, logoutUser, recoverStart, recoverFinish, setMyAvatar, clearMyAvatar,
       polls, refreshPolls, createPoll, votePoll, deletePoll,
@@ -419,6 +451,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
       gmap,
       siteContent, updateContent, dailyQuote,
       isAdmin, isEditMode, isEditing, toggleEditMode, loginError, tryLogin, logout,
+      canEditAnyFriend, canEditFriendById, canEditAddress, canDeleteAnyHallPost,
       updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials, createFriend, deleteFriend,
       currentUser, userAuthError, registerUser, loginUser, loginWithPasskey, signupWithPasskey, logoutUser, recoverStart, recoverFinish, setMyAvatar, clearMyAvatar,
       polls, refreshPolls, createPoll, votePoll, deletePoll,

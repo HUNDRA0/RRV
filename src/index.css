@@ -973,6 +973,35 @@ h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; letter-spac
 .admin-photo-add:hover { border-color: var(--purple); color: var(--purple); }
 
 .admin-list { display: grid; gap: 8px; }
+
+.admin-roles-table {
+  width: 100%; border-collapse: collapse;
+  font: 400 14px/1.3 var(--font-body);
+}
+.admin-roles-table th, .admin-roles-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+.admin-roles-table th {
+  font: 700 12px/1 var(--font-mono);
+  color: var(--mute);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.admin-roles-table select {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 8px;
+  font: inherit; color: var(--ink);
+}
+.admin-roles-table select:focus {
+  outline: none; border-color: var(--purple);
+}
+
 .admin-row {
   display: grid; grid-template-columns: 56px 120px 1fr auto;
   align-items: center; gap: 12px;
