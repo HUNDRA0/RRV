@@ -3000,6 +3000,35 @@ img, video, svg { max-width: 100%; height: auto; }
 }
 .hof-file-pick:hover { border-color: var(--purple); background: color-mix(in srgb, var(--purple) 8%, var(--paper)); }
 .hof-file-pick-icon { font-size: 28px; }
+
+.hof-compress {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--purple) 6%, var(--paper));
+}
+.hof-compress-label {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font: 600 13px/1.2 var(--font-mono);
+  color: var(--ink);
+}
+.hof-compress-pct { font-variant-numeric: tabular-nums; color: var(--purple); }
+.hof-compress-bar {
+  height: 6px; margin-top: 8px;
+  background: color-mix(in srgb, var(--ink) 10%, var(--paper));
+  border-radius: 999px; overflow: hidden;
+}
+.hof-compress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--purple), var(--purple-3, var(--purple)));
+  transition: width .2s linear;
+}
+.hof-compress-hint {
+  margin: 8px 0 0;
+  font: 400 11px/1.3 var(--font-mono);
+  color: var(--mute);
+}
 .hof-file-preview {
   display: flex; flex-direction: column; align-items: center; gap: 10px;
 }

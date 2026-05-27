@@ -158,8 +158,14 @@ export async function deleteHallPost(id: string): Promise<void> {
 // regardless, this just gives the user faster feedback.
 export const CLIENT_ALLOWED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 export const CLIENT_ALLOWED_VIDEO = ['video/mp4', 'video/webm', 'video/quicktime'];
-// Vercel caps serverless request bodies at ~4.5 MB. Raw binary fits closer
-// to that ceiling than base64 (which adds ~33%), but we leave headroom for
-// headers + URL + content-length so the request never gets bounced at the
-// edge. For larger videos, the YouTube tab is the right choice.
-export const CLIENT_MAX_BYTES = 4 * 1024 * 1024; // 4 MB
+// What we actually ship to the server. Vercel caps serverless function
+// bodies at ~4.5 MB; we stay under with headroom for headers.
+export const UPLOAD_SAFE_BYTES = 4 * 1024 * 1024;       // 4 MB
+// What the user can pick from disk. Videos above UPLOAD_SAFE_BYTES are
+// re-encoded in the browser before upload (see lib/compressVideo).
+export const VIDEO_SOURCE_MAX_BYTES = 100 * 1024 * 1024; // 100 MB
+// Images are tiny by comparison and we don't compress them — cap at the
+// safe upload size directly.
+export const IMAGE_MAX_BYTES = UPLOAD_SAFE_BYTES;
+// Back-compat alias for callers that haven't switched yet.
+export const CLIENT_MAX_BYTES = UPLOAD_SAFE_BYTES;

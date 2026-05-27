@@ -18,7 +18,9 @@ import { LoginModal } from './LoginModal';
 import {
   CLIENT_ALLOWED_IMAGE,
   CLIENT_ALLOWED_VIDEO,
-  CLIENT_MAX_BYTES,
+  IMAGE_MAX_BYTES,
+  UPLOAD_SAFE_BYTES,
+  VIDEO_SOURCE_MAX_BYTES,
   addHallComment,
   createHallBinaryPost,
   createHallPost,
@@ -30,6 +32,7 @@ import {
   type HallComment,
   type HallPost,
 } from '../../lib/hallApi';
+import { compressVideoToTargetSize } from '../../lib/compressVideo';
 
 type FeedFilter = 'all' | 'images' | 'videos';
 
@@ -554,6 +557,8 @@ function UploadModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const [caption, setCaption] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // Compression progress 0..1; null when not compressing.
+  const [compressProgress, setCompressProgress] = useState<number | null>(null);
 
   useLockBody(true);
   useEsc(onClose, !busy);
@@ -564,16 +569,23 @@ function UploadModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
     setErr(null);
     const f = e.target.files?.[0];
     if (!f) return;
-    if (f.size > CLIENT_MAX_BYTES) {
-      setErr(`Filen är för stor (max ${Math.round(CLIENT_MAX_BYTES / 1024 / 1024)} MB).`);
-      e.target.value = '';
-      return;
-    }
     const mime = f.type.toLowerCase();
     const isImage = CLIENT_ALLOWED_IMAGE.includes(mime);
     const isVideo = CLIENT_ALLOWED_VIDEO.includes(mime);
     if (!isImage && !isVideo) {
       setErr('Bara bild- och videofiler stöds (jpg, png, webp, gif, mp4, mov, webm).');
+      e.target.value = '';
+      return;
+    }
+    // Images upload as-is, so the cap is the safe upload size.
+    if (isImage && f.size > IMAGE_MAX_BYTES) {
+      setErr(`Bilden är för stor (max ${Math.round(IMAGE_MAX_BYTES / 1024 / 1024)} MB).`);
+      e.target.value = '';
+      return;
+    }
+    // Videos can be much larger — we'll compress in-browser before upload.
+    if (isVideo && f.size > VIDEO_SOURCE_MAX_BYTES) {
+      setErr(`Videon är för stor (max ${Math.round(VIDEO_SOURCE_MAX_BYTES / 1024 / 1024)} MB innan komprimering).`);
       e.target.value = '';
       return;
     }
@@ -609,10 +621,33 @@ function UploadModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
     if (!file || !previewKind) { setErr('Välj en fil först.'); return; }
     setBusy(true);
     try {
-      const post = await createHallBinaryPost(file, previewKind, caption);
+      let uploadFile: File = file;
+
+      // Videos over the safe size go through MediaRecorder re-encode
+      // first. Target slightly under the cap to leave headroom for the
+      // mp4/webm container overhead the encoder adds.
+      if (previewKind === 'video' && file.size > UPLOAD_SAFE_BYTES) {
+        setCompressProgress(0);
+        const targetBytes = Math.floor(UPLOAD_SAFE_BYTES * 0.92);
+        const blob = await compressVideoToTargetSize(file, {
+          targetBytes,
+          onProgress: (p) => setCompressProgress(p),
+        });
+        // If even the re-encode can't get small enough (very long video),
+        // bail with a clear message rather than try a doomed upload.
+        if (blob.size > UPLOAD_SAFE_BYTES) {
+          throw new Error('klippet är för långt — klipp ner det eller använd YouTube-fliken');
+        }
+        const baseName = file.name.replace(/\.[^.]+$/, '') || 'video';
+        uploadFile = new File([blob], `${baseName}.webm`, { type: blob.type || 'video/webm' });
+        setCompressProgress(null);
+      }
+
+      const post = await createHallBinaryPost(uploadFile, previewKind, caption);
       onCreated(post);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'kunde inte ladda upp');
+      setCompressProgress(null);
     } finally {
       setBusy(false);
     }
@@ -652,7 +687,7 @@ function UploadModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                 <label className="hof-file-pick">
                   <span className="hof-file-pick-icon">📁</span>
                   <span><strong>Välj bild eller video</strong></span>
-                  <span className="card-meta">jpg / png / webp / gif / mp4 / mov / webm — max 4 MB. Större video? Klistra in en YouTube-länk istället.</span>
+                  <span className="card-meta">Bilder upp till 4 MB. Större video komprimeras automatiskt i webbläsaren.</span>
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
@@ -697,9 +732,29 @@ function UploadModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
 
           {err && <div className="login-error">{err}</div>}
 
+          {compressProgress !== null && (
+            <div className="hof-compress" aria-live="polite">
+              <div className="hof-compress-label">
+                <span>Komprimerar video…</span>
+                <span className="hof-compress-pct">{Math.round(compressProgress * 100)}%</span>
+              </div>
+              <div className="hof-compress-bar">
+                <div
+                  className="hof-compress-fill"
+                  style={{ width: `${Math.round(compressProgress * 100)}%` }}
+                />
+              </div>
+              <p className="hof-compress-hint">
+                Tar ungefär lika lång tid som klippet självt — släpp inte fliken.
+              </p>
+            </div>
+          )}
+
           <div className="modal-photo-controls" style={{ marginTop: 8 }}>
             <button type="button" className="btn btn-purple" onClick={submit} disabled={busy}>
-              {busy ? 'Laddar upp…' : 'Lägg upp'}
+              {busy
+                ? (compressProgress !== null ? 'Komprimerar…' : 'Laddar upp…')
+                : 'Lägg upp'}
             </button>
             <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>Avbryt</button>
           </div>
