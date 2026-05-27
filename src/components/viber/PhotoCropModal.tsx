@@ -46,8 +46,14 @@ export function PhotoCropModal({
   // offsetX/Y are the image's center expressed in frame coordinates
   // (FRAME_PX/2 = centered).
   const [offset, setOffset] = useState({ x: 0, y: 0 });
-  // Whether the user is currently dragging.
+  // Single-finger drag state.
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+  // Live pointers on the frame (mouse, touch, pen). Pinch fires when 2 are
+  // active simultaneously.
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  // Pinch state captured once when the second finger lands; all subsequent
+  // pinch math reads from here so zoom doesn't drift between move events.
+  const pinchRef = useRef<{ startDist: number; startZoom: number; startOffset: { x: number; y: number } } | null>(null);
 
   const FRAME_PX = 320; // size of the preview frame on screen
   useLockBody(true);
@@ -79,36 +85,98 @@ export function PhotoCropModal({
     };
   }
 
-  // Pointer drag
-  function onPointerDown(e: React.PointerEvent) {
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      origX: offset.x,
-      origY: offset.y,
-    };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-  function onPointerMove(e: React.PointerEvent) {
-    if (!dragRef.current) return;
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
-    setOffset(clamp({
-      x: dragRef.current.origX + dx,
-      y: dragRef.current.origY + dy,
+  // Zoom in a way that keeps the frame's center mapped to the same source
+  // pixel — without this, clicking +/− or moving the slider made the image
+  // appear to stretch toward the top-left.
+  function setZoomCentered(newZoom: number) {
+    const z = clampZoom(newZoom);
+    if (z === zoom) return;
+    const f = z / zoom;
+    // Compute the new max-offset bounds inline (state hasn't re-rendered yet
+    // so clamp()'s closure would still see the old dimensions).
+    const newScale = baseScale * z;
+    const newDispW = natural.w * newScale;
+    const newDispH = natural.h * newScale;
+    const maxX = Math.max(0, (newDispW - FRAME_PX) / 2);
+    const maxY = Math.max(0, (newDispH - FRAME_PX) / 2);
+    setZoom(z);
+    setOffset(o => ({
+      x: Math.max(-maxX, Math.min(maxX, o.x * f)),
+      y: Math.max(-maxY, Math.min(maxY, o.y * f)),
     }));
   }
+
+  // Pointer + touch handling. One finger pans; two fingers pinch-zoom.
+  function onPointerDown(e: React.PointerEvent) {
+    if (!imgLoaded) return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (pointersRef.current.size === 1) {
+      dragRef.current = {
+        startX: e.clientX, startY: e.clientY,
+        origX: offset.x, origY: offset.y,
+      };
+    } else if (pointersRef.current.size === 2) {
+      // Second finger landed — abandon any in-flight drag and capture
+      // pinch baseline.
+      dragRef.current = null;
+      const pts = [...pointersRef.current.values()];
+      pinchRef.current = {
+        startDist: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y),
+        startZoom: zoom,
+        startOffset: { x: offset.x, y: offset.y },
+      };
+    }
+  }
+  function onPointerMove(e: React.PointerEvent) {
+    if (!pointersRef.current.has(e.pointerId)) return;
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    // Two-finger pinch: zoom = startZoom * (currentDist / startDist).
+    // Offset rescales proportionally so the frame-center source pixel
+    // stays put.
+    if (pointersRef.current.size >= 2 && pinchRef.current) {
+      const pts = [...pointersRef.current.values()];
+      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      const targetZoom = clampZoom(pinchRef.current.startZoom * (dist / pinchRef.current.startDist));
+      const f = targetZoom / pinchRef.current.startZoom;
+      const newScale = baseScale * targetZoom;
+      const newDispW = natural.w * newScale;
+      const newDispH = natural.h * newScale;
+      const maxX = Math.max(0, (newDispW - FRAME_PX) / 2);
+      const maxY = Math.max(0, (newDispH - FRAME_PX) / 2);
+      setZoom(targetZoom);
+      setOffset({
+        x: Math.max(-maxX, Math.min(maxX, pinchRef.current.startOffset.x * f)),
+        y: Math.max(-maxY, Math.min(maxY, pinchRef.current.startOffset.y * f)),
+      });
+      return;
+    }
+
+    // Single-finger drag.
+    if (dragRef.current) {
+      const dx = e.clientX - dragRef.current.startX;
+      const dy = e.clientY - dragRef.current.startY;
+      setOffset(clamp({
+        x: dragRef.current.origX + dx,
+        y: dragRef.current.origY + dy,
+      }));
+    }
+  }
   function onPointerUp(e: React.PointerEvent) {
-    dragRef.current = null;
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size < 2) pinchRef.current = null;
+    if (pointersRef.current.size === 0) dragRef.current = null;
     try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
   }
 
-  // Wheel zoom
+  // Wheel zoom — also center-anchored now.
   function onWheel(e: React.WheelEvent) {
     if (!imgLoaded) return;
     e.preventDefault();
     const delta = -e.deltaY * 0.0015;
-    setZoom(z => clampZoom(z * (1 + delta)));
+    setZoomCentered(zoom * (1 + delta));
   }
   function clampZoom(z: number): number {
     return Math.max(1, Math.min(5, z));
@@ -161,7 +229,7 @@ export function PhotoCropModal({
             Placera bilden
           </h2>
           <p className="card-meta" style={{ marginBottom: 14 }}>
-            Dra bilden för att flytta. Zooma med hjulet eller med + / –.
+            Dra för att flytta. Nyp med två fingrar för att zooma — eller använd hjulet / + / –.
           </p>
 
           <div
@@ -170,6 +238,8 @@ export function PhotoCropModal({
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+            onPointerLeave={onPointerUp}
             onWheel={onWheel}
           >
             <img
@@ -193,7 +263,7 @@ export function PhotoCropModal({
             <button
               type="button"
               className="btn btn-ghost photo-crop-zoom-btn"
-              onClick={() => setZoom(z => clampZoom(z - 0.15))}
+              onClick={() => setZoomCentered(zoom - 0.15)}
               aria-label="Zooma ut"
               disabled={zoom <= 1.001}
             >−</button>
@@ -203,14 +273,14 @@ export function PhotoCropModal({
               max={5}
               step={0.01}
               value={zoom}
-              onChange={(e) => setZoom(clampZoom(parseFloat(e.target.value)))}
+              onChange={(e) => setZoomCentered(parseFloat(e.target.value))}
               aria-label="Zoom"
               className="photo-crop-zoom-range"
             />
             <button
               type="button"
               className="btn btn-ghost photo-crop-zoom-btn"
-              onClick={() => setZoom(z => clampZoom(z + 0.15))}
+              onClick={() => setZoomCentered(zoom + 0.15)}
               aria-label="Zooma in"
               disabled={zoom >= 4.999}
             >+</button>
