@@ -3,6 +3,8 @@
 
 import { userTokenStore, ApiError } from './api';
 
+export type HallSort = 'newest' | 'oldest' | 'most_viewed' | 'most_liked' | 'most_disliked';
+
 export interface HallPost {
   id: string;
   userId: string;
@@ -17,6 +19,7 @@ export interface HallPost {
   likeCount: number;
   dislikeCount: number;
   commentCount: number;
+  viewCount: number;
   myReaction: 'like' | 'dislike' | null;
 }
 
@@ -30,13 +33,28 @@ export interface HallComment {
   createdAt: string;
 }
 
-export async function fetchHallPosts(): Promise<HallPost[]> {
+export async function fetchHallPosts(sort: HallSort = 'newest'): Promise<HallPost[]> {
   const token = userTokenStore.get();
   const headers: Record<string, string> = {};
   if (token) headers.authorization = `Bearer ${token}`;
-  const r = await fetch('/api/hall/posts', { headers });
+  const r = await fetch(`/api/hall/posts?sort=${encodeURIComponent(sort)}`, { headers });
   if (!r.ok) throw new Error('kunde inte hämta inlägg');
   return (await r.json()).posts;
+}
+
+// Fire-and-forget view increment. Caller dedupes via sessionStorage so a
+// post only counts once per browser session.
+export function recordHallView(postId: string): void {
+  const key = `rrv_hof_viewed_${postId}`;
+  try {
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+  } catch {
+    // Private mode / storage full — fall through, server-side will still
+    // count, just without per-session dedupe. Acceptable.
+  }
+  void fetch(`/api/hall/posts/${encodeURIComponent(postId)}/view`, { method: 'POST' })
+    .catch(() => { /* best effort */ });
 }
 
 export async function fetchHallComments(postId: string): Promise<HallComment[]> {

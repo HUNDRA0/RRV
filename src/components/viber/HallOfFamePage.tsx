@@ -28,9 +28,11 @@ import {
   deleteHallPost,
   fetchHallComments,
   fetchHallPosts,
+  recordHallView,
   setHallReaction,
   type HallComment,
   type HallPost,
+  type HallSort,
 } from '../../lib/hallApi';
 import { compressVideoToTargetSize } from '../../lib/compressVideo';
 
@@ -42,6 +44,7 @@ export function HallOfFamePage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FeedFilter>('all');
+  const [sort, setSort] = useState<HallSort>('newest');
   const [lightboxPost, setLightboxPost] = useState<HallPost | null>(null);
   const [loginTab, setLoginTab] = useState<'login' | 'register' | 'recover' | null>(null);
   const [toast, setToast] = useState<string | null>(null);
@@ -71,9 +74,9 @@ export function HallOfFamePage() {
   }, [posts]);
 
   const refresh = useCallback(async () => {
-    try { setPosts(await fetchHallPosts()); }
+    try { setPosts(await fetchHallPosts(sort)); }
     catch (e) { setError(e instanceof Error ? e.message : 'fel'); }
-  }, []);
+  }, [sort]);
 
   useEffect(() => { void refresh(); }, [refresh]);
 
@@ -128,32 +131,48 @@ export function HallOfFamePage() {
       {error && <p className="login-error" style={{ margin: '0 auto', maxWidth: 600 }}>{error}</p>}
 
       {posts && posts.length > 0 && (
-        <div className="hof-tabs" role="tablist" aria-label="Filtrera inlägg">
-          <button
-            role="tab"
-            aria-selected={filter === 'all'}
-            className={filter === 'all' ? 'active' : ''}
-            onClick={() => setFilter('all')}
-          >
-            Alla <span className="hof-tab-count">{posts.length}</span>
-          </button>
-          <button
-            role="tab"
-            aria-selected={filter === 'images'}
-            className={filter === 'images' ? 'active' : ''}
-            onClick={() => setFilter('images')}
-          >
-            Bilder <span className="hof-tab-count">{imageCount}</span>
-          </button>
-          <button
-            role="tab"
-            aria-selected={filter === 'videos'}
-            className={filter === 'videos' ? 'active' : ''}
-            onClick={() => setFilter('videos')}
-          >
-            Videor <span className="hof-tab-count">{videoCount}</span>
-          </button>
-        </div>
+        <>
+          <div className="hof-tabs" role="tablist" aria-label="Filtrera inlägg">
+            <button
+              role="tab"
+              aria-selected={filter === 'all'}
+              className={filter === 'all' ? 'active' : ''}
+              onClick={() => setFilter('all')}
+            >
+              Alla <span className="hof-tab-count">{posts.length}</span>
+            </button>
+            <button
+              role="tab"
+              aria-selected={filter === 'images'}
+              className={filter === 'images' ? 'active' : ''}
+              onClick={() => setFilter('images')}
+            >
+              Bilder <span className="hof-tab-count">{imageCount}</span>
+            </button>
+            <button
+              role="tab"
+              aria-selected={filter === 'videos'}
+              className={filter === 'videos' ? 'active' : ''}
+              onClick={() => setFilter('videos')}
+            >
+              Videor <span className="hof-tab-count">{videoCount}</span>
+            </button>
+          </div>
+          <div className="hof-sort">
+            <label htmlFor="hof-sort-select">Sortera:</label>
+            <select
+              id="hof-sort-select"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as HallSort)}
+            >
+              <option value="newest">Nyast först</option>
+              <option value="oldest">Äldst först</option>
+              <option value="most_viewed">Mest tittad</option>
+              <option value="most_liked">Mest gillad</option>
+              <option value="most_disliked">Mest ogillad</option>
+            </select>
+          </div>
+        </>
       )}
 
       <main className="hof-feed">
@@ -229,6 +248,42 @@ interface HofCardProps {
 function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete, onOpenImage, onRequireLogin, onShareCopied, onPatch }: HofCardProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [busyReaction, setBusyReaction] = useState(false);
+  const cardRef = useRef<HTMLElement | null>(null);
+  const viewCountedRef = useRef(false);
+
+  // Count one view per post per session once the card is meaningfully on
+  // screen (≥50% visible for ≥1.5 s). We optimistically bump the local
+  // count so the chip updates instantly; the server is the source of
+  // truth on next refresh.
+  useEffect(() => {
+    if (viewCountedRef.current) return;
+    const el = cardRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+    let timer: number | null = null;
+    const io = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.intersectionRatio >= 0.5) {
+          if (timer === null) {
+            timer = window.setTimeout(() => {
+              if (viewCountedRef.current) return;
+              viewCountedRef.current = true;
+              recordHallView(post.id);
+              onPatch({ viewCount: post.viewCount + 1 });
+              io.disconnect();
+            }, 1500);
+          }
+        } else if (timer !== null) {
+          window.clearTimeout(timer);
+          timer = null;
+        }
+      }
+    }, { threshold: [0, 0.5, 1] });
+    io.observe(el);
+    return () => { io.disconnect(); if (timer !== null) window.clearTimeout(timer); };
+    // We deliberately don't depend on post.viewCount so the effect only
+    // sets up once per mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [post.id]);
 
   async function share() {
     const url = `${location.origin}/#hall-of-fame?post=${encodeURIComponent(post.id)}`;
@@ -290,7 +345,7 @@ function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete,
   }
 
   return (
-    <article className="hof-card" id={`hof-post-${post.id}`}>
+    <article className="hof-card" id={`hof-post-${post.id}`} ref={cardRef}>
       <header className="hof-card-head">
         <div className="hof-author-bubble" aria-hidden="true">
           {post.authorAvatarUrl
@@ -361,6 +416,14 @@ function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete,
           <span className="hof-react-ico">👎</span>
           <span className="hof-react-count">{post.dislikeCount}</span>
         </button>
+        <span
+          className="hof-react hof-views"
+          title="Visningar"
+          aria-label={`${post.viewCount} visningar`}
+        >
+          <EyeIcon />
+          <span className="hof-react-count">{post.viewCount}</span>
+        </span>
         <button
           type="button"
           className="hof-react"
@@ -368,7 +431,7 @@ function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete,
           aria-label="Dela inlägget"
           title="Dela"
         >
-          <span className="hof-react-ico">↗</span>
+          <ShareIosIcon />
           <span className="hof-react-label">Dela</span>
         </button>
         <button
@@ -591,6 +654,35 @@ function ImageLightbox({ post, onClose }: { post: HallPost; onClose: () => void 
       </div>
       {post.caption && <p className="hof-lightbox-caption" onClick={(e) => e.stopPropagation()}>{post.caption}</p>}
     </div>
+  );
+}
+
+// iPhone-style share icon — square with an up-arrow popping out.
+function ShareIosIcon() {
+  return (
+    <svg className="hof-react-ico" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M12 3 L12 15 M12 3 L8 7 M12 3 L16 7"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"
+      />
+      <path
+        d="M6 11 L6 20 A1 1 0 0 0 7 21 L17 21 A1 1 0 0 0 18 20 L18 11"
+        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"
+      />
+    </svg>
+  );
+}
+
+// Eye icon for the views chip.
+function EyeIcon() {
+  return (
+    <svg className="hof-react-ico" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M2 12 C 5 6, 9 4, 12 4 C 15 4, 19 6, 22 12 C 19 18, 15 20, 12 20 C 9 20, 5 18, 2 12 Z"
+        stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.8" fill="none" />
+    </svg>
   );
 }
 

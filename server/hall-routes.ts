@@ -143,6 +143,7 @@ interface PostRow {
   dislike_count?: number;
   comment_count?: number;
   my_reaction?: 'like' | 'dislike' | null;
+  view_count?: number;
 }
 
 function postDto(row: PostRow) {
@@ -162,6 +163,7 @@ function postDto(row: PostRow) {
     likeCount: Number(row.like_count ?? 0),
     dislikeCount: Number(row.dislike_count ?? 0),
     commentCount: Number(row.comment_count ?? 0),
+    viewCount: Number(row.view_count ?? 0),
     myReaction: row.my_reaction ?? null,
   };
 }
@@ -193,23 +195,53 @@ function commentDto(row: CommentRow) {
 export function addHallRoutes(router: Router): void {
   // List the entire feed. Public — anyone can view. If a session token is
   // present we also populate `myReaction` so the UI can highlight buttons.
+  //
+  // Sort options come in via ?sort=...:
+  //   newest         (default) — created_at DESC
+  //   oldest         — created_at ASC
+  //   most_viewed    — view_count DESC then newest
+  //   most_liked     — like_count DESC then newest
+  //   most_disliked  — dislike_count DESC then newest
   router.get('/hall/posts', attachUser, async (req, res) => {
     const me = req.user?.id ?? null;
+    const sortParam = String(req.query.sort ?? 'newest');
+    const orderBy = (() => {
+      switch (sortParam) {
+        case 'oldest':        return 'p.created_at ASC';
+        case 'most_viewed':   return 'p.view_count DESC, p.created_at DESC';
+        case 'most_liked':    return 'like_count DESC, p.created_at DESC';
+        case 'most_disliked': return 'dislike_count DESC, p.created_at DESC';
+        case 'newest':
+        default:              return 'p.created_at DESC';
+      }
+    })();
     const rows = await queryAll<PostRow>(
       `SELECT p.id, p.user_id, p.kind, p.blob_mime, p.youtube_id, p.caption,
-              p.created_at, u.username AS author_username, u.avatar_updated_at AS author_avatar_updated_at,
+              p.created_at, p.view_count, u.username AS author_username, u.avatar_updated_at AS author_avatar_updated_at,
               (SELECT COUNT(*) FROM hall_of_fame_reactions r WHERE r.post_id = p.id AND r.kind = 'like') AS like_count,
               (SELECT COUNT(*) FROM hall_of_fame_reactions r WHERE r.post_id = p.id AND r.kind = 'dislike') AS dislike_count,
               (SELECT COUNT(*) FROM hall_of_fame_comments c WHERE c.post_id = p.id) AS comment_count,
               (SELECT r.kind FROM hall_of_fame_reactions r WHERE r.post_id = p.id AND r.user_id = ?) AS my_reaction
        FROM hall_of_fame_posts p
        JOIN users u ON u.id = p.user_id
-       ORDER BY p.created_at DESC`,
+       ORDER BY ${orderBy}`,
       [me ?? ''],
     );
     // Personalized field → no shared cache.
     res.setHeader('Cache-Control', me ? 'private, no-store' : 'public, max-age=15, stale-while-revalidate=60');
     res.json({ posts: rows.map(postDto) });
+  });
+
+  // Bump the view counter on a post. Anonymous — the dedupe is on the
+  // client via sessionStorage so this stays a single round-trip per
+  // post per session.
+  router.post<{ id: string }>('/hall/posts/:id/view', async (req, res) => {
+    const r = await exec(
+      `UPDATE hall_of_fame_posts SET view_count = view_count + 1 WHERE id = ?`,
+      [req.params.id],
+    );
+    if (r.changes === 0) { res.status(404).json({ error: 'okänt inlägg' }); return; }
+    res.json({ ok: true });
   });
 
   // List comments for one post. Public.
@@ -460,7 +492,7 @@ export function addHallRoutes(router: Router): void {
 async function fetchPost(id: string) {
   const row = await queryOne<PostRow>(
     `SELECT p.id, p.user_id, p.kind, p.blob_mime, p.youtube_id, p.caption,
-            p.created_at, u.username AS author_username, u.avatar_updated_at AS author_avatar_updated_at
+            p.created_at, p.view_count, u.username AS author_username, u.avatar_updated_at AS author_avatar_updated_at
      FROM hall_of_fame_posts p
      JOIN users u ON u.id = p.user_id
      WHERE p.id = ?`,
