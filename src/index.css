@@ -2849,9 +2849,12 @@ img, video, svg { max-width: 100%; height: auto; }
 }
 .hof-image-btn img { display: block; }
 
-/* Reaction row + comments under each card */
+/* Reaction row + comments under each card.
+   flex-wrap lets the row break onto a second line on narrow screens
+   rather than letting chips spill past the card edge. */
 .hof-actions {
   display: flex; align-items: center; gap: 8px;
+  flex-wrap: wrap;
   padding: 10px 14px 14px;
   border-top: 1px solid var(--line);
 }
@@ -2864,6 +2867,8 @@ img, video, svg { max-width: 100%; height: auto; }
   color: var(--mute);
   cursor: pointer;
   transition: background .15s, color .15s, border-color .15s, transform .12s;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .hof-react:hover { color: var(--ink); border-color: var(--ink); }
 .hof-react:disabled { cursor: not-allowed; opacity: .55; }
@@ -2877,18 +2882,23 @@ img, video, svg { max-width: 100%; height: auto; }
 .hof-react-ico { font-size: 16px; line-height: 1; flex-shrink: 0; }
 .hof-react-count { font-variant-numeric: tabular-nums; }
 .hof-react-label { display: none; }
-.hof-comments-toggle { margin-left: auto; }
+/* margin-left:auto only behaves nicely when the row doesn't wrap; once
+   wrapping kicks in we want the comments chip to flow naturally. */
+@media (min-width: 521px) {
+  .hof-comments-toggle { margin-left: auto; }
+}
 /* Show the text label for these chips at every viewport so the row is
    self-explanatory ("👁 7 Views", "↗ Dela", "💬 3 Kommentarer"). */
 .hof-comments-toggle .hof-react-label,
 .hof-share .hof-react-label,
 .hof-views .hof-react-label { display: inline; }
 
-/* Tighten chip padding on phones so all five fit on one row. */
+/* Tighten chip padding on phones so chips that DO fit on one row stay
+   compact; if they don't, they wrap. Either way nothing escapes the card. */
 @media (max-width: 520px) {
-  .hof-actions { gap: 6px; padding: 10px 10px 12px; }
+  .hof-actions { gap: 6px; padding: 10px 12px 12px; }
   .hof-react {
-    padding: 6px 8px;
+    padding: 6px 9px;
     font-size: 12px;
     gap: 4px;
   }
