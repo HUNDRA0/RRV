@@ -2874,15 +2874,25 @@ img, video, svg { max-width: 100%; height: auto; }
   border-color: var(--purple);
   color: var(--purple);
 }
-.hof-react-ico { font-size: 16px; line-height: 1; }
+.hof-react-ico { font-size: 16px; line-height: 1; flex-shrink: 0; }
 .hof-react-count { font-variant-numeric: tabular-nums; }
 .hof-react-label { display: none; }
 .hof-comments-toggle { margin-left: auto; }
-.hof-comments-toggle .hof-react-label { display: inline; }
+/* Show the text label for these chips at every viewport so the row is
+   self-explanatory ("👁 7 Views", "↗ Dela", "💬 3 Kommentarer"). */
+.hof-comments-toggle .hof-react-label,
+.hof-share .hof-react-label,
+.hof-views .hof-react-label { display: inline; }
 
-/* Show "Dela" label inline on desktop; collapse to icon-only on phones */
-@media (min-width: 520px) {
-  .hof-react .hof-react-label { display: inline; }
+/* Tighten chip padding on phones so all five fit on one row. */
+@media (max-width: 520px) {
+  .hof-actions { gap: 6px; padding: 10px 10px 12px; }
+  .hof-react {
+    padding: 6px 8px;
+    font-size: 12px;
+    gap: 4px;
+  }
+  .hof-react-ico { font-size: 14px; }
 }
 
 /* Flash highlight when arriving via a #hall-of-fame?post=ID deep link */
