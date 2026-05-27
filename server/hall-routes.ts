@@ -386,6 +386,60 @@ export function addHallRoutes(router: Router): void {
     },
   );
 
+  // Binary upload — raw bytes instead of base64 data URL. We accept this
+  // path because Vercel caps serverless request bodies at 4.5 MB; base64
+  // inflates the payload by ~33% so the JSON endpoint above tops out around
+  // a 3 MB video. Raw bytes give us ~4.4 MB of actual file budget.
+  //
+  // The kind + caption arrive in the query string (UTF-8 safe via
+  // URLSearchParams). The Content-Type header carries the declared mime
+  // — we still magic-byte-verify the actual bytes.
+  router.post(
+    '/hall/posts/binary',
+    express.raw({ type: ['image/*', 'video/*'], limit: '20mb' }),
+    requireUser,
+    async (req, res) => {
+      const kindParam = String(req.query.kind ?? '');
+      const kind = kindParam === 'image' || kindParam === 'video' ? kindParam : null;
+      if (!kind) {
+        res.status(400).json({ error: 'kind måste vara image eller video' });
+        return;
+      }
+      const caption = String(req.query.caption ?? '').slice(0, MAX_CAPTION);
+      const declaredMime = (req.header('content-type') || '').toLowerCase();
+      const bytes = req.body as Buffer | undefined;
+      if (!Buffer.isBuffer(bytes) || bytes.length === 0) {
+        res.status(400).json({ error: 'fil saknas' });
+        return;
+      }
+      if (bytes.length > MAX_BYTES) {
+        res.status(413).json({ error: `filen är för stor (max ${Math.round(MAX_BYTES / 1024 / 1024)} MB)` });
+        return;
+      }
+
+      const allowed = kind === 'image' ? ALLOWED_IMAGE_MIMES : ALLOWED_VIDEO_MIMES;
+      if (!allowed.has(declaredMime)) {
+        res.status(415).json({ error: `${declaredMime || 'okänt format'} stöds inte` });
+        return;
+      }
+      const u8 = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+      const actualMime = kind === 'image' ? detectImage(u8, declaredMime) : detectVideo(u8);
+      if (!actualMime || !allowed.has(actualMime)) {
+        res.status(415).json({ error: 'filens innehåll matchar inte ett bild- eller videoformat' });
+        return;
+      }
+
+      const id = newId();
+      await exec(
+        `INSERT INTO hall_of_fame_posts (id, user_id, kind, blob_data, blob_mime, caption)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, req.user!.id, kind, bytes, actualMime, caption],
+      );
+      const row = await fetchPost(id);
+      res.status(201).json(row);
+    },
+  );
+
   // Delete — owner or admin.
   router.delete<{ id: string }>('/hall/posts/:id', requireUser, async (req, res) => {
     const row = await queryOne<{ user_id: string }>(

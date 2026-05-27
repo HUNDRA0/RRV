@@ -20,6 +20,7 @@ import {
   CLIENT_ALLOWED_VIDEO,
   CLIENT_MAX_BYTES,
   addHallComment,
+  createHallBinaryPost,
   createHallPost,
   deleteHallComment,
   deleteHallPost,
@@ -608,8 +609,7 @@ function UploadModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
     if (!file || !previewKind) { setErr('Välj en fil först.'); return; }
     setBusy(true);
     try {
-      const dataUrl = await readFileAsDataUrl(file);
-      const post = await createHallPost({ kind: previewKind, dataUrl, caption });
+      const post = await createHallBinaryPost(file, previewKind, caption);
       onCreated(post);
     } catch (e) {
       setErr(e instanceof Error ? e.message : 'kunde inte ladda upp');
@@ -652,7 +652,7 @@ function UploadModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
                 <label className="hof-file-pick">
                   <span className="hof-file-pick-icon">📁</span>
                   <span><strong>Välj bild eller video</strong></span>
-                  <span className="card-meta">jpg / png / webp / gif / mp4 / mov / webm — max 16 MB</span>
+                  <span className="card-meta">jpg / png / webp / gif / mp4 / mov / webm — max 4 MB. Större video? Klistra in en YouTube-länk istället.</span>
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"
@@ -709,11 +709,3 @@ function UploadModal({ onClose, onCreated }: { onClose: () => void; onCreated: (
   );
 }
 
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(String(r.result));
-    r.onerror = () => reject(new Error('kunde inte läsa filen'));
-    r.readAsDataURL(file);
-  });
-}

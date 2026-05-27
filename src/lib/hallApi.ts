@@ -120,6 +120,29 @@ export async function createHallPost(input: CreateInput): Promise<HallPost> {
   return body;
 }
 
+// Raw-binary upload — avoids base64 inflation so we can fit ~30% more
+// content under Vercel's 4.5 MB serverless body cap.
+export async function createHallBinaryPost(
+  file: File,
+  kind: 'image' | 'video',
+  caption: string,
+): Promise<HallPost> {
+  const token = userTokenStore.get();
+  if (!token) throw new ApiError('not logged in', 401);
+  const q = new URLSearchParams({ kind, caption });
+  const r = await fetch(`/api/hall/posts/binary?${q.toString()}`, {
+    method: 'POST',
+    headers: {
+      'content-type': file.type || 'application/octet-stream',
+      'authorization': `Bearer ${token}`,
+    },
+    body: file,
+  });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new ApiError(body.error || 'kunde inte ladda upp', r.status);
+  return body;
+}
+
 export async function deleteHallPost(id: string): Promise<void> {
   const token = userTokenStore.get();
   if (!token) throw new ApiError('not logged in', 401);
@@ -135,4 +158,8 @@ export async function deleteHallPost(id: string): Promise<void> {
 // regardless, this just gives the user faster feedback.
 export const CLIENT_ALLOWED_IMAGE = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 export const CLIENT_ALLOWED_VIDEO = ['video/mp4', 'video/webm', 'video/quicktime'];
-export const CLIENT_MAX_BYTES = 16 * 1024 * 1024;
+// Vercel caps serverless request bodies at ~4.5 MB. Raw binary fits closer
+// to that ceiling than base64 (which adds ~33%), but we leave headroom for
+// headers + URL + content-length so the request never gets bounced at the
+// edge. For larger videos, the YouTube tab is the right choice.
+export const CLIENT_MAX_BYTES = 4 * 1024 * 1024; // 4 MB
