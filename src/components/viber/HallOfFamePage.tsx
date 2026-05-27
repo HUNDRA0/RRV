@@ -423,10 +423,11 @@ function HofCard({ post, canDelete, canEngage, isAdmin, currentUserId, onDelete,
         >
           <EyeIcon />
           <span className="hof-react-count">{post.viewCount}</span>
+          <span className="hof-react-label">Views</span>
         </span>
         <button
           type="button"
-          className="hof-react"
+          className="hof-react hof-share"
           onClick={() => void share()}
           aria-label="Dela inlägget"
           title="Dela"
@@ -658,17 +659,24 @@ function ImageLightbox({ post, onClose }: { post: HallPost; onClose: () => void 
 }
 
 // iPhone-style share icon — square with an up-arrow popping out.
+// Stroke is heavier than the eye icon so it reads at chip size.
 function ShareIosIcon() {
   return (
-    <svg className="hof-react-ico" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M12 3 L12 15 M12 3 L8 7 M12 3 L16 7"
-        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"
-      />
-      <path
-        d="M6 11 L6 20 A1 1 0 0 0 7 21 L17 21 A1 1 0 0 0 18 20 L18 11"
-        stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"
-      />
+    <svg
+      className="hof-react-ico"
+      width="18" height="18" viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {/* Arrow up out of the box */}
+      <path d="M12 3 L12 14" />
+      <path d="M8 7 L12 3 L16 7" />
+      {/* Open box / "tray" below */}
+      <path d="M7 10 L7 20 A1 1 0 0 0 8 21 L16 21 A1 1 0 0 0 17 20 L17 10" />
     </svg>
   );
 }
@@ -676,12 +684,17 @@ function ShareIosIcon() {
 // Eye icon for the views chip.
 function EyeIcon() {
   return (
-    <svg className="hof-react-ico" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-      <path
-        d="M2 12 C 5 6, 9 4, 12 4 C 15 4, 19 6, 22 12 C 19 18, 15 20, 12 20 C 9 20, 5 18, 2 12 Z"
-        stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinejoin="round"
-      />
-      <circle cx="12" cy="12" r="3.2" stroke="currentColor" strokeWidth="1.8" fill="none" />
+    <svg
+      className="hof-react-ico"
+      width="18" height="18" viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinejoin="round"
+    >
+      <path d="M2 12 C 5 6, 9 4, 12 4 C 15 4, 19 6, 22 12 C 19 18, 15 20, 12 20 C 9 20, 5 18, 2 12 Z" />
+      <circle cx="12" cy="12" r="3.2" />
     </svg>
   );
 }
