@@ -10,7 +10,6 @@ import { MovesSection } from './components/viber/MovesSection';
 import { EventsSection, EVENTS_SEED, type EventItem } from './components/viber/EventsSection';
 import { LunchSection, parseLunchData } from './components/viber/LunchSection';
 import { PersonModal } from './components/viber/PersonModal';
-import { EditBanner } from './components/viber/EditBanner';
 import { LoginModal } from './components/viber/LoginModal';
 import { ProfileSettingsModal } from './components/viber/ProfileSettingsModal';
 import { applyTheme, readThemeFromContent } from './lib/theme';
@@ -28,7 +27,7 @@ export function App() {
   const {
     loading, loadError, refresh,
     friends, findFriend,
-    isAdmin, isEditing, toggleEditMode, canEditAnyFriend,
+    isAdmin,
     siteContent, updateContent, dailyQuote,
     updateFriend, uploadPhoto, deletePhoto,
     currentUser, logoutUser, logout: logoutAdmin,
@@ -38,7 +37,18 @@ export function App() {
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginInitialTab, setLoginInitialTab] = useState<'login' | 'register' | 'recover'>('login');
   const [adminConsoleOpen, setAdminConsoleOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+
+  // Non-admin edit scope: Court edits everyone, Stronk only their linked
+  // friend. Admin uses the full Admin Console instead.
+  const editorScope: 'all' | string[] | null = (() => {
+    if (isAdmin) return null;
+    if (currentUser?.role === 'court') return 'all';
+    if (currentUser?.role === 'stronk') return currentUser.linkedFriendId ? [currentUser.linkedFriendId] : [];
+    return null;
+  })();
+  const canUseEditor = editorScope !== null;
 
   // Auto-open admin console the first time isAdmin flips on (post-login).
   const wasAdmin = useRef(false);
@@ -46,7 +56,6 @@ export function App() {
     if (isAdmin && !wasAdmin.current) setAdminConsoleOpen(true);
     wasAdmin.current = isAdmin;
   }, [isAdmin]);
-  const [bannerOpen, setBannerOpen] = useLocalState('vr.banner', true);
   const [theme, setTheme] = useLocalState<'light' | 'dark'>('vr.theme', 'light');
 
   const active = useActiveSection(SECTION_IDS);
@@ -62,9 +71,6 @@ export function App() {
   useEffect(() => {
     applyTheme(readThemeFromContent(siteContent));
   }, [siteContent]);
-
-  // Re-show the edit banner whenever editing turns back on.
-  useEffect(() => { if (isEditing) setBannerOpen(true); }, [isEditing, setBannerOpen]);
 
   // dailyQuote is picked server-side in /api/bootstrap — stable for the whole UTC day.
 
@@ -91,12 +97,17 @@ export function App() {
   const todaysQuote = dailyQuote || 'Vibe responsibly.';
   const openFriend = openId ? findFriend(openId) : null;
 
-  const onToggleEdit = () => {
-    // Admin can always toggle. Logged-in Court/Stronk can too (their role
-    // determines which fields they can actually save). Guests get the
-    // login modal.
-    if (!canEditAnyFriend) { setLoginInitialTab('login'); setLoginOpen(true); return; }
-    toggleEditMode();
+  // Inline edit mode is gone — all editing now happens inside a console
+  // (Admin Console for admin, restricted editor for Court/Stronk). The
+  // sections below still accept an `edit` prop, so we pin it to false.
+  const isEditing = false;
+
+  // Clicking the account "Redigera" entry opens the right console for the
+  // current role.
+  const onOpenEditor = () => {
+    if (isAdmin) { setAdminConsoleOpen(true); return; }
+    if (canUseEditor) { setEditorOpen(true); return; }
+    setLoginInitialTab('login'); setLoginOpen(true);
   };
   const onOpenLogin = (tab: 'login' | 'register' | 'recover' = 'login') => {
     setLoginInitialTab(tab);
@@ -147,13 +158,12 @@ export function App() {
       <AuroraBg />
       <StickyNav
         active={active}
-        edit={isEditing}
         isAdmin={isAdmin}
-        canEdit={canEditAnyFriend}
+        canEdit={canUseEditor}
         currentUser={currentUser}
-        onToggleEdit={onToggleEdit}
         onOpenLogin={onOpenLogin}
         onOpenAdminConsole={() => setAdminConsoleOpen(true)}
+        onOpenEditor={onOpenEditor}
         onOpenProfile={() => setProfileOpen(true)}
         onLogoutUser={logoutUser}
         onLogoutAdmin={logoutAdmin}
@@ -221,8 +231,8 @@ export function App() {
         <AdminConsole onClose={() => setAdminConsoleOpen(false)} />
       )}
 
-      {isEditing && bannerOpen && (
-        <EditBanner onClose={() => setBannerOpen(false)} />
+      {editorOpen && canUseEditor && editorScope !== null && (
+        <AdminConsole editorScope={editorScope} onClose={() => setEditorOpen(false)} />
       )}
     </div>
   );

@@ -87,13 +87,12 @@ function NavTabs({ active, onJump }: NavTabsProps) {
 
 interface StickyNavProps {
   active: string;
-  edit: boolean;
   isAdmin: boolean;
   canEdit: boolean;
   currentUser: ApiUser | null;
-  onToggleEdit: () => void;
   onOpenLogin: (tab?: 'login' | 'register' | 'recover') => void;
   onOpenAdminConsole: () => void;
+  onOpenEditor: () => void;
   onOpenProfile: () => void;
   onLogoutUser: () => Promise<void> | void;
   onLogoutAdmin: () => Promise<void> | void;
@@ -102,8 +101,8 @@ interface StickyNavProps {
 }
 
 export function StickyNav({
-  active, edit, isAdmin, canEdit, currentUser,
-  onToggleEdit, onOpenLogin, onOpenAdminConsole, onOpenProfile, onLogoutUser, onLogoutAdmin,
+  active, isAdmin, canEdit, currentUser,
+  onOpenLogin, onOpenAdminConsole, onOpenEditor, onOpenProfile, onLogoutUser, onLogoutAdmin,
   theme, onToggleTheme,
 }: StickyNavProps) {
   const scrolled = useScrolled(20);
@@ -157,17 +156,6 @@ export function StickyNav({
         <span className="nav-active-label">{activeLabel}</span>
 
         <div className="nav-actions">
-          {(isAdmin || canEdit) && (
-            <button
-              className="nav-edit"
-              data-on={edit}
-              onClick={onToggleEdit}
-              title="Edit mode"
-            >
-              {edit ? '● Edit' : '○ Edit'}
-            </button>
-          )}
-
           {/* Dark mode toggle — always visible, no dropdown */}
           <button
             className="nav-theme-btn"
@@ -180,11 +168,13 @@ export function StickyNav({
 
           <UserMenu
             isAdmin={isAdmin}
+            canEdit={canEdit}
             currentUser={currentUser}
             onLoginClick={() => onOpenLogin('login')}
             onRegisterClick={() => onOpenLogin('register')}
             onRecoverClick={() => onOpenLogin('recover')}
             onOpenAdminConsole={onOpenAdminConsole}
+            onOpenEditor={onOpenEditor}
             onOpenProfile={onOpenProfile}
             onLogoutUser={onLogoutUser}
             onLogoutAdmin={onLogoutAdmin}
