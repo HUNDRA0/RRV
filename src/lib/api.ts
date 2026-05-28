@@ -158,7 +158,7 @@ export const api = {
     request<{ key: string; value: string }>(`/api/content/${encodeURIComponent(key)}`, {
       method: 'PATCH',
       body: { value },
-      auth: true,
+      adminOrUser: true,
     }),
 
   updateFriend: (id: string, patch: { name?: string; note?: string; bio?: string; currentMove?: string; lat?: number; lon?: number; tier?: string; rank?: number; street?: string; postcode?: string; city?: string }) =>
@@ -172,7 +172,7 @@ export const api = {
     request<{ ok: boolean }>('/api/admin/friends/swap', {
       method: 'POST',
       body: { idA, idB },
-      auth: true,
+      adminOrUser: true,
     }),
 
   deletePhoto: (id: string, position: number) =>
@@ -192,16 +192,16 @@ export const api = {
     request<Friend>(`/api/friends/${encodeURIComponent(id)}/socials`, {
       method: 'PUT',
       body: { socials },
-      auth: true,
+      adminOrUser: true,
     }),
 
   createFriend: (input: { name: string; id?: string; tier?: string; rank?: number; street?: string; postcode?: string; city?: string; bio?: string; currentMove?: string }) =>
-    request<Friend>('/api/friends', { method: 'POST', body: input, auth: true }),
+    request<Friend>('/api/friends', { method: 'POST', body: input, adminOrUser: true }),
 
   deleteFriend: (id: string) =>
     request<{ ok: true; removed: string }>(`/api/friends/${encodeURIComponent(id)}`, {
       method: 'DELETE',
-      auth: true,
+      adminOrUser: true,
     }),
 
   submitPrediction: (input: { guesser: string; friendId: string; text: string }) =>
@@ -211,11 +211,11 @@ export const api = {
     request<ApiPrediction>(`/api/predictions/${id}`, {
       method: 'PATCH',
       body: { correct },
-      auth: true,
+      adminOrUser: true,
     }),
 
   deletePrediction: (id: number) =>
-    request<{ ok: true }>(`/api/predictions/${id}`, { method: 'DELETE', auth: true }),
+    request<{ ok: true }>(`/api/predictions/${id}`, { method: 'DELETE', adminOrUser: true }),
 
   // ── User auth ─────────────────────────────────────────────────────────
 
@@ -303,7 +303,7 @@ export interface ApiAdminUserRow {
 }
 
 export async function listUsers(): Promise<ApiAdminUserRow[]> {
-  const r = await request<{ users: ApiAdminUserRow[] }>('/api/users', { auth: true });
+  const r = await request<{ users: ApiAdminUserRow[] }>('/api/users', { adminOrUser: true });
   return r.users;
 }
 
@@ -312,7 +312,7 @@ export async function updateUserRoleLink(
   patch: { role?: ApiUserRole; linkedFriendId?: string | null },
 ): Promise<ApiAdminUserRow> {
   const r = await request<{ user: ApiAdminUserRow }>(`/api/users/${encodeURIComponent(id)}`, {
-    method: 'PATCH', body: patch, auth: true,
+    method: 'PATCH', body: patch, adminOrUser: true,
   });
   return r.user;
 }

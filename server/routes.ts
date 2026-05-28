@@ -189,20 +189,29 @@ async function requireAdmin(req: Request, res: Response, next: NextFunction) {
     return;
   }
   const token = match[1].trim();
+  // Path 1: legacy password admin (admin_sessions).
   const row = await queryOne<{ expires_at: string }>(
     `SELECT expires_at FROM admin_sessions WHERE token = ?`,
     [token],
   );
-  if (!row) {
-    res.status(401).json({ error: 'invalid token' });
+  if (row) {
+    if (new Date(row.expires_at).getTime() < Date.now()) {
+      await exec('DELETE FROM admin_sessions WHERE token = ?', [token]);
+      res.status(401).json({ error: 'token expired' });
+      return;
+    }
+    next();
     return;
   }
-  if (new Date(row.expires_at).getTime() < Date.now()) {
-    await exec('DELETE FROM admin_sessions WHERE token = ?', [token]);
-    res.status(401).json({ error: 'token expired' });
+  // Path 2: a user account granted role='admin' — full equivalence with
+  // the password admin. Their user session token works on every admin route.
+  const user = await loadUserBySessionToken(token);
+  if (user && user.role === 'admin') {
+    req.user = user;
+    next();
     return;
   }
-  next();
+  res.status(401).json({ error: 'invalid token' });
 }
 
 // Combined auth for actions that admin OR a privileged user role can do.

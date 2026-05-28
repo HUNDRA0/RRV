@@ -103,7 +103,10 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [isAdmin, setIsAdmin] = useState(false);
+  // Admin can come from two sources, treated identically everywhere:
+  //   1. the legacy password login (admin_sessions token), or
+  //   2. a user account that's been granted role='admin'.
+  const [adminViaToken, setAdminViaToken] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -158,8 +161,8 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     sessionChecked.current = true;
     if (tokenStore.get()) {
       api.checkSession().then(
-        () => setIsAdmin(true),
-        () => { tokenStore.clear(); setIsAdmin(false); },
+        () => setAdminViaToken(true),
+        () => { tokenStore.clear(); setAdminViaToken(false); },
       );
     }
     if (userTokenStore.get()) {
@@ -170,17 +173,21 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     }
   }, [refresh, refreshPolls]);
 
-  // Anyone whose role grants friend-card editing reach: admin (full), court
-  // (any friend, no address), stronk (own linked friend only). The Edit
-  // toggle and per-card affordances key off these.
+  // Effective admin = password admin OR a role='admin' account. Everything
+  // downstream (Admin Console, permission helpers) keys off this single
+  // flag so the two sources are indistinguishable.
   const role = currentUser?.role ?? null;
+  const isAdmin = adminViaToken || role === 'admin';
+
+  // Anyone whose role grants friend-card editing reach: admin (full), court
+  // (any friend, no address), stronk (own linked friend only).
   const canEditAnyFriend =
-    isAdmin || role === 'admin' || role === 'court' || role === 'stronk';
+    isAdmin || role === 'court' || role === 'stronk';
   const canEditFriendById = useCallback(
     (friendId: string): boolean => {
       if (isAdmin) return true;
       if (!currentUser) return false;
-      if (currentUser.role === 'admin' || currentUser.role === 'court') return true;
+      if (currentUser.role === 'court') return true;
       if (currentUser.role === 'stronk' && currentUser.linkedFriendId === friendId) return true;
       return false;
     },
@@ -188,11 +195,10 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
   );
   // Address (street/postcode/city/lat/lon) stays admin-only — Court and
   // Stronk can't touch it.
-  const canEditAddress = isAdmin || role === 'admin';
+  const canEditAddress = isAdmin;
   // HOF post deletion: admin + court can wipe anything; owner deletes own
   // (already handled per-post elsewhere).
-  const canDeleteAnyHallPost =
-    isAdmin || role === 'admin' || role === 'court';
+  const canDeleteAnyHallPost = isAdmin || role === 'court';
 
   // admin-mode body class drives all edit affordances — only active when
   // logged in AND the edit mode toggle is on.
@@ -213,7 +219,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     try {
       const { token, userToken, user } = await api.login(password);
       tokenStore.set(token);
-      setIsAdmin(true);
+      setAdminViaToken(true);
       // Admin login also issues a parallel user session for the synthetic
       // 'admin' user so polls (which require a user_session) work natively.
       if (userToken) userTokenStore.set(userToken);
@@ -229,7 +235,7 @@ export function FriendsListProvider({ children }: { children: ReactNode }) {
     try { await api.logout(); } catch { /* token already invalid is fine */ }
     tokenStore.clear();
     userTokenStore.clear();
-    setIsAdmin(false);
+    setAdminViaToken(false);
     setCurrentUser(null);
     setIsEditMode(false);
     setLoginError(null);
