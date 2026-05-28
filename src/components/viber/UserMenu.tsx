@@ -16,20 +16,22 @@ import type { ApiUser } from '../../lib/api';
 
 interface UserMenuProps {
   isAdmin: boolean;
+  canEdit: boolean;
   currentUser: ApiUser | null;
   onLoginClick: () => void;
   onRegisterClick: () => void;
   onRecoverClick: () => void;
   onOpenAdminConsole: () => void;
+  onOpenEditor: () => void;
   onOpenProfile: () => void;
   onLogoutUser: () => Promise<void> | void;
   onLogoutAdmin: () => Promise<void> | void;
 }
 
 export function UserMenu({
-  isAdmin, currentUser,
+  isAdmin, canEdit, currentUser,
   onLoginClick, onRegisterClick, onRecoverClick,
-  onOpenAdminConsole, onOpenProfile, onLogoutUser, onLogoutAdmin,
+  onOpenAdminConsole, onOpenEditor, onOpenProfile, onLogoutUser, onLogoutAdmin,
 }: UserMenuProps) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLDivElement | null>(null);
@@ -111,6 +113,12 @@ export function UserMenu({
           {isAdmin && (
             <button className="user-menu-item" onClick={() => { close(); onOpenAdminConsole(); }}>
               <span className="user-menu-ico">⚙</span> Admin Console
+            </button>
+          )}
+
+          {!isAdmin && canEdit && currentUser && (
+            <button className="user-menu-item" onClick={() => { close(); onOpenEditor(); }}>
+              <span className="user-menu-ico">✏️</span> Redigera
             </button>
           )}
 

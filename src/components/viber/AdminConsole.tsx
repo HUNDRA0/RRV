@@ -28,18 +28,80 @@ const TABS: [Tab, string][] = [
 
 interface AdminConsoleProps {
   onClose: () => void;
+  // When set, the console runs in restricted "editor" mode: no admin tabs,
+  // just a bio/photo editor for the friends the current role may touch.
+  //   'all'        → Court (every friend)
+  //   string[]     → Stronk (only their linked friend ids)
+  // Undefined → full admin console.
+  editorScope?: 'all' | string[];
 }
 
-export function AdminConsole({ onClose }: AdminConsoleProps) {
+export function AdminConsole({ onClose, editorScope }: AdminConsoleProps) {
   const {
     friends, siteContent, updateContent,
     updateFriend, swapFriends, uploadPhoto, deletePhoto, updateSocials,
-    logout, gmap,
+    logout, gmap, logoutUser,
   } = useFriendsList();
   const [tab, setTab] = useState<Tab>('people');
 
   useEsc(onClose, true);
   useLockBody(true);
+
+  // ── Restricted editor mode (Court / Stronk) ─────────────────────────
+  // Render a stripped console: only a list of editable people, each with
+  // a bio + photo editor and an explicit Save button.
+  if (editorScope) {
+    const editable = editorScope === 'all'
+      ? [...friends].sort((a, b) => a.rank - b.rank)
+      : [...friends].filter(f => editorScope.includes(f.id)).sort((a, b) => a.rank - b.rank);
+    return (
+      <div className="admin-overlay" onClick={onClose}>
+        <div className="admin-shell" onClick={(e) => e.stopPropagation()}>
+          <header className="admin-header">
+            <div>
+              <div className="section-eyebrow">Redigera</div>
+              <h2><em>Mina</em> redigeringar</h2>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-ghost" onClick={() => { void logoutUser(); onClose(); }}>
+                Logga ut
+              </button>
+              <button className="modal-close" onClick={onClose} aria-label="Stäng">✕</button>
+            </div>
+          </header>
+          <div className="admin-body">
+            <p className="card-meta" style={{ marginBottom: 16 }}>
+              {editorScope === 'all'
+                ? 'Du kan redigera bio och bilder för alla. Tryck Spara för att bekräfta.'
+                : 'Du kan redigera din egen bio och dina bilder. Tryck Spara för att bekräfta.'}
+            </p>
+            {editable.length === 0 ? (
+              <p className="card-meta">Inget att redigera — be admin koppla ditt konto till en person.</p>
+            ) : (
+              <div className="admin-grid">
+                {editable.map((f) => (
+                  <PersonEditor
+                    key={f.id}
+                    friend={f}
+                    note=""
+                    onNoteChange={() => { /* notes are admin-only */ }}
+                    updateFriend={updateFriend}
+                    swapFriends={swapFriends}
+                    prevInTier={null}
+                    nextInTier={null}
+                    uploadPhoto={uploadPhoto}
+                    deletePhoto={deletePhoto}
+                    updateSocials={updateSocials}
+                    restricted
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Quotes: stored as newline-separated string in siteContent['viber_quotes'].
   const initialQuotesRaw = siteContent['viber_quotes'] ?? QUOTES_SEED.join('\n');
@@ -337,9 +399,12 @@ interface PersonEditorProps {
   uploadPhoto: (id: string, dataUrl: string) => Promise<void>;
   deletePhoto: (id: string, position: number) => Promise<void>;
   updateSocials: (id: string, socials: { platform: string; handle: string }[]) => Promise<void>;
+  // Restricted = Court/Stronk editor: only bio, making move + photos.
+  // No name / tier / position / note / socials / delete.
+  restricted?: boolean;
 }
 
-function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, prevInTier, nextInTier, uploadPhoto, deletePhoto, updateSocials }: PersonEditorProps) {
+function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, prevInTier, nextInTier, uploadPhoto, deletePhoto, updateSocials, restricted = false }: PersonEditorProps) {
   const { siteContent: sc, deleteFriend } = useFriendsList();
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [pendingCropDataUrl, setPendingCropDataUrl] = useState<string | null>(null);
@@ -406,51 +471,57 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, p
         </div>
       </div>
 
-      <label className="admin-field">
-        <span>Namn</span>
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
-      </label>
+      {!restricted && (
+        <label className="admin-field">
+          <span>Namn</span>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+      )}
 
-      <label className="admin-field">
-        <span>Tier</span>
-        <select value={tier} onChange={(e) => saveTier(e.target.value)}>
-          {allTiers.map((t) => (
-            <option key={t.id} value={t.id}>{t.letter} — {t.label}</option>
-          ))}
-        </select>
-      </label>
+      {!restricted && (
+        <label className="admin-field">
+          <span>Tier</span>
+          <select value={tier} onChange={(e) => saveTier(e.target.value)}>
+            {allTiers.map((t) => (
+              <option key={t.id} value={t.id}>{t.letter} — {t.label}</option>
+            ))}
+          </select>
+        </label>
+      )}
 
-      <div className="admin-field">
-        <span>Plats i tier</span>
-        <div className="tier-swap">
-          <button
-            type="button"
-            className="tier-swap-btn"
-            disabled={!prevInTier}
-            onClick={() => prevInTier && void swapFriends(friend.id, prevInTier.id)}
-            aria-label={prevInTier ? `Byt plats med ${prevInTier.name}` : 'Redan först i tier'}
-          >
-            <span className="tier-swap-arrow" aria-hidden="true">←</span>
-            <span className="tier-swap-meta">
-              <span className="tier-swap-action">Byt med</span>
-              <span className="tier-swap-name">{prevInTier?.name ?? '— först'}</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            className="tier-swap-btn"
-            disabled={!nextInTier}
-            onClick={() => nextInTier && void swapFriends(friend.id, nextInTier.id)}
-            aria-label={nextInTier ? `Byt plats med ${nextInTier.name}` : 'Redan sist i tier'}
-          >
-            <span className="tier-swap-meta tier-swap-meta-right">
-              <span className="tier-swap-action">Byt med</span>
-              <span className="tier-swap-name">{nextInTier?.name ?? '— sist'}</span>
-            </span>
-            <span className="tier-swap-arrow" aria-hidden="true">→</span>
-          </button>
+      {!restricted && (
+        <div className="admin-field">
+          <span>Plats i tier</span>
+          <div className="tier-swap">
+            <button
+              type="button"
+              className="tier-swap-btn"
+              disabled={!prevInTier}
+              onClick={() => prevInTier && void swapFriends(friend.id, prevInTier.id)}
+              aria-label={prevInTier ? `Byt plats med ${prevInTier.name}` : 'Redan först i tier'}
+            >
+              <span className="tier-swap-arrow" aria-hidden="true">←</span>
+              <span className="tier-swap-meta">
+                <span className="tier-swap-action">Byt med</span>
+                <span className="tier-swap-name">{prevInTier?.name ?? '— först'}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              className="tier-swap-btn"
+              disabled={!nextInTier}
+              onClick={() => nextInTier && void swapFriends(friend.id, nextInTier.id)}
+              aria-label={nextInTier ? `Byt plats med ${nextInTier.name}` : 'Redan sist i tier'}
+            >
+              <span className="tier-swap-meta tier-swap-meta-right">
+                <span className="tier-swap-action">Byt med</span>
+                <span className="tier-swap-name">{nextInTier?.name ?? '— sist'}</span>
+              </span>
+              <span className="tier-swap-arrow" aria-hidden="true">→</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <label className="admin-field">
         <span>Bio</span>
@@ -472,15 +543,17 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, p
         />
       </label>
 
-      <label className="admin-field">
-        <span>Jobblistan-anteckning</span>
-        <input
-          type="text"
-          value={note}
-          onChange={(e) => onNoteChange(e.target.value)}
-          placeholder="Varför här?"
-        />
-      </label>
+      {!restricted && (
+        <label className="admin-field">
+          <span>Jobblistan-anteckning</span>
+          <input
+            type="text"
+            value={note}
+            onChange={(e) => onNoteChange(e.target.value)}
+            placeholder="Varför här?"
+          />
+        </label>
+      )}
 
       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
         <button className="btn btn-purple" onClick={save} disabled={saving} style={{ fontSize: 13, padding: '6px 16px' }}>
@@ -511,14 +584,16 @@ function PersonEditor({ friend, note, onNoteChange, updateFriend, swapFriends, p
         </div>
       </div>
 
-      <SocialsEditor friend={friend} updateSocials={updateSocials} />
+      {!restricted && <SocialsEditor friend={friend} updateSocials={updateSocials} />}
 
-      <button
-        className="btn btn-ghost admin-delete-friend"
-        onClick={() => setConfirmDeleteOpen(true)}
-      >
-        🗑 Ta bort {friend.name}
-      </button>
+      {!restricted && (
+        <button
+          className="btn btn-ghost admin-delete-friend"
+          onClick={() => setConfirmDeleteOpen(true)}
+        >
+          🗑 Ta bort {friend.name}
+        </button>
+      )}
 
       {confirmDeleteOpen && (
         <ConfirmDeleteFriend
