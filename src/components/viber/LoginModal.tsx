@@ -113,6 +113,11 @@ export function LoginModal({ onClose, initialTab = 'login' }: LoginModalProps) {
                 const ok = await registerUser(input);
                 if (ok) onClose();
               }}
+              onPasskeySignup={async (input) => {
+                const ok = await signupWithPasskey(input);
+                if (ok) onClose();
+                return ok;
+              }}
               error={userAuthError}
             />
           )}
@@ -340,9 +345,10 @@ function AdminForm({
 }
 
 function RegisterForm({
-  onSubmit, error,
+  onSubmit, onPasskeySignup, error,
 }: {
   onSubmit: (input: { username: string; password: string; securityQuestion: string; securityAnswer: string }) => Promise<void>;
+  onPasskeySignup: (input: { username: string; securityQuestion: string; securityAnswer: string }) => Promise<boolean>;
   error: string | null;
 }) {
   const [username, setUsername] = useState('');
@@ -351,32 +357,59 @@ function RegisterForm({
   const [customQuestion, setCustomQuestion] = useState('');
   const [answer, setAnswer] = useState('');
   const [busy, setBusy] = useState(false);
+  const [passkeySupported, setPasskeySupported] = useState(false);
+  const [passkeyBusy, setPasskeyBusy] = useState(false);
 
   const usingCustom = questionChoice === '__custom__';
   const question = usingCustom ? customQuestion.trim() : questionChoice;
   const [localErr, setLocalErr] = useState<string | null>(null);
 
+  useEffect(() => {
+    void isPlatformAuthenticatorAvailable().then(setPasskeySupported);
+  }, []);
+
+  // Shared validation for the bits a passkey signup needs (everything
+  // except the password). Returns an error string or null.
+  function validateShared(): string | null {
+    if (username.trim().length < 2) return 'Användarnamn: minst 2 tecken.';
+    if (question.length < 4) return 'Skriv en säkerhetsfråga.';
+    if (!answer.trim()) return 'Skriv ett svar på säkerhetsfrågan.';
+    return null;
+  }
+
   async function handle(e: React.FormEvent) {
     e.preventDefault();
     setLocalErr(null);
-    if (username.trim().length < 2) { setLocalErr('Användarnamn: minst 2 tecken.'); return; }
+    const shared = validateShared();
+    if (shared) { setLocalErr(shared); return; }
     if (password.length < 6) { setLocalErr('Lösenord: minst 6 tecken.'); return; }
-    if (question.length < 4) { setLocalErr('Skriv en säkerhetsfråga.'); return; }
-    if (!answer.trim()) { setLocalErr('Skriv ett svar på säkerhetsfrågan.'); return; }
     setBusy(true);
     await onSubmit({ username, password, securityQuestion: question, securityAnswer: answer });
     setBusy(false);
+  }
+
+  async function handlePasskey() {
+    setLocalErr(null);
+    const shared = validateShared();
+    if (shared) { setLocalErr(shared); return; }
+    setPasskeyBusy(true);
+    try {
+      const ok = await onPasskeySignup({
+        username: username.trim(),
+        securityQuestion: question,
+        securityAnswer: answer,
+      });
+      if (!ok) setLocalErr('Misslyckades. Försök igen eller välj ett annat namn.');
+    } finally {
+      setPasskeyBusy(false);
+    }
   }
 
   return (
     <form onSubmit={handle} className="login-form">
       <label className="admin-field">
         <span>Användarnamn</span>
-        <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus autoComplete="username" />
-      </label>
-      <label className="admin-field">
-        <span>Lösenord (minst 6 tecken)</span>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+        <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus autoComplete="username webauthn" />
       </label>
       <label className="admin-field">
         <span>Säkerhetsfråga</span>
@@ -396,11 +429,31 @@ function RegisterForm({
         <input value={answer} onChange={(e) => setAnswer(e.target.value)} />
       </label>
       <div className="login-hint">
-        Svaret används om du glömmer ditt lösenord. Stora/små bokstäver och mellanslag spelar ingen roll.
+        Svaret används om du glömmer ditt lösenord eller tappar din enhet.
+        Stora/små bokstäver och mellanslag spelar ingen roll.
       </div>
+
+      {passkeySupported && (
+        <>
+          <button
+            type="button"
+            className="btn btn-passkey"
+            onClick={handlePasskey}
+            disabled={passkeyBusy || busy}
+          >
+            <PasskeyIcon /> {passkeyBusy ? 'Väntar på enhet…' : 'Skapa konto med Face ID / Touch ID'}
+          </button>
+          <div className="login-divider"><span>eller med lösenord</span></div>
+        </>
+      )}
+
+      <label className="admin-field">
+        <span>Lösenord (minst 6 tecken)</span>
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+      </label>
       {(localErr || error) && <div className="login-error">{localErr || error}</div>}
       <div className="modal-photo-controls">
-        <button type="submit" className="btn btn-purple" disabled={busy}>
+        <button type="submit" className="btn btn-purple" disabled={busy || passkeyBusy}>
           {busy ? 'Skapar konto…' : 'Skapa konto'}
         </button>
       </div>
