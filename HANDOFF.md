@@ -1,277 +1,260 @@
-# Handoff — The Real Rankings
+# Handoff — Viber Rankings (RRV)
 
-A handoff doc for picking up this project in a new chat. Skim README/ROADMAP/ARCHITECTURE/CLAUDE.md first; this doc covers what's *changed* relative to those plans.
+Pick-up doc for continuing this project in a fresh chat. This is the **single source of truth** for current state — it supersedes the older phase notes in README/ROADMAP/ARCHITECTURE (those describe the early prototype era and are now mostly historical).
 
----
-
-## TL;DR — what this app is now
-
-A private friend tier-list site for Jacob's inner circle (16 people).
-Three pages: **Rankings**, **Making Moves 2027**, **G Map**.
-Light editorial design (cream/ink/gold), a 2-up "showcase" grid, and a click-to-open detail modal with a photo carousel + bio.
-
-- Dev URL: http://localhost:5173 (Vite dev) → proxies `/api` and `/photos` to Express on :3001
-- Live data lives in **Turso** (managed SQLite). Nothing app-related is on disk in the project except source code.
-- The only secret: `ADMIN_PASSWORD` in `.env.local`, plus `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN`.
+_Last updated: through PR #42 (Face ID/Touch ID signup on the register tab). 21 migrations applied._
 
 ---
 
-## Where we are vs the ROADMAP
+## TL;DR — what this app is
 
-| Roadmap phase | Status |
+A **private friend tier-list site** for a Swedish friend group (~16 people), live at **viberrankings.se**. Started as a single-file HTML prototype, now a real React + Express + Turso app deployed on **Vercel**.
+
+**Pages / sections** (single-page app with hash routing for the heavy pages):
+- **Tier** (Rankings) — the tier list, the core feature
+- **Jobblistan** (Leaderboard) — job/ranking list
+- **G's** (G Map) — who lives near whom, driving distances
+- **Making Moves** — what everyone's "current move" is
+- **Events** — events + polls (Yes/Nej/Kanske + custom answers)
+- **Lunch 🎟** — lunch-ticket debt tracker (multi-creditor)
+- **Hall of Fame 🏆** (`#hall-of-fame`) — Instagram/YouTube-style feed (images/videos/YouTube embeds), comments, like/dislike, views, sort, share
+- **Catan 🎲** (`#catan`) — Catan stats page
+
+**Two repos / two paths — IMPORTANT:**
+- `/Users/jacobercan/Documents/Projects/RRV/` — **the real git clone. All work happens here.**
+- `/Users/jacobercan/Documents/Projects/RRV-main/` — a zip-extracted copy that is the Claude Code **cwd**. The shell resets here between calls, so always `cd /Users/jacobercan/Documents/Projects/RRV` first (or use absolute paths).
+
+---
+
+## Stack
+
+| Layer | Tech |
 | --- | --- |
-| Phase 0 — prototype | ✅ Preserved at [`prototype/index.html`](prototype/index.html). `npm run prototype` to view. |
-| Phase 1 — frontend modernization | ✅ Vite + React 19 + TS + Tailwind v4. All three pages ported with full feature parity. |
-| Phase 2 — real backend | ✅ Express + libSQL (Turso). Photos as BLOBs in DB. Admin auth with bearer tokens. |
-| Phase 3 — real distances on G Map | ✅ Nominatim geocoder, haversine + greedy pairing. 14/16 friends geocoded. |
-| Phase 4 — polish & extras | 🟡 In progress. Light theme, multi-photo per friend, bios, click-to-open modal landed. |
-| Phase 5 — deploy | ⏳ Not started. |
+| Frontend | React 19 + Vite 8 + TypeScript 6 (strict + noUnusedLocals/Parameters) |
+| Styling | Tailwind v4 (`@tailwindcss/vite`) + one big `src/index.css` (~3000 lines, single file by design) |
+| Backend | Express 5, run as a **Vercel serverless function** (`api/server.ts`) |
+| DB | **Turso** (managed libSQL/SQLite) via `@libsql/client/web` — **remote only, no local file fallback** |
+| Auth | scrypt password hashing (`node:crypto`, no external lib) + WebAuthn/passkeys (`@simplewebauthn/*` v13) |
+| Hosting | Vercel (frontend static + serverless API). Domain: viberrankings.se |
+
+Build: `tsc -b && vite build`. Output `dist/`. Vercel config in `vercel.json`.
 
 ---
 
-## What changed last (most recent → oldest)
+## Local dev
 
-### Pass C + Modal (just landed — needs visual QA)
-- **Site renamed** "FriendsList" / "The Friends List" → **"The Real Rankings"** in all user-facing copy. (Internal hook names like `useFriendsList` kept — internal only, would churn every component.)
-- **`friend_photos` table** (migration 004) — multi-photo per friend, BLOBs ordered by `position`. Old single-photo columns dropped. Existing photos forward-migrated.
-- **`friends.bio` column** (migration 005) — funny default bios (migration 006) for all 16. Editable in admin mode.
-- **2nd placeholder photo per friend** — every friend has ≥2 photos via `npm run seed-placeholders` (Andre had 3 from earlier admin uploads). SVG portraits with initial + tier-color gradient. So the carousel always has something to flip between.
-- **`PersonDetailModal`** — clicking any card opens a rectangular modal: photo carousel (← → arrows in-photo, dot indicator, keyboard arrows, Esc closes) on the left, rank + name + bio + meta on the right. Mobile stacks. Esc, backdrop click, X-button all close. Spring-y open animation (`scale 0.96 → 1`, 320 ms, custom ease-out).
-- **`PersonCard` simplified** — now a tappable preview (rank, photo, name, sublabel, short bio teaser, "Öppna →" hint on hover). Click anywhere or press Enter/Space → modal.
+```bash
+cd /Users/jacobercan/Documents/Projects/RRV
+npm run dev          # concurrently: api (tsx watch :3001) + web (vite :5173)
+# vite proxies /api, /photos, /hall/blob → :3001
 
-### Earlier Pass A (cream/ink theme)
-- Switched from dark editorial to **warm cream** (`#f7f3eb`) palette. All accents retuned for contrast on light bg. Paper grain at 4 % (multiply blend). Bigger orbs at lower opacity.
-- **2-up showcase grid** for Rankings (`repeat(2, minmax(0, 1fr))`).
-- Big square photos (~240–280 px) instead of small circles.
+npx tsc -b --force   # typecheck (do this before every commit)
+npx vite build       # full prod build sanity check
+```
 
-### Earlier polish (Emil-design pass)
-- Custom easing curves (`--ease-out`, `--ease-in-out`, `--ease-drawer`).
-- Press feedback (`scale(0.97)`) on every clickable.
-- Stagger entrance (tier sections + G Map pairs).
-- `@starting-style` for entries, page-level fade-in on tab switch.
-- Marquee ticker strip (per-page tone), magnetic tier letters, giant roman-numeral section markers, film grain overlay.
-- `prefers-reduced-motion` strips translation/scale/grain, keeps opacity.
+**Secrets live in `.env.local` (gitignored):**
+- `ADMIN_PASSWORD` — the legacy password-admin login
+- `TURSO_DATABASE_URL` = `libsql://friendslist-hundra0.aws-eu-west-1.turso.io`
+- `TURSO_AUTH_TOKEN`
+
+**Vercel env vars** (set in dashboard) additionally include:
+- `RP_ID=viberrankings.se`, `RP_NAME=Viber Rankings` (WebAuthn relying-party)
+- the same `ADMIN_PASSWORD` + `TURSO_*`
+
+There is **no local SQLite** — even dev talks to the real Turso DB. Be mindful: dev writes hit production data.
 
 ---
 
-## File map
+## Git / deploy workflow (follow this exactly)
+
+The user works PR-by-PR. Standard loop for any change:
+
+```bash
+cd /Users/jacobercan/Documents/Projects/RRV
+git checkout main && git pull
+git checkout -b feat/short-name           # or fix/...
+# ... make changes ...
+npx tsc -b --force                         # must be clean
+git add -A && git commit -m "…"            # see commit style below
+git push -u origin feat/short-name
+gh pr create --title "…" --body "…"
+gh pr merge --merge --delete-branch        # squash not used; plain merge
+```
+
+- **Merging to main auto-deploys to Vercel.**
+- Commit/PR co-author trailer: `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` and PR body footer `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
+- `gh` is authenticated. Repo: **HUNDRA0/RRV**.
+- The local git identity prints a noisy "name/email configured automatically" warning on commit — harmless, ignore it.
+
+### ⚠️ Migrations need a manual step
+The migration runner (`server/db.ts` → `runMigrations`) runs on serverless boot, but to avoid the live deploy 500-ing on first request after a schema change, **apply new migrations to Turso directly before merging**. Pattern used repeatedly this session — write a throwaway script in the repo root and run it:
+
+```js
+// _apply_NNN.mjs  (delete after running)
+import { createClient } from '@libsql/client';
+import { readFileSync } from 'node:fs';
+const env = readFileSync('.env.local','utf8').split('\n').reduce((a,l)=>{const [k,...r]=l.split('=');if(k&&r.length)a[k.trim()]=r.join('=').trim();return a;},{});
+const db = createClient({ url: env.TURSO_DATABASE_URL, authToken: env.TURSO_AUTH_TOKEN });
+const name = 'NNN_xxx.sql';
+if ((await db.execute({sql:"SELECT 1 FROM _migrations WHERE name=?",args:[name]})).rows.length) { console.log('already applied'); process.exit(0); }
+await db.executeMultiple(readFileSync(`server/migrations/${name}`,'utf8'));
+await db.execute({ sql:'INSERT INTO _migrations (name) VALUES (?)', args:[name] });
+console.log('applied');
+```
+```bash
+node _apply_NNN.mjs && rm _apply_NNN.mjs    # run inside RRV/ so @libsql/client resolves
+```
+
+---
+
+## File map (current)
 
 ```
-.env.local                  ADMIN_PASSWORD + TURSO_*  (gitignored)
-.env.example                template
-.claude/launch.json         3 dev-server configs (web/api/prototype) for preview_start
-HANDOFF.md                  ← this doc
-README.md                   high-level overview
-ROADMAP.md                  phase plan
-ARCHITECTURE.md             prototype's structure (mostly historical now)
-CLAUDE.md                   project-wide instructions for Claude
+api/server.ts              Vercel serverless entry — boots Express, CSP headers, mounts routers
+vercel.json                build + rewrites (/api, /photos, /hall/blob → serverless fn)
+.env.local                 secrets (gitignored)
 
 server/
-├── index.ts                Express boot + migrations + seed
-├── db.ts                   libSQL client + queryAll/queryOne/exec helpers + runMigrations
-├── seed.ts                 seedIfEmpty — populates friends + position-1 photos on fresh DB
-├── routes.ts               every /api endpoint + photosRouter at root
-├── lib/
-│   ├── photos.ts           data-URL → bytes decoder
-│   └── gmap.ts             haversine + greedy pairing + distance buckets
-├── migrations/
-│   ├── 001_initial.sql     friends + predictions + admin_sessions
-│   ├── 002_geocoding.sql   adds lat/lon/area/geocoded_at to friends
-│   ├── 003_add_george.sql  inserts Gogo as friend #16
-│   ├── 004_friend_photos.sql  carousel-friendly photos table; drops legacy photo cols
-│   ├── 005_bio.sql         adds friends.bio
-│   └── 006_default_bios.sql funny defaults for all 16
-└── scripts/
-    ├── geocode.ts          npm run geocode  (Nominatim, 1.1 s/req)
-    └── seed-placeholder-photos.ts  npm run seed-placeholders  (SVG portraits)
+├── index.ts               local Express boot (mirrors api/server.ts for `npm run dev`)
+├── db.ts                   libSQL client + queryAll/queryOne/exec + runMigrations
+├── seed.ts                 seedIfEmpty (fresh-DB friend seed)
+├── auth.ts                 scrypt hash/verify, session token load, requireUser + attachUser
+│                           middleware, UserRole type + permission helpers
+├── auth-routes.ts          /api/auth/* (register, login, logout, me, recover, avatar)
+├── passkey-routes.ts       /api/auth/passkey/* (register/login/signup start+finish)
+├── hall-routes.ts          /api/hall/* (posts, comments, reactions, views, blob serving)
+├── catan-routes.ts         /api/catan/*
+├── routes.ts               core /api (friends, predictions, gmap, content, users) + requireAdmin
+│                           + requireAdminOrRole middleware
+├── lib/{gmap.ts, photos.ts}
+├── migrations/             001 … 021 (see below)
+└── scripts/{geocode.ts, seed-placeholder-photos.ts}
 
 src/
-├── App.tsx                 page switcher + tickers + roman-numeral markers
 ├── main.tsx                Provider wrap
-├── index.css               ALL the styles (~1 100 lines, single file by design)
-├── data/
-│   ├── friends.ts          types + TIERS + TIER_ORDER + FRIENDS seed (server only) + helpers
-│   └── initialPhotos.ts    base64 of 11 friends' photos (used only by server seed)
+├── Root.tsx                hash router: #catan → CatanPage, #hall-of-fame → HallOfFamePage (both lazy), else App
+├── App.tsx                 main page shell, section composition, modal wiring
+├── index.css               ALL styles (single file)
+├── data/friends.ts         types + seed (server side)
 ├── lib/
-│   ├── api.ts              fetch wrappers + DTOs (Friend, ApiPrediction, ApiGMap, …)
-│   └── state.tsx           FriendsListProvider + useFriendsList()
-└── components/
-    ├── BgDecoration.tsx
-    ├── TopNav.tsx          nav + login/logout
-    ├── Marquee.tsx         continuous ticker, tone-themed per page
-    ├── MagneticLetter.tsx  cursor-tracking decorative wrapper
-    ├── Masthead.tsx        Rankings page title
-    ├── TierSection.tsx     S / A / ? sections
-    ├── PersonCard.tsx      ← clean preview, click → modal
-    ├── PersonDetailModal.tsx  ← THE NEW THING. Photo carousel + bio + admin edits.
-    ├── MovesPage.tsx + MovesSubmitForm + MovesBoard + CountdownBadge
-    ├── GMapPage.tsx + GPairCard + GLessCard
-    └── …
+│   ├── api.ts              fetch wrappers + DTOs + tokenStore/userTokenStore (separate localStorage keys)
+│   ├── state.tsx           FriendsListProvider + useFriendsList() — the central store + all actions + perms
+│   ├── passkey.ts          WebAuthn browser flows (register/login/signup)
+│   ├── hallApi.ts          Hall of Fame fetch wrappers
+│   ├── compressVideo.ts    client-side MediaRecorder re-encode for big videos
+│   ├── socials.ts          12 social platforms (icons/colors/url builders)
+│   └── theme.ts            admin theme overrides (CSS vars + data-attrs) + Google Font presets
+└── components/viber/
+    ├── StickyNav.tsx       top nav, tab indicator, hamburger, UserMenu
+    ├── UserMenu.tsx        account dropdown (login/register/recover, Admin Console, Redigera, Mitt konto, logout)
+    ├── LoginModal.tsx      3 tabs: Logga in / Skapa konto / Glömt — both login+register have passkey option
+    ├── AdminConsole.tsx    full admin console (tabs) + RESTRICTED editor mode for Court/Stronk (editorScope prop)
+    ├── ProfileSettingsModal.tsx   user avatar upload (PhotoCropModal)
+    ├── PhotoCropModal.tsx  square crop editor, drag-pan + pinch/wheel zoom → 800×800 JPEG
+    ├── HallOfFamePage.tsx  feed, upload modal, lightbox, comments, reactions, views, sort, share (lazy)
+    ├── PersonCard.tsx, PersonModal.tsx, PhotoCell.tsx
+    ├── RankingsSection / LeaderboardSection / GMapSection / MovesSection / EventsSection / LunchSection
+    ├── PollsBlock.tsx, QuoteTicker.tsx, SocialChips.tsx, TierSection.tsx, Hero.tsx, AuroraBg.tsx
+    ├── tier-map.ts          dynamic tier config parsing
+    └── EditBanner.tsx ⚠️DEAD   Editable.tsx ⚠️INERT   (see Cleanup below)
 ```
 
 ---
 
-## Data model (Turso DB)
+## Roles & permissions (current model)
+
+Five roles on `users.role`: **`admin`, `court`, `stronk`, `peasant`, `user`**.
+
+| Role | Friend bio + photos | Address fields | Tier/rank/name/socials/delete | HoF: delete any post | Role assignment |
+| --- | --- | --- | --- | --- | --- |
+| **admin** | ✅ all | ✅ | ✅ | ✅ | ✅ |
+| **court** | ✅ all | ❌ | ❌ | ✅ | ❌ |
+| **stronk** | ✅ own linked friend only | ❌ | ❌ | ❌ | ❌ |
+| **peasant** | ❌ (view) | ❌ | ❌ | ❌ | ❌ |
+| **user** | ❌ (view + comment/like) | ❌ | ❌ | ❌ | ❌ |
+
+Key facts:
+- **A `role='admin'` user account = full equivalence with the password admin.** No separate login. `requireAdmin` (server) accepts either an `admin_sessions` token OR a user session whose role is `admin`. Frontend `isAdmin = adminViaToken || currentUser.role === 'admin'`.
+- **`users.linked_friend_id`** ties a Stronk account to one friend record. Admin sets role + linked friend in **Admin Console → "Roller"** tab.
+- **Address (street/postcode/city/lat/lon) is admin-only** — server rejects address edits from court/stronk with 403.
+- **Editing is console-only now.** The old inline "Edit mode" toggle + per-card affordances were removed. Everyone edits via a console opened from the account menu:
+  - admin → full **Admin Console** ("Admin Console" menu item)
+  - court/stronk → **restricted editor** ("Redigera" menu item) = `AdminConsole` with `editorScope` prop (`'all'` for court, `string[]` of linked ids for stronk). Renders only bio + making-move + photos per person, each with an explicit **Spara** button + "✓ Sparat" confirmation.
+- Permission helpers live in `server/auth.ts` (`canEditFriend`, `canEditFriendAddress`, `canDeleteAnyHallPost`, `canEditAnyFriend`) and are mirrored in `src/lib/state.tsx` (`canEditAnyFriend`, `canEditFriendById`, `canEditAddress`, `canDeleteAnyHallPost`).
+- Server middleware `requireAdminOrRole(allowedRoles)` guards friend-edit endpoints; frontend `api.ts` uses an `adminOrUser: true` request option that sends whichever token exists (admin token preferred, else user token).
+
+---
+
+## Auth details
+
+- **Two localStorage tokens**: `friendslist_admin_token` (admin) + `rrv_user_token` (user). Managed by `tokenStore` / `userTokenStore` in `api.ts`.
+- **Synthetic `__admin__` user**: admin password login also issues a parallel user session for a fake `__admin__` user so admin can use user-gated features (polls, HoF). It's filtered out of the `GET /api/users` list.
+- **Passkeys (Face ID / Touch ID)**: register, login, AND anonymous signup all supported. Signup-with-passkey collects username + security question + answer (for recoverability if device lost). Available on BOTH the **Logga in** tab (shortcut) and the **Skapa konto** tab (PR #42). `RP_ID`/`RP_NAME` env vars required.
+- **Password recovery** = security-question challenge (`/api/auth/recover/start` → returns question, `/finish` → verify answer + set new password). Passkey-only accounts recover the same way.
+
+---
+
+## Hall of Fame (the big recent feature area)
+
+`#hall-of-fame`, lazy-loaded. Reachable only via the nav menu (like Catan).
+
+- **Post kinds**: `image`, `video` (both BLOB in Turso), `youtube` (stores 11-char id, embeds iframe).
+- **SECURITY (explicit user requirement)**: only image/video may be uploaded. Enforced server-side by mime allowlist + **magic-byte sniffing** (rejects a `.php` renamed to `.jpg`). YouTube URLs parsed via regex → canonical `/embed/{id}`. CSP allows `frame-src` youtube + `media-src 'self' blob:`, `X-Content-Type-Options: nosniff` on blobs.
+- **Vercel 4.5 MB body cap workaround**: uploads go as **raw binary** to `POST /hall/posts/binary` (not base64 JSON, which inflates ~33%). Videos over 4 MB are **re-encoded client-side** via `MediaRecorder` (`lib/compressVideo.ts`) down to fit, with a progress bar. iOS Safari lacks `captureStream` → clear error, fall back to YouTube. Source video cap 100 MB; image cap 4 MB.
+- **Engagement**: comments (avatar + name + delete-own/admin/court), like/dislike (one reaction per user/post, optimistic toggle), **view count** (IntersectionObserver: counts after ≥50% visible ≥1.5 s, deduped per session via sessionStorage), **sort** (newest/oldest/most_viewed/most_liked/most_disliked — server-side allowlisted ORDER BY), **filter tabs** (Alla/Bilder/Videor), **image lightbox** (zoom/pan), **share** (Web Share API on phones, clipboard + toast on desktop; deep link `#hall-of-fame?post=ID` scrolls + flashes the target).
+- Guests can view + see counts; tapping like/dislike/comment opens the login modal.
+
+---
+
+## Migrations (Turso)
 
 ```
-friends
-  id TEXT PK              ('mario', 'george' = Gogo, …)
-  name TEXT
-  rank INTEGER UNIQUE     1..16
-  tier 's' | 'a' | 'i'
-  street, postcode, city
-  note TEXT               (mostly empty; one preset for Joseph)
-  bio TEXT                ← funny default bios
-  lat, lon REAL           ← from Nominatim
-  area TEXT               ← neighborhood from reverse geocode
-  geocoded_at TEXT
-  created_at, updated_at
-
-friend_photos             ← carousel data
-  id INTEGER PK AUTOINC
-  friend_id TEXT REFS friends(id) ON DELETE CASCADE
-  position INTEGER        (1-based, unique per friend, repacked on delete)
-  photo_data BLOB
-  photo_mime TEXT
-  uploaded_at TEXT
-  UNIQUE (friend_id, position)
-
-predictions
-  id INTEGER PK AUTOINC
-  guesser_name, friend_id, prediction_text
-  marked_correct 0|1
-  created_at
-
-admin_sessions
-  token TEXT PK           (256 random bits, 7-day TTL)
-  created_at, expires_at
+001 initial (friends, predictions, admin_sessions)   012 dynamic_tiers
+002 geocoding                                          013 catan
+003 add_george                                         014 users_and_polls
+004 friend_photos                                      015 friend_socials
+005 bio                                                016 passkeys
+006 default_bios                                        017 hall_of_fame
+007 current_move                                        018 user_avatars
+008 job_leaderboard / 008 route_cache                  019 hall_engagement (comments+reactions)
+009 site_content / 009 jacob_postcode                  020 user_roles (court/stronk/peasant + linked_friend_id)
+010 lb_order                                            021 hall_view_count
+011 joseph_tier
 ```
 
-DTO shape returned by `GET /api/friends`:
-```ts
-{
-  id, name, rank, tier,
-  address: { street, postcode, city },
-  note, bio,
-  photoUrl: '/photos/mario/1?v=…' | null,   // first photo, convenience
-  photos: [{ url, position }, …],            // carousel-ready
-  lat, lon, area
-}
-```
+Note the two pairs of duplicate-numbered files (008, 009) — historical, both apply, runner tracks by filename in `_migrations`.
+
+Key tables added this era: `users`, `user_sessions`, `polls`/`poll_options`/`poll_votes`, `friend_socials`, `passkeys`, `hall_of_fame_posts`, `hall_of_fame_comments`, `hall_of_fame_reactions`. `users` has `avatar_data/avatar_mime/avatar_updated_at`, `role` (5-value CHECK), `linked_friend_id`. `hall_of_fame_posts` has `view_count`.
 
 ---
 
-## API surface (in [server/routes.ts](server/routes.ts))
+## Known cleanup / loose ends
 
-| Method | Path | Auth | What |
-| --- | --- | --- | --- |
-| GET | `/api/health` | — | `{ ok, ts, friends }` |
-| POST | `/api/admin/login` | — | password → `{ token, expiresAt }` (7 d TTL) |
-| POST | `/api/admin/logout` | bearer | invalidate token |
-| GET | `/api/admin/check` | bearer | confirm token still valid |
-| GET | `/api/friends` | — | rank-ordered friends with photos[] + bio |
-| PUT | `/api/friends/:id` | bearer | update `name`, `note`, and/or `bio` |
-| POST | `/api/friends/:id/photo` | bearer | dataUrl → append at position max+1 |
-| DELETE | `/api/friends/:id/photos/:position` | bearer | remove + repack positions |
-| GET | `/api/gmap` | — | `{ pairs, gLessIds, pending, geocodedCount, totalCount }` |
-| GET | `/api/predictions` | — | newest first |
-| POST | `/api/predictions` | — | submit anonymous prediction |
-| PATCH | `/api/predictions/:id` | bearer | flip `correct` |
-| GET | `/photos/:id/:position` | — | streams BLOB with mime + cache-bust |
-| GET | `/photos/:id` | — | back-compat → position 1 |
-
-All admin-only routes use `requireAdmin` middleware; tokens come from `Authorization: Bearer <hex>`.
+1. **`src/components/viber/EditBanner.tsx` is fully dead** — no imports after the edit-mode removal (PR #40). Safe to delete.
+2. **`Editable.tsx` is inert** — still imported by `PersonModal.tsx` + `MovesSection.tsx`, but `App.tsx` now hardwires `const isEditing = false`, so it always renders read-only. The edit branches can be stripped, or the component removed and call sites simplified.
+3. **`state.tsx` `isEditMode` / `toggleEditMode` / `isEditing`** are no longer consumed outside the store (App uses a local `isEditing = false`). Dead-ish; could be removed from the context type.
+4. **`[seed]`-tagged Hall of Fame demo posts** exist in Turso (5 sample posts inserted via a one-off script: 3 images, 1 video, 1 YouTube — captions all end with `[seed]`). Delete when real content arrives: `DELETE FROM hall_of_fame_posts WHERE caption LIKE '%[seed]%'`.
+5. **Older docs are stale** — README/ROADMAP/ARCHITECTURE describe the prototype/early phases. This HANDOFF is current; the others are historical.
 
 ---
 
-## Dev workflow
+## Working style (from CLAUDE.md + this session)
 
-```bash
-# Both servers (web + api), color-tagged in one terminal
-npm run dev
-
-# Or each separately
-npm run dev:client    # vite, port 5173
-npm run dev:server    # tsx watch, port 3001
-
-# One-shot scripts
-npm run geocode                  # Nominatim, fills missing lat/lon (1.1s/req)
-npm run geocode -- --all         # re-geocode every friend
-npm run seed-placeholders        # ensures every friend has ≥2 photos
-
-# Production build
-npm run build         # tsc -b && vite build → dist/
-npm run preview       # serve dist on :4173
-
-# Legacy reference
-npm run prototype     # serve old single-file HTML
-```
-
-`.claude/launch.json` describes web/api/prototype for `preview_start` if you want managed previews.
+- User speaks **Swedish + English** — match whatever they use (they mostly write Swedish). UI copy is Swedish.
+- Comfortable with web concepts, not deeply technical with build tools/DBs. Explain choices in plain language.
+- **Small, working steps**; one feature per PR; typecheck before every commit.
+- Light cream/ink/gold editorial theme. Don't regress to dark by default (dark mode is a user toggle).
+- When a change needs a product decision you can't infer, ask briefly (the `AskUserQuestion` flow worked well — e.g. clarifying what "bio" meant for roles).
+- The user enjoys iterating on the Hall of Fame and the friend cards; lots of small UX polish requests.
 
 ---
 
-## Things that work now (manual QA checklist)
+## Quick "what would I build next" ideas (none requested yet)
 
-- [ ] Open http://localhost:5173 → cream theme, Rankings 2-up grid, all 16 cards
-- [ ] Click any card → modal opens with smooth scale-in
-- [ ] Modal: ← → arrows or keyboard arrows flip between the 2 photos. Dots highlight.
-- [ ] Modal: Esc / X / backdrop click closes. Body scroll restored.
-- [ ] Login as admin (password in `.env.local`) → name + bio in modal become editable.
-- [ ] Admin: "+ Lägg till bild" inside modal appends a 3rd photo. Carousel grows.
-- [ ] Admin: "Ta bort denna" deletes the current photo + repacks positions.
-- [ ] G Map: 7 pairs (Joseph & Gogo, Emanuel & Andre, etc.). Real distances.
-- [ ] Moves: countdown, submit form, columns per friend.
-- [ ] `prefers-reduced-motion`: no scale/translate, opacity-only crossfades.
+- Livestream embed (discussed, not built): cheapest = YouTube Live unlisted iframe (CSP already allows YouTube); group-call = Daily.co/Whereby embed. User was "just curious".
+- Do the EditBanner/Editable dead-code cleanup.
+- Per-section empty/long-content edge cases on the cards.
 
 ---
 
-## Known unfinished / next-up
-
-1. **Real photos for the 5 without one (Andre, Jacob, Fredrik, Joel, Gogo).**
-   Loose `.HEIC`/`.JPG` files exist in `~/Downloads/Claude grejer/` (Andre.HEIC, Jacob — actually missing, Fredrik.HEIC, Joel — missing, Gogo — missing). Could write a one-shot script: convert HEIC → JPEG via macOS `sips`, then POST to `/api/friends/:id/photo`. This would replace placeholder SVGs with real shots.
-
-2. **Bio length.** Currently shown in full on the card. If bios get long (admin can write whatever), the cards may grow uneven. Could clamp to 3 lines on the card with `-webkit-line-clamp: 3` and full text in modal. Easy tweak — say the word.
-
-3. **Tab fairness for cards.** Tab order through 16 cards is long. Consider a "Skip to Moves" link or grouping by tier with `<section role>` for screen readers.
-
-4. **The G Map "Robin alone" outcome.** Greedy pairing leaves Robin (Brunnsäng/Ritorp) unmatched because Joel pairs with Christian first. Mathematically correct; might feel off. Could swap to **min-cost perfect matching** (blossom algorithm) if desired — but `O(N⁴)` is overkill for 16 nodes.
-
-5. **Phase 5 deploy.** Easiest path: Render or Fly.io for the Express server. Vite output can sit on Vercel/Netlify and proxy to the API host. Or one Fly app serving both via Express static. Need a domain.
-
-6. **Photo upload UX.** Drag-drop into the modal photo frame would feel nicer than the file input. Optional polish.
-
-7. **Emil's photo crossfade-with-blur trick** — when changing carousel photos, currently a 250 ms opacity crossfade. Could add `filter: blur(2px)` during the transition for the masking effect Emil recommends. Easy 5-line change.
-
----
-
-## Asks if you're picking this up
-
-The user said "We are going to make changes to the site" and is iterating fast. Default to:
-- **Tone:** Swedish-leaning Swenglish, lightly self-aware, "ranking committee" voice.
-- **Theme:** Light cream/ink/gold. Don't go back to dark.
-- **Copy:** Prefer "Topp 16" framing.
-- **Pace:** Small focused passes, check in between large changes (per [CLAUDE.md](CLAUDE.md) and stored memory).
-- **Skill in play:** [Emil Kowalski's design engineering skill](~/.claude/skills/emil-design-eng/SKILL.md) — review format = Before/After/Why markdown table.
-- **Unsaved sites in their references:** awwwards.com + asendomedia.se (Swedish agency style — light, alive, generous typography).
-
-Stored memory facts about the user (in `~/.claude/projects/-Users-jacobercan-Downloads-friendslist-project/memory/`):
-- Comfortable with web dev concepts but not deeply technical with build tools/databases. Speaks Swedish + English.
-- Prefers small working steps; confirm before moving between roadmap phases.
-
----
-
-## Reach the running stack from a fresh shell
-
-```bash
-export PATH="$HOME/.local/node/bin:$PATH"   # Node was installed in $HOME/.local/node
-cd /Users/jacobercan/Downloads/friendslist-project
-npm run dev
-# → web on http://localhost:5173, api on http://localhost:3001
-```
-
-Process state lives in `/tmp/dev.pid` and `/tmp/dev.log` (current session). Kill stale dev with `pkill -f concurrently`.
-
----
-
-That's the whole picture. Good luck.
+That's the whole picture as of PR #42. Start by `cd /Users/jacobercan/Documents/Projects/RRV`, `git pull`, `npm run dev`, and read this file. Good luck.
