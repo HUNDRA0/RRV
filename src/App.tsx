@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AuroraBg } from './components/viber/AuroraBg';
 import { StickyNav } from './components/viber/StickyNav';
 import { Hero } from './components/viber/Hero';
@@ -50,12 +50,9 @@ export function App() {
   })();
   const canUseEditor = editorScope !== null;
 
-  // Auto-open admin console the first time isAdmin flips on (post-login).
-  const wasAdmin = useRef(false);
-  useEffect(() => {
-    if (isAdmin && !wasAdmin.current) setAdminConsoleOpen(true);
-    wasAdmin.current = isAdmin;
-  }, [isAdmin]);
+  // The admin console is only ever opened on purpose — from the account
+  // menu ("Admin Console"). We deliberately do NOT auto-open it on login
+  // or session restore, so landing on the site never throws you into it.
   const [theme, setTheme] = useLocalState<'light' | 'dark'>('vr.theme', 'light');
 
   const active = useActiveSection(SECTION_IDS);
